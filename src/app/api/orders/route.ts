@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const docNo = Date.now().toString().slice(-12);
+    const phone = attributes.phone.replace(/\D/g, ''); // digits only
 
     const orderData = {
       data: {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
           docNo,
           delivery: true,
           deliveryContact: attributes.customerName,
-          deliveryPhoneNumber: attributes.phone,
+          deliveryPhoneNumber: phone,
           deliveryComments: [attributes.address, attributes.comment].filter(Boolean).join(' — '),
           ...(attributes.dueTime ? { dueTime: attributes.dueTime } : {}),
         },
