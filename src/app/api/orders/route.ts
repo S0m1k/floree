@@ -1,29 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { posifloraFetch } from '@/lib/posiflora';
 
+const STORE_ID = process.env.POSIFLORA_STORE_ID!;
+const SOURCE_ID = process.env.POSIFLORA_SOURCE_ID!;
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   try {
     const { bouquetIds, attributes } = body;
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const docNo = `WEB-${Date.now()}`;
 
     const orderData = {
       data: {
         type: 'orders',
         attributes: {
           status: 'new',
-          phone: attributes.phone,
-          customerName: attributes.customerName,
-          address: attributes.address,
-          comment: attributes.comment,
+          date: today,
+          docNo,
+          delivery: true,
+          deliveryContact: attributes.customerName,
+          deliveryPhoneNumber: attributes.phone,
+          deliveryComments: [attributes.address, attributes.comment].filter(Boolean).join(' — '),
           ...(attributes.dueTime ? { dueTime: attributes.dueTime } : {}),
         },
-        relationships: bouquetIds?.length
-          ? {
-              bouquets: {
-                data: bouquetIds.map((id: string) => ({ type: 'bouquets', id })),
-              },
-            }
-          : undefined,
+        relationships: {
+          store: { data: { type: 'stores', id: STORE_ID } },
+          source: { data: { type: 'order-sources', id: SOURCE_ID } },
+          ...(bouquetIds?.length
+            ? { bouquets: { data: bouquetIds.map((id: string) => ({ type: 'bouquets', id })) } }
+            : {}),
+        },
       },
     };
 
