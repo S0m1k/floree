@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { bouquetIds, attributes } = body;
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const docNo = `WEB-${Date.now()}`;
+    const docNo = Date.now().toString().slice(-12);
 
     const orderData = {
       data: {
