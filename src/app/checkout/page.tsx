@@ -53,10 +53,10 @@ export default function CheckoutPage() {
 
     try {
       // Build dueTime from deliveryDate + deliveryTime if provided
-      let dueTime: string | null = null;
+      let dueTime: string | undefined;
       if (form.deliveryDate) {
         const timeStr = form.deliveryTime || '12:00';
-        dueTime = `${form.deliveryDate}T${timeStr}:00`;
+        dueTime = `${form.deliveryDate}T${timeStr}:00+00:00`;
       }
 
       const res = await fetch('/api/orders', {

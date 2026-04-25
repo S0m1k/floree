@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
           customerName: attributes.customerName,
           address: attributes.address,
           comment: attributes.comment,
-          dueTime: attributes.dueTime || null,
+          ...(attributes.dueTime ? { dueTime: attributes.dueTime } : {}),
         },
         relationships: bouquetIds?.length
           ? {
