@@ -42,7 +42,7 @@ export default function Header() {
                 href="/catalog"
                 className="text-gray-700 hover:text-rose-600 font-medium transition-colors text-sm tracking-wide uppercase"
               >
-                Каталог
+                Витрина
               </Link>
               <Link
                 href="/#about"
@@ -109,7 +109,7 @@ export default function Header() {
                   onClick={() => setMenuOpen(false)}
                   className="px-4 py-2.5 text-gray-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg font-medium transition-colors"
                 >
-                  Каталог
+                  Витрина
                 </Link>
                 <Link
                   href="/#about"

@@ -52,24 +52,24 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
+      // Build dueTime from deliveryDate + deliveryTime if provided
+      let dueTime: string | null = null;
+      if (form.deliveryDate) {
+        const timeStr = form.deliveryTime || '12:00';
+        dueTime = `${form.deliveryDate}T${timeStr}:00`;
+      }
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          bouquetIds: items.map((i) => i.id),
           attributes: {
             customerName: form.customerName,
             phone: form.phone,
             address: form.address,
-            deliveryDate: form.deliveryDate,
-            deliveryTime: form.deliveryTime,
             comment: form.comment,
-            items: items.map((i) => ({
-              id: i.id,
-              title: i.title,
-              price: i.price,
-              quantity: i.quantity,
-            })),
-            totalPrice: totalPrice(),
+            dueTime,
           },
         }),
       });
@@ -126,7 +126,7 @@ export default function CheckoutPage() {
             href="/catalog"
             className="inline-flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-semibold px-8 py-3.5 rounded-2xl transition-colors"
           >
-            Перейти в каталог
+            Перейти на витрину
           </Link>
         </div>
       </div>
