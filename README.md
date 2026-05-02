@@ -67,11 +67,11 @@ cp .env.example .env
 
 ```env
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/floree
-POSIFLORA_BASE_URL=https://floreii.posiflora.com/api
-POSIFLORA_USERNAME=Somova
-POSIFLORA_PASSWORD=Somova2025
-POSIFLORA_STORE_ID=04797ede-f160-408a-b54e-96b4cd7282c3
-POSIFLORA_SOURCE_ID=f128f295-5f2a-41b5-b63d-e6e1d6dbd4d5
+POSIFLORA_BASE_URL=https://your-shop.posiflora.com/api
+POSIFLORA_USERNAME=your_username
+POSIFLORA_PASSWORD=your_password
+POSIFLORA_STORE_ID=your_store_uuid
+POSIFLORA_SOURCE_ID=your_source_uuid
 TBANK_TERMINAL_KEY=ваш_terminal_key
 TBANK_SECRET_KEY=ваш_secret_key
 TBANK_API_URL=https://securepay.tinkoff.ru/v2
