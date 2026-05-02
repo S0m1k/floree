@@ -1,53 +1,34 @@
-import { posifloraFetch } from '@/lib/posiflora';
-import AddToCartButton from '@/components/AddToCartButton';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Bouquet, BouquetImage } from '@/types';
+import AddToCartButton from '@/components/AddToCartButton';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface Props {
   params: { id: string };
 }
 
+async function getBouquet(id: string) {
+  const res = await fetch(`${API_URL}/bouquets/${id}`, { cache: 'no-store' });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function generateMetadata({ params }: Props) {
-  try {
-    const data = await posifloraFetch(`/v1/bouquets/${params.id}?include=logo`);
-    const bouquet: Bouquet = data.data;
-    return {
-      title: `${bouquet.attributes.title} — Floree`,
-      description: bouquet.attributes.description || `Купить ${bouquet.attributes.title} в Floree`,
-    };
-  } catch {
-    return { title: 'Букет — Floree' };
-  }
+  const bouquet = await getBouquet(params.id);
+  if (!bouquet) return { title: 'Букет — Floree' };
+  return {
+    title: `${bouquet.attributes.title} — Floree`,
+    description: bouquet.attributes.description || `Купить ${bouquet.attributes.title} в Floree`,
+  };
 }
 
 export default async function BouquetPage({ params }: Props) {
-  let bouquet: Bouquet & { imageUrl?: string | null };
+  const bouquet = await getBouquet(params.id);
+  if (!bouquet) notFound();
 
-  try {
-    const data = await posifloraFetch(`/v1/bouquets/${params.id}?include=logo`);
-
-    if (!data.data) notFound();
-
-    const imageMap: Record<string, BouquetImage> = {};
-    (data.included || []).forEach((img: BouquetImage) => {
-      if (img.type === 'images') imageMap[img.id] = img;
-    });
-
-    const logoId = data.data?.relationships?.logo?.data?.id;
-    const image = logoId ? imageMap[logoId] : null;
-
-    bouquet = {
-      ...data.data,
-      imageUrl: image?.attributes?.fileShop || image?.attributes?.file || null,
-    };
-  } catch {
-    notFound();
-  }
-
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat('ru-RU').format(Math.round(price));
+  const formatPrice = (price: number) => new Intl.NumberFormat('ru-RU').format(Math.round(price));
 
   const cartItem = {
     id: bouquet.id,
@@ -59,7 +40,6 @@ export default async function BouquetPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50/30">
-      {/* Breadcrumb */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <nav className="flex items-center gap-2 text-sm text-gray-400 flex-wrap">
@@ -95,8 +75,6 @@ export default async function BouquetPage({ params }: Props) {
                 <span className="text-[120px] select-none">💐</span>
               </div>
             )}
-
-            {/* Status badge */}
             <div className="absolute top-4 left-4">
               <span className="inline-flex items-center gap-1.5 bg-green-500 text-white text-sm font-semibold px-4 py-1.5 rounded-full shadow-sm">
                 <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
@@ -111,7 +89,6 @@ export default async function BouquetPage({ params }: Props) {
               {bouquet.attributes.title}
             </h1>
 
-            {/* Price */}
             <div className="mb-6">
               <span className="text-4xl font-bold text-rose-600 font-serif">
                 {formatPrice(bouquet.attributes.saleAmount)} ₽
@@ -123,16 +100,10 @@ export default async function BouquetPage({ params }: Props) {
               )}
             </div>
 
-            {/* Description */}
             {bouquet.attributes.description && (
-              <div className="mb-8">
-                <p className="text-gray-600 leading-relaxed text-base">
-                  {bouquet.attributes.description}
-                </p>
-              </div>
+              <p className="text-gray-600 leading-relaxed mb-8">{bouquet.attributes.description}</p>
             )}
 
-            {/* Details */}
             <div className="grid grid-cols-2 gap-4 mb-8">
               {bouquet.attributes.height > 0 && (
                 <div className="bg-rose-50 rounded-xl p-4">
@@ -148,12 +119,10 @@ export default async function BouquetPage({ params }: Props) {
               )}
             </div>
 
-            {/* Add to cart */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+            <div className="mb-8">
               <AddToCartButton item={cartItem} />
             </div>
 
-            {/* Delivery info */}
             <div className="p-4 bg-green-50 rounded-xl text-sm text-green-700 flex items-start gap-2">
               <svg className="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

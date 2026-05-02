@@ -19,24 +19,12 @@ export default function Footer() {
               Навигация
             </h3>
             <nav className="flex flex-col gap-2">
-              <Link
-                href="/catalog"
-                className="text-green-100 hover:text-white transition-colors text-sm"
-              >
-                Каталог цветов
-              </Link>
-              <Link
-                href="/#about"
-                className="text-green-100 hover:text-white transition-colors text-sm"
-              >
-                О нас
-              </Link>
-              <Link
-                href="/checkout"
-                className="text-green-100 hover:text-white transition-colors text-sm"
-              >
-                Оформить заказ
-              </Link>
+              <Link href="/catalog" className="text-green-100 hover:text-white transition-colors text-sm">Витрина</Link>
+              <Link href="/#about" className="text-green-100 hover:text-white transition-colors text-sm">О нас</Link>
+              <Link href="/checkout" className="text-green-100 hover:text-white transition-colors text-sm">Оформить заказ</Link>
+              <Link href="/offer" className="text-green-100 hover:text-white transition-colors text-sm">Публичная оферта</Link>
+              <Link href="/privacy" className="text-green-100 hover:text-white transition-colors text-sm">Конфиденциальность</Link>
+              <Link href="/cookies" className="text-green-100 hover:text-white transition-colors text-sm">Политика cookie</Link>
             </nav>
           </div>
 
