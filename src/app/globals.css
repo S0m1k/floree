@@ -3,25 +3,108 @@
 @tailwind utilities;
 
 :root {
-  --background: #fdfcfb;
-  --foreground: #1a1a1a;
+  --background: #faf9f7;
+  --foreground: #1c1a18;
+  --rose: #e8526a;
+  --rose-light: #fdf0f2;
+  --green-deep: #1a3a2a;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Animations ─── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes lineGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.animate-fadeInUp  { animation: fadeInUp 0.7s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-fadeIn    { animation: fadeIn 0.6s ease both; }
+.animate-scaleIn   { animation: scaleIn 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-lineGrow  { animation: lineGrow 0.8s cubic-bezier(0.22,1,0.36,1) both; }
+
+.delay-100 { animation-delay: 0.1s; }
+.delay-150 { animation-delay: 0.15s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-600 { animation-delay: 0.6s; }
+
+/* Scroll-reveal: hidden by default, JS adds .revealed */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1),
+              transform 0.7s cubic-bezier(0.22,1,0.36,1);
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeInUp,
+  .animate-fadeIn,
+  .animate-scaleIn,
+  .animate-lineGrow {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ─── Card hover ─── */
 .card-hover {
   @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
 }
 
-@layer utilities {
-  .animation-delay-200 {
-    animation-delay: 200ms;
-  }
-  .animation-delay-400 {
-    animation-delay: 400ms;
-  }
+/* ─── FAQ accordion (CSS-only) ─── */
+.faq-item input[type="checkbox"] {
+  display: none;
+}
+.faq-item .faq-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.22,1,0.36,1), padding 0.3s ease;
+}
+.faq-item input[type="checkbox"]:checked ~ .faq-content {
+  max-height: 300px;
+}
+.faq-item .faq-icon {
+  transition: transform 0.3s ease;
+}
+.faq-item input[type="checkbox"]:checked ~ label .faq-icon {
+  transform: rotate(45deg);
 }

@@ -45,6 +45,12 @@ export default function Header() {
                 Витрина
               </Link>
               <Link
+                href="/shipping"
+                className="text-gray-700 hover:text-rose-600 font-medium transition-colors text-sm tracking-wide uppercase"
+              >
+                Доставка
+              </Link>
+              <Link
                 href="/#about"
                 className="text-gray-700 hover:text-rose-600 font-medium transition-colors text-sm tracking-wide uppercase"
               >
@@ -110,6 +116,13 @@ export default function Header() {
                   className="px-4 py-2.5 text-gray-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg font-medium transition-colors"
                 >
                   Витрина
+                </Link>
+                <Link
+                  href="/shipping"
+                  onClick={() => setMenuOpen(false)}
+                  className="px-4 py-2.5 text-gray-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg font-medium transition-colors"
+                >
+                  Доставка и оплата
                 </Link>
                 <Link
                   href="/#about"
