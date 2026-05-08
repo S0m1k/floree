@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import BouquetCard from '@/components/BouquetCard';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const metadata = {
   title: 'Витрина — Floree',
