@@ -59,8 +59,8 @@ export default function HeroCarousel() {
             <div className="serif" style={{ fontSize: 22, fontStyle: 'italic' }}>{SLIDES[slide].name}</div>
             <div style={{ color: 'var(--ink-2)', marginTop: 4 }}>{SLIDES[slide].caption}</div>
           </div>
-          <a href="#catalog" className="btn btn--filled" data-hover>
-            Заказать букет
+          <a href="/catalog" className="btn btn--filled" data-hover>
+            Смотреть каталог
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L8 2M13 7L8 12" stroke="currentColor"/></svg>
           </a>
         </div>

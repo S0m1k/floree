@@ -1,27 +1,11 @@
 import Link from 'next/link';
-import BouquetCard from '@/components/BouquetCard';
 import HeroCarousel from '@/components/HeroCarousel';
 import Reveal from '@/components/Reveal';
 import MaskImage from '@/components/MaskImage';
 import Ticker from '@/components/Ticker';
 import CustomCursor from '@/components/CustomCursor';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-async function getBouquets() {
-  try {
-    const res = await fetch(`${API_URL}/bouquets`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json.data || [];
-  } catch {
-    return [];
-  }
-}
-
 export default async function HomePage() {
-  const bouquets = await getBouquets();
-
   return (
     <div style={{ background: 'var(--paper)', color: 'var(--ink)' }}>
       <CustomCursor />
@@ -45,39 +29,6 @@ export default async function HomePage() {
 
       {/* TICKER */}
       <Ticker items={['Цветы дня', 'Свадебная флористика', 'Подписка', 'Корпоративные заказы', 'Доставка по СПб']} speed={22} />
-
-      {/* CATALOG */}
-      <section className="ed-catalog" id="catalog">
-        <div className="ed-catalog__head">
-          <Reveal kind="up">
-            <div className="eyebrow">&mdash; Каталог</div>
-            <h2 className="ed-catalog__title">
-              Букеты <em>сезона</em>
-            </h2>
-          </Reveal>
-          <Reveal kind="up" delay={150}>
-            <Link href="/catalog" className="ed-catalog__all" data-hover>
-              Смотреть все
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L8 2M13 7L8 12" stroke="currentColor"/></svg>
-            </Link>
-          </Reveal>
-        </div>
-
-        {bouquets.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', borderTop: '1px solid var(--line)' }}>
-            <p className="serif" style={{ fontSize: 28, fontStyle: 'italic' }}>Витрина обновляется</p>
-            <p style={{ color: 'var(--ink-2)', marginTop: 8 }}>Мы готовим свежие букеты &mdash; загляните позже.</p>
-          </div>
-        ) : (
-          <div className="ed-catalog__grid">
-            {bouquets.slice(0, 8).map((bouquet: any, i: number) => (
-              <Reveal key={bouquet.id} kind="up" delay={(i % 4) * 100}>
-                <BouquetCard bouquet={bouquet} index={i} />
-              </Reveal>
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* STORY */}
       <section className="ed-story" id="about">
