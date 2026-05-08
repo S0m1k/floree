@@ -10,7 +10,7 @@ export const metadata = {
 
 async function getBouquets() {
   try {
-    const res = await fetch(`${API_URL}/bouquets`, { cache: 'no-store' });
+    const res = await fetch(`${API_URL}/api/bouquets`, { cache: 'no-store' });
     if (!res.ok) return [];
     const json = await res.json();
     return json.data || [];
@@ -23,35 +23,36 @@ export default async function CatalogPage() {
   const bouquets = await getBouquets();
 
   return (
-    <div className="min-h-screen bg-gray-50/30">
-      <div className="bg-white border-b border-gray-100">
+    <div className="min-h-screen" style={{ background: 'var(--paper)' }}>
+      <div style={{ background: 'var(--paper-2)', borderBottom: '1px solid var(--line)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <nav className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-            <Link href="/" className="hover:text-rose-500 transition-colors">Главная</Link>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="text-gray-600 font-medium">Витрина</span>
-          </nav>
-          <h1 className="font-serif text-4xl sm:text-5xl font-bold text-gray-800 mb-3">Витрина</h1>
-          <p className="text-gray-500 text-lg">Готовые букеты, которые ждут вас прямо сейчас</p>
+          <p className="eyebrow mb-4">Витрина</p>
+          <h1 className="serif" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', color: 'var(--ink)', lineHeight: 1.1 }}>
+            Готовые букеты
+          </h1>
+          <p className="mt-3" style={{ color: 'var(--ink-3)', fontSize: '1rem' }}>
+            Букеты, которые ждут вас прямо сейчас
+          </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {bouquets.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-7xl mb-6">💐</div>
-            <p className="text-gray-500 text-xl font-medium mb-2">Витрина обновляется — загляните позже!</p>
-            <p className="text-gray-400 text-sm mb-8">Мы готовим для вас свежие букеты</p>
-            <Link href="/" className="inline-flex items-center gap-2 bg-rose-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-rose-600 transition-colors">
+            <p className="text-xl font-medium mb-2" style={{ color: 'var(--ink-2)' }}>
+              Витрина обновляется — загляните позже
+            </p>
+            <p className="text-sm mb-8" style={{ color: 'var(--ink-3)' }}>
+              Мы готовим для вас свежие букеты
+            </p>
+            <Link href="/" className="btn btn--filled">
               На главную
             </Link>
           </div>
         ) : (
           <>
-            <p className="text-sm text-gray-400 mb-6">
-              {bouquets.length} {bouquets.length === 1 ? 'букет' : bouquets.length < 5 ? 'букета' : 'букетов'} на витрине
+            <p className="eyebrow mb-8">
+              {bouquets.length} {bouquets.length === 1 ? 'букет' : bouquets.length < 5 ? 'букета' : 'букетов'}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {bouquets.map((bouquet: any) => (
