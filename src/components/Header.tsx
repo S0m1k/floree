@@ -12,130 +12,70 @@ export default function Header() {
   const totalItems = useCart((s) => s.totalItems);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
 
   const itemCount = totalItems();
 
   return (
     <>
-      <header
-        className={`sticky top-0 z-40 w-full bg-white transition-shadow duration-300 ${
-          scrolled ? 'shadow-md' : 'shadow-sm'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link
-              href="/"
-              className="font-serif text-2xl font-bold text-rose-600 tracking-wide hover:text-rose-700 transition-colors"
-            >
-              Floree
-            </Link>
+      <header className={`fl-header ${scrolled ? 'is-scrolled' : ''}`}>
+        <div className="fl-header__inner">
+          <nav className="fl-nav fl-nav--left">
+            <Link href="/catalog" data-hover>Каталог</Link>
+            <Link href="/shipping" data-hover>Доставка</Link>
+          </nav>
 
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link
-                href="/catalog"
-                className="text-gray-700 hover:text-rose-600 font-medium transition-colors text-sm tracking-wide uppercase"
-              >
-                Витрина
-              </Link>
-              <Link
-                href="/shipping"
-                className="text-gray-700 hover:text-rose-600 font-medium transition-colors text-sm tracking-wide uppercase"
-              >
-                Доставка
-              </Link>
-              <Link
-                href="/#about"
-                className="text-gray-700 hover:text-rose-600 font-medium transition-colors text-sm tracking-wide uppercase"
-              >
-                О нас
-              </Link>
-            </nav>
+          {/* Mobile menu toggle */}
+          <button
+            className="fl-header__mobile-toggle"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Меню"
+          >
+            {menuOpen ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
 
-            {/* Right side */}
-            <div className="flex items-center gap-4">
-              {/* Cart button */}
-              <button
-                onClick={() => setDrawerOpen(true)}
-                className="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-rose-50 transition-colors"
-                aria-label="Корзина"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-gray-700"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.8}
-                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-                {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {itemCount > 99 ? '99+' : itemCount}
-                  </span>
-                )}
-              </button>
+          <Link href="/" className="fl-logo" data-hover>
+            <span className="fl-logo__mark">Floree</span>
+            <span className="fl-logo__sub">цветочная студия</span>
+          </Link>
 
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="md:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Меню"
-              >
-                {menuOpen ? (
-                  <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                  <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile menu */}
-          {menuOpen && (
-            <div className="md:hidden border-t border-gray-100 py-3 pb-4">
-              <nav className="flex flex-col gap-1">
-                <Link
-                  href="/catalog"
-                  onClick={() => setMenuOpen(false)}
-                  className="px-4 py-2.5 text-gray-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg font-medium transition-colors"
-                >
-                  Витрина
-                </Link>
-                <Link
-                  href="/shipping"
-                  onClick={() => setMenuOpen(false)}
-                  className="px-4 py-2.5 text-gray-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg font-medium transition-colors"
-                >
-                  Доставка и оплата
-                </Link>
-                <Link
-                  href="/#about"
-                  onClick={() => setMenuOpen(false)}
-                  className="px-4 py-2.5 text-gray-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg font-medium transition-colors"
-                >
-                  О нас
-                </Link>
-              </nav>
-            </div>
-          )}
+          <nav className="fl-nav fl-nav--right">
+            <Link href="/#about" data-hover>О студии</Link>
+            <Link href="/#contacts" data-hover>Контакты</Link>
+            <button className="fl-cart-btn" onClick={() => setDrawerOpen(true)} data-hover>
+              Корзина <span className="fl-cart-btn__count">{itemCount}</span>
+            </button>
+          </nav>
         </div>
       </header>
+
+      {/* Mobile menu */}
+      <div className={`fl-header__mobile-menu ${menuOpen ? 'is-open' : ''}`}>
+        <Link href="/catalog" onClick={() => setMenuOpen(false)}>Каталог</Link>
+        <Link href="/shipping" onClick={() => setMenuOpen(false)}>Доставка и оплата</Link>
+        <Link href="/#about" onClick={() => setMenuOpen(false)}>О студии</Link>
+        <Link href="/#contacts" onClick={() => setMenuOpen(false)}>Контакты</Link>
+        <button onClick={() => { setMenuOpen(false); setDrawerOpen(true); }}>
+          Корзина ({itemCount})
+        </button>
+      </div>
 
       <CartDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </>

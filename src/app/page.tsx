@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import BouquetCard from '@/components/BouquetCard';
-import AnimatedGrid from '@/components/AnimatedGrid';
+import HeroCarousel from '@/components/HeroCarousel';
+import Reveal from '@/components/Reveal';
+import MaskImage from '@/components/MaskImage';
+import Ticker from '@/components/Ticker';
+import CustomCursor from '@/components/CustomCursor';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -19,231 +23,195 @@ export default async function HomePage() {
   const bouquets = await getBouquets();
 
   return (
-    <div className="bg-[#faf9f7]">
+    <div style={{ background: 'var(--paper)', color: 'var(--ink)' }}>
+      <CustomCursor />
 
-      {/* ── Hero ── */}
-      <section className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden px-4">
-        {/* Soft radial gradient backdrop */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,#fde8ec_0%,#faf9f7_70%)] pointer-events-none" />
+      {/* HERO */}
+      <HeroCarousel />
 
-        <div className="relative z-10 text-center max-w-3xl mx-auto">
-          {/* Eyebrow */}
-          <p className="animate-fadeIn text-xs tracking-[0.3em] uppercase text-rose-500 font-medium mb-8">
-            Санкт-Петербург · Цветочный магазин
+      {/* INTRO */}
+      <section className="ed-intro">
+        <Reveal kind="up">
+          <div className="eyebrow" style={{ marginBottom: 24 }}>&mdash; Манифест</div>
+        </Reveal>
+        <Reveal kind="up" delay={120}>
+          <p className="ed-intro__lede serif">
+            Мы&nbsp;&mdash; небольшая студия в&nbsp;центре Петербурга. Каждое&nbsp;утро встречаем новый завоз
+            из&nbsp;Голландии, выбираем самые тонкие, самые живые цветы&nbsp;&mdash; и&nbsp;собираем
+            из&nbsp;них то, что хочется держать в&nbsp;руках.
           </p>
-
-          {/* Decorative line */}
-          <div className="flex items-center justify-center gap-4 mb-8">
-            <div className="animate-lineGrow origin-right h-px w-16 bg-rose-300" />
-            <span className="animate-fadeIn delay-200 text-rose-300 text-lg">✦</span>
-            <div className="animate-lineGrow origin-left h-px w-16 bg-rose-300 delay-100" />
-          </div>
-
-          {/* Heading */}
-          <h1 className="font-serif font-bold text-[clamp(3rem,10vw,6.5rem)] leading-[1.05] text-[#1c1a18] mb-6">
-            <span className="animate-fadeInUp block">Floree</span>
-            <span className="animate-fadeInUp delay-150 block text-[0.55em] font-normal text-rose-500 tracking-wide">
-              цветы с душой
-            </span>
-          </h1>
-
-          <p className="animate-fadeInUp delay-300 text-gray-500 text-lg max-w-md mx-auto leading-relaxed mb-10">
-            Готовые букеты прямо из витрины. Собраны сегодня — доставим за 2 часа.
-          </p>
-
-          <div className="animate-fadeInUp delay-400 flex flex-col sm:flex-row gap-3 justify-center">
-            <a
-              href="#vitrina"
-              className="inline-flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-medium px-8 py-3.5 rounded-full transition-colors duration-200 text-sm tracking-wide"
-            >
-              Смотреть витрину
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </a>
-            <a
-              href="#contacts"
-              className="inline-flex items-center gap-2 border border-gray-300 hover:border-gray-400 text-gray-700 font-medium px-8 py-3.5 rounded-full transition-colors duration-200 text-sm tracking-wide bg-white/60 backdrop-blur-sm"
-            >
-              Как нас найти
-            </a>
-          </div>
-        </div>
-
-        {/* Scroll hint */}
-        <div className="animate-fadeIn delay-600 absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-400">
-          <span className="text-xs tracking-widest uppercase">Листайте</span>
-          <div className="w-px h-8 bg-gradient-to-b from-gray-300 to-transparent" />
-        </div>
+        </Reveal>
       </section>
 
-      {/* ── Vitrina ── */}
-      <section id="vitrina" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="flex items-end justify-between mb-12">
-          <div>
-            <p className="text-xs tracking-[0.25em] uppercase text-rose-400 font-medium mb-3">Витрина</p>
-            <h2 className="font-serif text-4xl sm:text-5xl font-bold text-[#1c1a18]">
-              Сегодня в магазине
+      {/* TICKER */}
+      <Ticker items={['Цветы дня', 'Свадебная флористика', 'Подписка', 'Корпоративные заказы', 'Доставка по СПб']} speed={45} />
+
+      {/* CATALOG */}
+      <section className="ed-catalog" id="catalog">
+        <div className="ed-catalog__head">
+          <Reveal kind="up">
+            <div className="eyebrow">&mdash; Каталог</div>
+            <h2 className="ed-catalog__title">
+              Букеты <em>сезона</em>
             </h2>
-          </div>
-          <Link
-            href="/catalog"
-            className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 hover:text-rose-500 transition-colors border-b border-gray-300 hover:border-rose-400 pb-px"
-          >
-            Все букеты
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
+          </Reveal>
+          <Reveal kind="up" delay={150}>
+            <Link href="/catalog" className="ed-catalog__all" data-hover>
+              Смотреть все
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L8 2M13 7L8 12" stroke="currentColor"/></svg>
+            </Link>
+          </Reveal>
         </div>
 
         {bouquets.length === 0 ? (
-          <div className="text-center py-24 border border-dashed border-rose-200 rounded-3xl">
-            <p className="text-4xl mb-4">💐</p>
-            <p className="text-gray-500 font-medium">Витрина обновляется — загляните позже</p>
-            <p className="text-gray-400 text-sm mt-1">Мы готовим свежие букеты</p>
+          <div style={{ textAlign: 'center', padding: '80px 0', borderTop: '1px solid var(--line)' }}>
+            <p className="serif" style={{ fontSize: 28, fontStyle: 'italic' }}>Витрина обновляется</p>
+            <p style={{ color: 'var(--ink-2)', marginTop: 8 }}>Мы готовим свежие букеты &mdash; загляните позже.</p>
           </div>
         ) : (
-          <AnimatedGrid className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {bouquets.map((bouquet: any) => (
-              <BouquetCard key={bouquet.id} bouquet={bouquet} />
+          <div className="ed-catalog__grid">
+            {bouquets.slice(0, 8).map((bouquet: any, i: number) => (
+              <Reveal key={bouquet.id} kind="up" delay={(i % 4) * 100}>
+                <BouquetCard bouquet={bouquet} index={i} />
+              </Reveal>
             ))}
-          </AnimatedGrid>
+          </div>
         )}
       </section>
 
-      {/* ── Features strip ── */}
-      <section className="border-y border-gray-100 bg-white py-10">
-        <div className="max-w-4xl mx-auto px-4 grid grid-cols-3 gap-4 text-center">
+      {/* STORY */}
+      <section className="ed-story" id="about">
+        <div className="ed-story__media">
+          <MaskImage
+            src="https://images.unsplash.com/photo-1487700160041-babef9c3cb55?w=1400&q=80&auto=format&fit=crop"
+            alt="Студия Floree"
+            aspect="4/5"
+          />
+          <div className="ed-story__caption mono">
+            &darr; Полтавский проезд, 2 &middot; мастерская
+          </div>
+        </div>
+        <div className="ed-story__copy">
+          <Reveal kind="up">
+            <div className="eyebrow">&mdash; О студии</div>
+          </Reveal>
+          <Reveal kind="up" delay={120}>
+            <h3 className="ed-story__title">
+              Тишина мастерской<br />и&nbsp;звук <em>секатора</em>.
+            </h3>
+          </Reveal>
+          <Reveal kind="up" delay={220}>
+            <p className="ed-story__text">
+              Floree&nbsp;&mdash; это небольшая мастерская и&nbsp;тысячи стеблей,
+              проходящих через наши руки за&nbsp;год. Мы&nbsp;работаем с&nbsp;цветами так,
+              как нам бы&nbsp;самим хотелось их&nbsp;получить&nbsp;&mdash; без&nbsp;лишнего, без&nbsp;надрыва,
+              с&nbsp;вниманием к&nbsp;каждому стеблю.
+            </p>
+          </Reveal>
+          <Reveal kind="up" delay={320}>
+            <Link href="/catalog" className="btn" data-hover style={{ marginTop: 32 }}>
+              Смотреть каталог
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L8 2M13 7L8 12" stroke="currentColor"/></svg>
+            </Link>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* CATEGORIES */}
+      <section className="ed-cats">
+        <Reveal kind="up">
+          <div className="eyebrow" style={{ textAlign: 'center' }}>&mdash; Что мы делаем</div>
+          <h2 className="ed-cats__title">Три направления студии</h2>
+        </Reveal>
+        <div className="ed-cats__row">
           {[
-            { icon: '🌿', label: 'Свежие цветы', sub: 'Поставка каждый день' },
-            { icon: '🚚', label: 'Доставка 2 ч', sub: 'По всему Петербургу' },
-            { icon: '🔒', label: 'Оплата онлайн', sub: 'Эквайринг Т-Банка' },
-          ].map((f) => (
-            <div key={f.label} className="flex flex-col items-center gap-2">
-              <span className="text-2xl">{f.icon}</span>
-              <span className="text-sm font-semibold text-gray-800">{f.label}</span>
-              <span className="text-xs text-gray-400 hidden sm:block">{f.sub}</span>
-            </div>
+            { t: 'Авторские букеты', sub: 'Каждый день — свежие композиции от флористов студии', img: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=1400&q=80&auto=format&fit=crop', n: '01' },
+            { t: 'Свадебная флористика', sub: 'От букета невесты до арки и оформления зала', img: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1400&q=80&auto=format&fit=crop', n: '02' },
+            { t: 'Подписка на цветы', sub: 'Свежие букеты домой каждую неделю или раз в две', img: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1400&q=80&auto=format&fit=crop', n: '03' },
+          ].map((c, i) => (
+            <Reveal key={i} kind="up" delay={i * 120}>
+              <div className="ed-cat__media" data-hover>
+                <MaskImage src={c.img} alt={c.t} aspect="3/4" delay={i * 100} />
+              </div>
+              <div className="ed-cat__meta">
+                <span className="ed-cat__n">N&deg;{c.n}</span>
+                <h4 className="ed-cat__t">{c.t}</h4>
+                <p className="ed-cat__sub">{c.sub}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      {/* ── Contacts + Map ── */}
-      <section id="contacts" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="mb-10">
-          <p className="text-xs tracking-[0.25em] uppercase text-rose-400 font-medium mb-3">Контакты</p>
-          <h2 className="font-serif text-4xl sm:text-5xl font-bold text-[#1c1a18]">Как нас найти</h2>
-        </div>
+      {/* QUOTE */}
+      <section className="ed-quote">
+        <Reveal kind="fade">
+          <blockquote className="ed-quote__text serif">
+            &laquo;Цветок&nbsp;&mdash; это <em>письмо</em>, которое не нужно читать.<br />
+            Достаточно держать в&nbsp;руках.&raquo;
+          </blockquote>
+        </Reveal>
+        <Reveal kind="up" delay={300}>
+          <div className="eyebrow">&mdash; Floree</div>
+        </Reveal>
+      </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          {/* Contact info */}
-          <div className="space-y-6">
-            {[
-              {
-                icon: (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                ),
-                label: 'Адрес',
-                value: 'Санкт-Петербург, Полтавский проезд, д. 2',
-                href: 'https://yandex.ru/maps/?text=Санкт-Петербург+Полтавский+проезд+2',
-              },
-              {
-                icon: (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ),
-                label: 'Режим работы',
-                value: 'Пн – Вс: 8:00 – 21:00',
-              },
-              {
-                icon: (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                ),
-                label: 'Телефон',
-                value: '+7 (812) 000-00-00',
-                href: 'tel:+78120000000',
-              },
-              {
-                icon: (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                ),
-                label: 'Email',
-                value: 'hello@floree.ru',
-                href: 'mailto:hello@floree.ru',
-              },
-            ].map((item) => (
-              <div key={item.label} className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
-                  {item.icon}
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{item.label}</p>
-                  {item.href ? (
-                    <a href={item.href} className="text-gray-800 font-medium hover:text-rose-500 transition-colors">
-                      {item.value}
-                    </a>
-                  ) : (
-                    <p className="text-gray-800 font-medium">{item.value}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            <div className="pt-4">
-              <Link
-                href="/shipping"
-                className="inline-flex items-center gap-2 text-sm text-rose-500 hover:text-rose-600 font-medium border-b border-rose-300 hover:border-rose-500 pb-px transition-colors"
-              >
-                Условия доставки и оплаты
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-
-          {/* Yandex Map */}
-          <div className="relative overflow-hidden rounded-2xl shadow-md h-80 lg:h-[420px] bg-gray-100">
+      {/* CONTACTS */}
+      <section id="contacts" style={{ padding: '120px 56px', maxWidth: 1500, margin: '0 auto' }}>
+        <Reveal kind="up">
+          <div className="eyebrow">&mdash; Контакты</div>
+          <h2 className="serif" style={{ fontSize: 'clamp(48px, 5.5vw, 88px)', margin: '16px 0', fontWeight: 400, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            Полтавский проезд, <em style={{ fontStyle: 'italic', color: 'var(--plum)' }}>2</em>
+          </h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: 17, maxWidth: '50ch', margin: '0 0 40px' }}>
+            Санкт-Петербург, м.&nbsp;Площадь Восстания&nbsp;&mdash; 4&nbsp;минуты пешком. Ежедневно 09:00&nbsp;&mdash; 21:00.
+          </p>
+        </Reveal>
+        <Reveal kind="fade" delay={120}>
+          <div style={{ position: 'relative', aspectRatio: '21/9', overflow: 'hidden', background: 'var(--bone)', border: '1px solid var(--line)' }}>
             <iframe
-              src="https://yandex.ru/map-widget/v1/?text=%D0%A1%D0%B0%D0%BD%D0%BA%D1%82-%D0%9F%D0%B5%D1%82%D0%B5%D1%80%D0%B1%D1%83%D1%80%D0%B3%2C+%D0%9F%D0%BE%D0%BB%D1%82%D0%B0%D0%B2%D1%81%D0%BA%D0%B8%D0%B9+%D0%BF%D1%80%D0%BE%D0%B5%D0%B7%D0%B4+2&z=16&l=map"
+              src="https://yandex.ru/map-widget/v1/?ll=30.358515%2C59.931180&mode=search&oid=1102798495&ol=biz&z=17"
+              title="Floree на Яндекс Картах"
               width="100%"
               height="100%"
-              frameBorder="0"
+              style={{ border: 0, display: 'block', filter: 'grayscale(0.2)' }}
+              loading="lazy"
               allowFullScreen
-              title="Floree на карте"
-              className="absolute inset-0 w-full h-full"
             />
+            <div className="mono" style={{
+              position: 'absolute', left: 0, right: 0, bottom: 0,
+              background: 'var(--paper)', padding: '14px 24px',
+              display: 'flex', justifyContent: 'space-between', gap: 16,
+              fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em',
+              borderTop: '1px solid var(--line)'
+            }}>
+              <span>Данные Яндекс Карт</span>
+              <a href="https://yandex.ru/maps/?ll=30.358515%2C59.931180&z=17" target="_blank" rel="noopener" data-hover style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
+                Открыть в Яндекс Картах &rarr;
+              </a>
+            </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
-      {/* ── About ── */}
-      <section id="about" className="bg-[#1a3a2a] text-white py-20 px-4">
-        <div className="max-w-2xl mx-auto text-center">
-          <p className="text-xs tracking-[0.3em] uppercase text-green-300 font-medium mb-6">О нас</p>
-          <h2 className="font-serif text-4xl sm:text-5xl font-bold mb-6 leading-tight">
-            Маленький магазин<br />с большой душой
-          </h2>
-          <p className="text-green-100 leading-relaxed text-lg mb-4">
-            Floree — это цветочный магазин в Санкт-Петербурге, где каждый букет
-            собирают вручную с вниманием к деталям.
-          </p>
-          <p className="text-green-200/70 leading-relaxed">
-            Каждый день на витрине появляются свежие букеты — именно их вы
-            видите на сайте. Оформите заказ онлайн, и мы доставим цветы в течение двух часов.
-          </p>
-        </div>
+      {/* CTA */}
+      <section className="ed-cta">
+        <Reveal kind="up">
+          <div className="ed-cta__inner">
+            <h3 className="ed-cta__t">
+              Хотите букет<br />
+              <em>не&nbsp;как у&nbsp;всех?</em>
+            </h3>
+            <p className="ed-cta__p">
+              Напишите нам&nbsp;&mdash; обсудим повод, цвет и&nbsp;настроение.
+              Соберём что-то ваше.
+            </p>
+            <a href="tel:+79930750577" className="btn btn--filled" data-hover style={{ borderColor: 'var(--paper)', background: 'var(--paper)', color: 'var(--ink)' }}>
+              +7 993 075 05 77
+            </a>
+          </div>
+        </Reveal>
       </section>
-
     </div>
   );
 }
