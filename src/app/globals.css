@@ -201,6 +201,12 @@ img { display: block; max-width: 100%; }
 }
 
 /* ═══════════════════════════════════════════
+   Contacts Map
+   ═══════════════════════════════════════════ */
+.contacts-map { aspect-ratio: 21/9; }
+@media (max-width: 768px) { .contacts-map { aspect-ratio: 4/3; } }
+
+/* ═══════════════════════════════════════════
    Ticker
    ═══════════════════════════════════════════ */
 .fl-ticker { overflow: hidden; padding: 28px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }

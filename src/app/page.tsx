@@ -44,7 +44,7 @@ export default async function HomePage() {
       </section>
 
       {/* TICKER */}
-      <Ticker items={['Цветы дня', 'Свадебная флористика', 'Подписка', 'Корпоративные заказы', 'Доставка по СПб']} speed={45} />
+      <Ticker items={['Цветы дня', 'Свадебная флористика', 'Подписка', 'Корпоративные заказы', 'Доставка по СПб']} speed={22} />
 
       {/* CATALOG */}
       <section className="ed-catalog" id="catalog">
@@ -168,9 +168,9 @@ export default async function HomePage() {
           </p>
         </Reveal>
         <Reveal kind="fade" delay={120}>
-          <div style={{ position: 'relative', aspectRatio: '21/9', overflow: 'hidden', background: 'var(--bone)', border: '1px solid var(--line)' }}>
+          <div className="contacts-map" style={{ position: 'relative', overflow: 'hidden', background: 'var(--bone)', border: '1px solid var(--line)' }}>
             <iframe
-              src="https://yandex.ru/map-widget/v1/?ll=30.358515%2C59.931180&mode=search&oid=1102798495&ol=biz&z=17"
+              src="https://yandex.ru/map-widget/v1/-/CPcJFGm~"
               title="Floree на Яндекс Картах"
               width="100%"
               height="100%"
@@ -186,7 +186,7 @@ export default async function HomePage() {
               borderTop: '1px solid var(--line)'
             }}>
               <span>Данные Яндекс Карт</span>
-              <a href="https://yandex.ru/maps/?ll=30.358515%2C59.931180&z=17" target="_blank" rel="noopener" data-hover style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
+              <a href="https://yandex.ru/maps/-/CPcJFGm~" target="_blank" rel="noopener" data-hover style={{ color: 'var(--ink-3)', textDecoration: 'none' }}>
                 Открыть в Яндекс Картах &rarr;
               </a>
             </div>
