@@ -16,6 +16,38 @@ def _generate_token(params: dict) -> str:
     return hashlib.sha256(sorted_vals.encode()).hexdigest()
 
 
+def _normalize_phone(phone: str) -> str:
+    """Normalize Russian phone to +7XXXXXXXXXX format for receipt."""
+    digits = "".join(c for c in phone if c.isdigit())
+    if digits.startswith("8"):
+        digits = "7" + digits[1:]
+    elif not digits.startswith("7"):
+        digits = "7" + digits
+    return "+" + digits
+
+
+def _build_receipt(customer_phone: str, amount_kopecks: int) -> dict:
+    """
+    Build 54-FZ receipt for T-Bank.
+    Required by T-Bank for online fiscalization — without it refunds are rejected.
+    """
+    return {
+        "Phone": _normalize_phone(customer_phone),
+        "Taxation": "usn_income_outcome",
+        "Items": [
+            {
+                "Name": "Букет цветов",
+                "Price": amount_kopecks,
+                "Quantity": 1,
+                "Amount": amount_kopecks,
+                "PaymentMethod": "full_prepayment",
+                "PaymentObject": "commodity",
+                "Tax": "none",
+            }
+        ],
+    }
+
+
 async def init_payment(
     order_id: str,
     amount_rubles: int,
@@ -39,6 +71,8 @@ async def init_payment(
         "FailURL": fail_url,
     }
     params["Token"] = _generate_token(params)
+    # Receipt is excluded from token signing — add after.
+    params["Receipt"] = _build_receipt(customer_phone, amount_kopecks)
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(f"{settings.tbank_api_url}/Init", json=params)
