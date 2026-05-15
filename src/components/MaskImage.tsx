@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import Image from 'next/image';
 
 interface MaskImageProps {
   src: string;
@@ -31,7 +32,13 @@ export default function MaskImage({ src, alt = '', aspect = '4/5', className = '
       className={`fl-mask ${shown ? 'is-in' : ''} ${className}`}
       style={{ aspectRatio: aspect, transitionDelay: `${delay}ms` }}
     >
-      <img src={src} alt={alt} loading="lazy" />
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 768px) 100vw, 50vw"
+        style={{ objectFit: 'cover' }}
+      />
       <span className="fl-mask__veil" style={{ transitionDelay: `${delay}ms` }} />
     </div>
   );

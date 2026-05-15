@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart';
 import Reveal from '@/components/Reveal';
+import Icon from '@/components/Icon';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const fmtPrice = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' \u20BD';
@@ -195,7 +196,9 @@ export default function CheckoutPage() {
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt={item.title} />
                   ) : (
-                    <div style={{ width: 56, height: 70, background: 'var(--bone)', display: 'grid', placeItems: 'center' }}>{'\uD83C\uDF38'}</div>
+                    <div style={{ width: 56, height: 70, background: 'var(--bone)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
+                      <Icon name="flower" size={28} />
+                    </div>
                   )}
                   <div className="pg-co__item-meta">
                     <div className="serif" style={{ fontStyle: 'italic' }}>{item.title}</div>

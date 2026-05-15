@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { posifloraFetch } from '@/lib/posiflora';
 import AddToCartButton from '@/components/AddToCartButton';
+import Icon from '@/components/Icon';
 
 interface Props {
   params: { id: string };
@@ -75,8 +76,8 @@ export default async function ProductPage({ params }: Props) {
                 priority
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[140px] leading-none select-none">🌸</span>
+              <div className="absolute inset-0 flex items-center justify-center text-rose-300">
+                <Icon name="flower" size={140} />
               </div>
             )}
           </div>
@@ -129,16 +130,18 @@ export default async function ProductPage({ params }: Props) {
 
             {/* Features */}
             <div className="grid grid-cols-3 gap-4">
-              {[
-                { icon: '🚚', label: 'Доставка', sub: '2 часа' },
-                { icon: '🌿', label: 'Свежие', sub: 'цветы' },
-                { icon: '🎁', label: 'Упаковка', sub: 'в подарок' },
-              ].map(({ icon, label, sub }) => (
+              {([
+                { icon: 'truck', label: 'Доставка', sub: '2 часа' },
+                { icon: 'leaf', label: 'Свежие', sub: 'цветы' },
+                { icon: 'gift', label: 'Упаковка', sub: 'в подарок' },
+              ] as const).map(({ icon, label, sub }) => (
                 <div
                   key={label}
                   className="bg-gray-50 rounded-xl p-3 text-center"
                 >
-                  <div className="text-2xl mb-1">{icon}</div>
+                  <div className="mb-1 flex justify-center text-rose-500">
+                    <Icon name={icon} size={28} />
+                  </div>
                   <div className="text-xs font-semibold text-gray-700">{label}</div>
                   <div className="text-xs text-gray-400">{sub}</div>
                 </div>

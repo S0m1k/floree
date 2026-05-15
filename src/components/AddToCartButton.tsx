@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useCart } from '@/lib/cart';
 import { CartItem } from '@/types';
+import Icon from './Icon';
 
 interface Props {
   item: CartItem;
@@ -62,7 +63,13 @@ export default function AddToCartButton({ item }: Props) {
           : 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-200 hover:shadow-rose-300 hover:-translate-y-0.5'
       }`}
     >
-      {added ? '✓ Добавлено в корзину' : 'Добавить в корзину'}
+      {added ? (
+        <span className="inline-flex items-center gap-2 justify-center">
+          <Icon name="check" size={20} /> Добавлено в корзину
+        </span>
+      ) : (
+        'Добавить в корзину'
+      )}
     </button>
   );
 }

@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '@/lib/cart';
 import { Bouquet } from '@/types';
+import Icon from './Icon';
 
 interface BouquetWithImage extends Bouquet {
   imageUrl?: string | null;
@@ -29,10 +31,16 @@ export default function BouquetCard({ bouquet, index = 0 }: { bouquet: BouquetWi
     <article className="ed-card">
       <Link href={`/bouquet/${bouquet.id}`} className="ed-card__media" data-hover>
         {bouquet.imageUrl ? (
-          <img src={bouquet.imageUrl} alt={bouquet.attributes.title} loading="lazy" />
+          <Image
+            src={bouquet.imageUrl}
+            alt={bouquet.attributes.title}
+            fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            style={{ objectFit: 'cover' }}
+          />
         ) : (
-          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: 64, background: 'var(--bone)' }}>
-            {'\uD83D\uDC90'}
+          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bone)', color: 'var(--ink-3)' }}>
+            <Icon name="flower-tulip" size={64} />
           </div>
         )}
         <div className="ed-card__overlay">

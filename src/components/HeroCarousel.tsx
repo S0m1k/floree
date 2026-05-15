@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 const SLIDES = [
   {
@@ -38,7 +39,14 @@ export default function HeroCarousel() {
       <div className="ed-hero__stage">
         {SLIDES.map((s, i) => (
           <div key={i} className={`ed-hero__slide ${i === slide ? 'is-active' : ''}`}>
-            <img src={s.img} alt={s.name} />
+            <Image
+              src={s.img}
+              alt={s.name}
+              fill
+              sizes="100vw"
+              priority={i === 0}
+              style={{ objectFit: 'cover' }}
+            />
           </div>
         ))}
         <div className="ed-hero__veil" />

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart';
+import Icon from './Icon';
 
 interface Props {
   open: boolean;
@@ -54,8 +55,8 @@ export default function CartDrawer({ open, onClose }: Props) {
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt={item.title} />
               ) : (
-                <div style={{ width: 80, height: 100, background: 'var(--bone)', display: 'grid', placeItems: 'center', fontSize: 32 }}>
-                  {'\uD83C\uDF38'}
+                <div style={{ width: 80, height: 100, background: 'var(--bone)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
+                  <Icon name="flower" size={32} />
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

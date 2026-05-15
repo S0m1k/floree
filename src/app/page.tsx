@@ -3,13 +3,10 @@ import HeroCarousel from '@/components/HeroCarousel';
 import Reveal from '@/components/Reveal';
 import MaskImage from '@/components/MaskImage';
 import Ticker from '@/components/Ticker';
-import CustomCursor from '@/components/CustomCursor';
 
 export default async function HomePage() {
   return (
     <div style={{ background: 'var(--paper)', color: 'var(--ink)' }}>
-      <CustomCursor />
-
       {/* HERO */}
       <HeroCarousel />
 

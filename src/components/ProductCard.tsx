@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { CatalogItem } from '@/types';
 import { useCart } from '@/lib/cart';
+import Icon from './Icon';
 
 interface Props {
   item: CatalogItem;
@@ -39,8 +40,8 @@ export default function ProductCard({ item }: Props) {
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-rose-100 to-pink-200">
-            <span className="text-6xl select-none">🌸</span>
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-rose-100 to-pink-200 text-rose-400">
+            <Icon name="flower" size={64} />
           </div>
         )}
         {/* Price badge */}
