@@ -49,7 +49,7 @@ export default function CheckoutPage() {
         dueTime = `${form.deliveryDate}T${timeStr}:00+00:00`;
       }
 
-      const orderRes = await fetch(`${API_URL}/orders`, {
+      const orderRes = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ export default function CheckoutPage() {
       }
       const order = await orderRes.json();
 
-      const payRes = await fetch(`${API_URL}/payments/init`, {
+      const payRes = await fetch(`${API_URL}/api/payments/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: order.id }),
