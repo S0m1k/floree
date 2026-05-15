@@ -105,7 +105,7 @@ export default async function HomePage() {
       </section>
 
       {/* CONTACTS */}
-      <section id="contacts" style={{ padding: '120px 56px', maxWidth: 1500, margin: '0 auto' }}>
+      <section id="contacts" className="home-contacts" style={{ maxWidth: 1500, margin: '0 auto' }}>
         <Reveal kind="up">
           <div className="eyebrow">&mdash; Контакты</div>
           <h2 className="serif" style={{ fontSize: 'clamp(48px, 5.5vw, 88px)', margin: '16px 0', fontWeight: 400, lineHeight: 1, letterSpacing: '-0.02em' }}>

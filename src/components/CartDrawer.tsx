@@ -64,7 +64,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="btn" style={{ padding: '4px 10px', fontSize: 14 }}
+                    className="btn" style={{ padding: '0', fontSize: 18, minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                     data-hover
                   >
                     &minus;
@@ -72,7 +72,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                   <span className="mono" style={{ fontSize: 13 }}>{item.quantity}</span>
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="btn" style={{ padding: '4px 10px', fontSize: 14 }}
+                    className="btn" style={{ padding: '0', fontSize: 18, minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                     data-hover
                   >
                     +

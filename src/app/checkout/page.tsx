@@ -94,7 +94,7 @@ export default function CheckoutPage() {
     return (
       <div className="pg-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
-          <p className="serif" style={{ fontSize: 36, fontStyle: 'italic', marginBottom: 16 }}>Корзина пуста</p>
+          <p className="serif" style={{ fontSize: 'clamp(24px, 5vw, 36px)', fontStyle: 'italic', marginBottom: 16 }}>Корзина пуста</p>
           <p style={{ color: 'var(--ink-2)', marginBottom: 32 }}>Добавьте что-нибудь из каталога</p>
           <Link href="/catalog" className="btn btn--filled" data-hover>
             Перейти в каталог

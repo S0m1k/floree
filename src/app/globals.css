@@ -184,6 +184,9 @@ img { display: block; max-width: 100%; }
    ═══════════════════════════════════════════ */
 .contacts-map { aspect-ratio: 21/9; }
 @media (max-width: 768px) { .contacts-map { aspect-ratio: 4/3; } }
+.home-contacts { padding: 120px 56px; }
+@media (max-width: 800px) { .home-contacts { padding: 80px 24px; } }
+@media (max-width: 500px) { .home-contacts { padding: 60px 16px; } }
 
 /* ═══════════════════════════════════════════
    Ticker
