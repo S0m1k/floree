@@ -16,13 +16,13 @@ export default function PrivacyPage() {
         </Link>
 
         <h1 className="font-serif text-4xl font-bold text-gray-800 mb-2">Политика конфиденциальности</h1>
-        <p className="text-gray-400 text-sm mb-10">Последнее обновление: 1 мая 2026 г.</p>
+        <p className="text-gray-400 text-sm mb-10">Последнее обновление: 15 мая 2026 г.</p>
 
         <div className="bg-white rounded-2xl shadow-sm p-8 prose prose-gray max-w-none space-y-8 text-gray-600 leading-relaxed">
 
           <section>
             <h2 className="font-serif text-xl font-bold text-gray-800 mb-3">1. Общие положения</h2>
-            <p>Настоящая Политика конфиденциальности (далее — «Политика») определяет порядок обработки персональных данных пользователей сайта <strong>floree.ru</strong>, принадлежащего ИП Сомова А. (далее — «Оператор»).</p>
+            <p>Настоящая Политика конфиденциальности (далее — «Политика») определяет порядок обработки персональных данных пользователей сайта <strong>floree.ru</strong>, принадлежащего ИП Елисеевой Валерии Николаевне (далее — «Оператор»).</p>
             <p>Используя сайт, вы выражаете согласие с данной Политикой. Если вы не согласны с её условиями, пожалуйста, прекратите использование сайта.</p>
           </section>
 
@@ -74,7 +74,7 @@ export default function PrivacyPage() {
               <li>Потребовать удаления данных</li>
               <li>Отозвать согласие на обработку данных</li>
             </ul>
-            <p className="mt-3">Для реализации прав обращайтесь по e-mail: <a href="mailto:hello@floree.ru" className="text-rose-500 underline">hello@floree.ru</a></p>
+            <p className="mt-3">Для реализации прав обращайтесь по телефону: <a href="tel:+79930750577" className="text-rose-500 underline">+7 993 075 05 77</a></p>
           </section>
 
           <section>
@@ -84,7 +84,13 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="font-serif text-xl font-bold text-gray-800 mb-3">8. Контакты</h2>
-            <p>ИП Сомова А.<br />Адрес: Санкт-Петербург, Полтавский проезд, д. 2<br />E-mail: <a href="mailto:hello@floree.ru" className="text-rose-500 underline">hello@floree.ru</a></p>
+            <p>
+              ИП Елисеева Валерия Николаевна<br />
+              ИНН: 780533165824<br />
+              ОГРНИП: 325784700104187<br />
+              Адрес: Санкт-Петербург, Полтавский проезд, д. 2<br />
+              Телефон: <a href="tel:+79930750577" className="text-rose-500 underline">+7 993 075 05 77</a>
+            </p>
           </section>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Cormorant_Garamond, Inter } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
@@ -21,6 +21,12 @@ const sans = Inter({
 export const metadata: Metadata = {
   title: 'Floree — цветочная студия',
   description: 'Букеты, собранные руками и сердцем. Цветочная студия в Санкт-Петербурге.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

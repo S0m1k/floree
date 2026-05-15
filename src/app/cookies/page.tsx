@@ -16,7 +16,7 @@ export default function CookiesPage() {
         </Link>
 
         <h1 className="font-serif text-4xl font-bold text-gray-800 mb-2">Политика cookie</h1>
-        <p className="text-gray-400 text-sm mb-10">Последнее обновление: 1 мая 2026 г.</p>
+        <p className="text-gray-400 text-sm mb-10">Последнее обновление: 15 мая 2026 г.</p>
 
         <div className="bg-white rounded-2xl shadow-sm p-8 space-y-8 text-gray-600 leading-relaxed">
 
@@ -68,7 +68,7 @@ export default function CookiesPage() {
 
           <section>
             <h2 className="font-serif text-xl font-bold text-gray-800 mb-3">Контакты</h2>
-            <p>По вопросам использования cookie: <a href="mailto:hello@floree.ru" className="text-rose-500 underline">hello@floree.ru</a></p>
+            <p>По вопросам использования cookie: <a href="tel:+79930750577" className="text-rose-500 underline">+7 993 075 05 77</a></p>
           </section>
         </div>
       </div>
