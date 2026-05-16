@@ -12,10 +12,30 @@ const fmtPrice = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round
 const initialForm = {
   customerName: '',
   phone: '',
-  address: '',
+  city: 'Санкт-Петербург',
+  street: '',
+  house: '',
+  apartment: '',
   deliveryDate: '',
   deliveryTime: '',
   comment: '',
+};
+
+// 30-min slots from 10:00 to 21:30 (last delivery completes by 22:00)
+const TIME_SLOTS = (() => {
+  const out: string[] = [];
+  for (let h = 10; h < 22; h++) {
+    out.push(`${String(h).padStart(2, '0')}:00`);
+    out.push(`${String(h).padStart(2, '0')}:30`);
+  }
+  return out;
+})();
+const slotLabel = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  const endM = m + 30;
+  const endH = endM >= 60 ? h + 1 : h;
+  const end = `${String(endH).padStart(2, '0')}:${String(endM % 60).padStart(2, '0')}`;
+  return `${t} — ${end}`;
 };
 
 export default function CheckoutPage() {
@@ -27,7 +47,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError(null);
   };
@@ -35,8 +55,12 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) { setError('Корзина пуста'); return; }
-    if (!form.customerName.trim() || !form.phone.trim() || !form.address.trim()) {
+    if (!form.customerName.trim() || !form.phone.trim() || !form.city.trim() || !form.street.trim() || !form.house.trim()) {
       setError('Заполните все обязательные поля');
+      return;
+    }
+    if (form.deliveryDate && !form.deliveryTime) {
+      setError('Выберите интервал доставки');
       return;
     }
 
@@ -44,21 +68,19 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
-      let dueTime: string | undefined;
-      if (form.deliveryDate) {
-        const timeStr = form.deliveryTime || '12:00';
-        dueTime = `${form.deliveryDate}T${timeStr}:00+00:00`;
-      }
-
       const orderRes = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer_name: form.customerName,
           phone: form.phone,
-          address: form.address,
+          city: form.city,
+          street: form.street,
+          house: form.house,
+          apartment: form.apartment || null,
+          delivery_date: form.deliveryDate || null,
+          delivery_time: form.deliveryTime || null,
           comment: form.comment || null,
-          due_time: dueTime || null,
           bouquet_ids: items.map((i) => i.id),
           total_amount: Math.round(totalPrice()),
         }),
@@ -142,16 +164,33 @@ export default function CheckoutPage() {
               </div>
               <div className="pg-co__form">
                 <label className="pg-input pg-input--full">
-                  <span>Адрес доставки *</span>
-                  <input type="text" name="address" value={form.address} onChange={handleChange} required />
+                  <span>Город *</span>
+                  <input type="text" name="city" value={form.city} onChange={handleChange} required />
+                </label>
+                <label className="pg-input pg-input--full">
+                  <span>Улица *</span>
+                  <input type="text" name="street" value={form.street} onChange={handleChange} placeholder="Невский проспект" required />
+                </label>
+                <label className="pg-input">
+                  <span>Дом *</span>
+                  <input type="text" name="house" value={form.house} onChange={handleChange} placeholder="12А" required />
+                </label>
+                <label className="pg-input">
+                  <span>Квартира / офис</span>
+                  <input type="text" name="apartment" value={form.apartment} onChange={handleChange} placeholder="34" />
                 </label>
                 <label className="pg-input">
                   <span>Дата доставки</span>
                   <input type="date" name="deliveryDate" value={form.deliveryDate} onChange={handleChange} min={new Date().toISOString().split('T')[0]} />
                 </label>
                 <label className="pg-input">
-                  <span>Время доставки</span>
-                  <input type="time" name="deliveryTime" value={form.deliveryTime} onChange={handleChange} />
+                  <span>Интервал доставки {form.deliveryDate && '*'}</span>
+                  <select name="deliveryTime" value={form.deliveryTime} onChange={handleChange} disabled={!form.deliveryDate}>
+                    <option value="">{form.deliveryDate ? 'Выберите интервал' : 'Сначала выберите дату'}</option>
+                    {TIME_SLOTS.map((t) => (
+                      <option key={t} value={t}>{slotLabel(t)}</option>
+                    ))}
+                  </select>
                 </label>
               </div>
             </div>

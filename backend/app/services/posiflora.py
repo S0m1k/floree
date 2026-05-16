@@ -100,20 +100,51 @@ async def get_bouquet(bouquet_id: str) -> dict:
     }
 
 
+def _split_phone(phone: str) -> tuple[str, str]:
+    """Split a Russian phone into (code, number) for Posiflora.
+
+    Posiflora's deliveryPhoneCode is the country code like '+7' and
+    deliveryPhoneNumber is the 10-digit national number. Sending the
+    full 11-digit number into deliveryPhoneNumber alone makes Posiflora
+    treat the leading digit as something else and display '+0 (...)'.
+    """
+    digits = "".join(c for c in phone if c.isdigit())
+    if digits.startswith("8") and len(digits) == 11:
+        digits = "7" + digits[1:]
+    if len(digits) == 11 and digits.startswith("7"):
+        return "+7", digits[1:]
+    # Fallback — best effort, last 10 digits as number, rest as code
+    if len(digits) > 10:
+        return "+" + digits[:-10], digits[-10:]
+    return "+7", digits
+
+
+def _build_delivery_window(delivery_date: str, delivery_time: str) -> tuple[str, str]:
+    """Build ISO date-time pair for 30-min delivery slot in Moscow time."""
+    from datetime import datetime, timedelta, timezone
+    msk = timezone(timedelta(hours=3))
+    start = datetime.fromisoformat(f"{delivery_date}T{delivery_time}:00").replace(tzinfo=msk)
+    end = start + timedelta(minutes=30)
+    return start.isoformat(), end.isoformat()
+
+
 async def create_order(
     customer_name: str,
     phone: str,
-    address: str,
+    city: str,
+    street: str,
+    house: str,
+    apartment: str | None,
+    delivery_date: str | None,
+    delivery_time: str | None,
     comment: str | None,
-    due_time: str | None,
     bouquet_ids: list[str],
     doc_no: str,
 ) -> dict:
-    """Create order in Posiflora."""
+    """Create order in Posiflora with structured delivery fields."""
     from datetime import date
     today = date.today().isoformat()
-    # Strip non-digits from phone
-    phone_digits = "".join(c for c in phone if c.isdigit())
+    phone_code, phone_number = _split_phone(phone)
 
     relationships: dict = {
         "store": {"data": {"type": "stores", "id": settings.posiflora_store_id}},
@@ -130,11 +161,21 @@ async def create_order(
         "docNo": doc_no,
         "delivery": True,
         "deliveryContact": customer_name,
-        "deliveryPhoneNumber": phone_digits,
-        "deliveryComments": f"{address}" + (f" — {comment}" if comment else ""),
+        "deliveryPhoneCode": phone_code,
+        "deliveryPhoneNumber": phone_number,
+        "deliveryCity": city,
+        "deliveryStreet": street,
+        "deliveryHouse": house,
     }
-    if due_time:
-        attributes["dueTime"] = due_time
+    if apartment:
+        attributes["deliveryApartment"] = apartment
+    if comment:
+        attributes["deliveryComments"] = comment
+    if delivery_date and delivery_time:
+        time_from, time_to = _build_delivery_window(delivery_date, delivery_time)
+        attributes["deliveryTimeFrom"] = time_from
+        attributes["deliveryTimeTo"] = time_to
+        attributes["dueTime"] = time_from
 
     return await posiflora_request(
         "POST",

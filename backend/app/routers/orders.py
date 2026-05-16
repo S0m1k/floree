@@ -15,6 +15,17 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db)):
     doc_no = str(int(time.time() * 1000))[-12:]
 
+    # Combined address string for local DB (Posiflora gets structured fields)
+    addr_parts = [payload.city, f"{payload.street}, {payload.house}"]
+    if payload.apartment:
+        addr_parts.append(f"кв. {payload.apartment}")
+    combined_address = ", ".join(addr_parts)
+
+    # Build ISO due_time (Moscow) if both date+time provided — for local DB record
+    local_due_time = None
+    if payload.delivery_date and payload.delivery_time:
+        local_due_time = f"{payload.delivery_date}T{payload.delivery_time}:00+03:00"
+
     # 1. Create in Posiflora (best-effort — don't fail if Posiflora is down)
     posiflora_id = None
     posiflora_doc_no = None
@@ -22,9 +33,13 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         pf_resp = await posiflora_create_order(
             customer_name=payload.customer_name,
             phone=payload.phone,
-            address=payload.address,
+            city=payload.city,
+            street=payload.street,
+            house=payload.house,
+            apartment=payload.apartment,
+            delivery_date=payload.delivery_date,
+            delivery_time=payload.delivery_time,
             comment=payload.comment,
-            due_time=payload.due_time,
             bouquet_ids=payload.bouquet_ids,
             doc_no=doc_no,
         )
@@ -40,9 +55,9 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         posiflora_doc_no=posiflora_doc_no or doc_no,
         customer_name=payload.customer_name,
         phone=payload.phone,
-        address=payload.address,
+        address=combined_address,
         comment=payload.comment,
-        due_time=payload.due_time,
+        due_time=local_due_time,
         total_amount=payload.total_amount,
         status="pending",
         bouquet_ids=json.dumps(payload.bouquet_ids),

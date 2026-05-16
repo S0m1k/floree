@@ -5,9 +5,13 @@ from typing import Optional
 class OrderCreate(BaseModel):
     customer_name: str
     phone: str
-    address: str
+    city: str
+    street: str
+    house: str
+    apartment: Optional[str] = None
+    delivery_date: Optional[str] = None  # YYYY-MM-DD
+    delivery_time: Optional[str] = None  # HH:MM start of 30-min slot
     comment: Optional[str] = None
-    due_time: Optional[str] = None  # ISO datetime string with tz offset
     bouquet_ids: list[str]
     total_amount: int  # rubles
 
