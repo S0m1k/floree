@@ -40,3 +40,9 @@ next-env.d.ts
 
 # backend secrets
 backend/.env
+
+# python
+__pycache__/
+*.pyc
+backend/venv/
+backend/uvicorn.log
