@@ -54,17 +54,29 @@ async def posiflora_request(method: str, path: str, **kwargs):
 
 
 async def get_bouquets() -> dict:
-    """Fetch all bouquets with logos, filter to demonstrated ones."""
-    data = await posiflora_request("GET", "/v1/bouquets?include=logo&page%5Bsize%5D=200")
+    """Fetch ALL bouquets across pages, return only demonstrated+onWindowAt ones."""
+    all_items: list = []
+    image_map: dict = {}
+    page = 1
 
-    image_map = {
-        img["id"]: img
-        for img in (data.get("included") or [])
-        if img.get("type") == "images"
-    }
+    while True:
+        data = await posiflora_request(
+            "GET", f"/v1/bouquets?include=logo&page%5Bsize%5D=200&page%5Bnumber%5D={page}"
+        )
+        items = data.get("data") or []
+        all_items.extend(items)
+
+        for inc in data.get("included") or []:
+            if inc.get("type") == "images":
+                image_map[inc["id"]] = inc
+
+        total = (data.get("meta") or {}).get("total", 0)
+        if page * 200 >= total or not items:
+            break
+        page += 1
 
     result = []
-    for b in data.get("data", []):
+    for b in all_items:
         attrs = b.get("attributes", {})
         if attrs.get("status") != "demonstrated" or not attrs.get("onWindowAt"):
             continue
@@ -78,7 +90,10 @@ async def get_bouquets() -> dict:
             ),
         })
 
-    return {"data": result, "meta": data.get("meta", {})}
+    # Sort by onWindowAt ascending so oldest display item is first
+    result.sort(key=lambda b: b["attributes"].get("onWindowAt") or "")
+
+    return {"data": result, "meta": {"total": len(result)}}
 
 
 async def get_bouquet(bouquet_id: str) -> dict:
