@@ -6,7 +6,8 @@ export default function Footer() {
       <div className="fl-footer__hairline" />
       <div className="fl-footer__grid">
         <div>
-          <div className="fl-footer__logo">Floree</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/floree-logo.svg" alt="Floree" className="fl-footer__logo-img" />
           <p className="fl-footer__tag">
             Букеты, собранные руками — для тех, кто ценит цветы как способ говорить.
           </p>
@@ -28,12 +29,12 @@ export default function Footer() {
           </ul>
         </div>
         <div>
-          <div className="eyebrow">Связь</div>
+          <div className="eyebrow">Связаться с нами</div>
           <ul className="fl-footer__list">
             <li>Полтавский проезд, 2</li>
-            <li>Санкт-Петербург</li>
+            <li>(м. Пл. Восстания)</li>
             <li>Ежедневно 09:00 — 21:00</li>
-            <li><a href="tel:+79930750577">+7 993 075 05 77</a></li>
+            <li><a href="tel:+79930750577">+7 (993) 075-05-77</a></li>
           </ul>
         </div>
       </div>

@@ -27,6 +27,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         local_due_time = f"{payload.delivery_date}T{payload.delivery_time}:00+03:00"
 
     # 1. Create in Posiflora (best-effort — don't fail if Posiflora is down)
+    items_payload = [i.model_dump() for i in payload.items]
     posiflora_id = None
     posiflora_doc_no = None
     try:
@@ -40,7 +41,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
             delivery_date=payload.delivery_date,
             delivery_time=payload.delivery_time,
             comment=payload.comment,
-            bouquet_ids=payload.bouquet_ids,
+            items=items_payload,
             doc_no=doc_no,
         )
         posiflora_id = pf_resp["data"]["id"]
@@ -49,7 +50,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         # Log but continue — order is still saved locally
         print(f"[Posiflora] Order creation failed: {e}")
 
-    # 2. Save to DB
+    # 2. Save to DB (`bouquet_ids` column repurposed to store recipe order items as JSON)
     order = Order(
         posiflora_id=posiflora_id,
         posiflora_doc_no=posiflora_doc_no or doc_no,
@@ -60,7 +61,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         due_time=local_due_time,
         total_amount=payload.total_amount,
         status="pending",
-        bouquet_ids=json.dumps(payload.bouquet_ids),
+        bouquet_ids=json.dumps(items_payload),
     )
     db.add(order)
     await db.commit()

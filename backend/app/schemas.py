@@ -2,6 +2,13 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+class OrderItem(BaseModel):
+    recipe_id: str
+    title: str
+    price: int  # rubles per single bouquet
+    qty: int = 1
+
+
 class OrderCreate(BaseModel):
     customer_name: str
     phone: str
@@ -12,7 +19,7 @@ class OrderCreate(BaseModel):
     delivery_date: Optional[str] = None  # YYYY-MM-DD
     delivery_time: Optional[str] = None  # HH:MM start of 30-min slot
     comment: Optional[str] = None
-    bouquet_ids: list[str]
+    items: list[OrderItem]
     total_amount: int  # rubles
 
 

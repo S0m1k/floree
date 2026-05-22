@@ -28,7 +28,7 @@ export interface CatalogItem {
   };
 }
 
-export interface BouquetImage {
+export interface RecipeImage {
   id: string;
   type: 'images';
   attributes: {
@@ -40,35 +40,56 @@ export interface BouquetImage {
   };
 }
 
-export interface Bouquet {
+export interface Recipe {
   id: string;
-  type: 'bouquets';
+  type: 'specifications';
   attributes: {
     title: string;
-    description: string;
-    amount: number;
-    saleAmount: number;
-    status: 'created' | 'demonstrated' | 'purchased' | 'deleted' | 'cancelled';
-    onWindowAt: string | null;
-    docNo: string;
-    height: number;
-    width: number;
-    barcode?: string;
+    description: string | null;
+    status: 'on' | 'off' | 'deleted';
+    public: boolean;
+    minPrice: number;
+    maxPrice: number;
+    videoUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
   };
   relationships: {
-    logo: { data: { type: 'images'; id: string } | null };
-    store: { data: { type: 'stores'; id: string } };
+    category?: { data: { type: 'categories'; id: string } | null };
+    logo?: { data: { type: 'images'; id: string } | null };
+    images?: { data: { type: 'images'; id: string }[] };
+    tags?: { data: { type: 'tags'; id: string }[] };
+  };
+  // Added by backend for convenience
+  imageUrl?: string | null;
+  imageUrls?: string[];
+}
+
+export interface RecipeDetail extends Recipe {
+  included?: {
+    images?: Record<string, RecipeImage>;
+    tags?: Record<string, { id: string; type: 'tags'; attributes: { title: string } }>;
+    categories?: Record<string, RecipeCategory>;
   };
 }
 
-export interface BouquetsResponse {
-  meta: { page: { number: number; size: number }; total: number };
-  data: Bouquet[];
-  included?: BouquetImage[];
+export interface RecipeCategory {
+  id: string;
+  type: 'categories';
+  attributes: {
+    title: string;
+    status: 'on' | 'off';
+    color: string;
+    path: string[];
+    pathIds: string[];
+  };
+  relationships: {
+    parent: { data: { type: 'categories'; id: string } | null };
+  };
 }
 
 export interface CartItem {
-  id: string;        // bouquet id
+  id: string;        // recipe id
   title: string;
   price: number;
   quantity: number;

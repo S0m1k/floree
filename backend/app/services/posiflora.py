@@ -1,8 +1,12 @@
 import httpx
 import time
+import uuid
 from app.config import settings
 
 _token_cache: dict = {"access_token": None, "expires_at": 0}
+
+# Posiflora inventory-group id for "Рецепты" (specifications)
+RECIPES_GROUP_ID = "9"
 
 
 async def _get_token() -> str:
@@ -53,15 +57,50 @@ async def posiflora_request(method: str, path: str, **kwargs):
         return resp.json()
 
 
-async def get_bouquets() -> dict:
-    """Fetch ALL bouquets across pages, return only demonstrated+onWindowAt ones."""
+# ---------- Recipes (Posiflora specifications) ----------
+
+def _attach_image_url(item: dict, image_map: dict) -> dict:
+    """Inject imageUrl from logo relationship; keep images[] resolved if present."""
+    rels = item.get("relationships") or {}
+    logo_rel = (rels.get("logo") or {}).get("data")
+    logo = image_map.get(logo_rel["id"]) if logo_rel else None
+    image_url = None
+    if logo:
+        image_url = logo["attributes"].get("fileShop") or logo["attributes"].get("file")
+
+    image_urls: list[str] = []
+    images_rel = (rels.get("images") or {}).get("data") or []
+    for ref in images_rel:
+        img = image_map.get(ref["id"])
+        if img:
+            url = img["attributes"].get("fileShop") or img["attributes"].get("file")
+            if url:
+                image_urls.append(url)
+    # Fall back to logo as first image if images[] empty
+    if not image_urls and image_url:
+        image_urls = [image_url]
+
+    return {**item, "imageUrl": image_url, "imageUrls": image_urls}
+
+
+async def get_recipes(category_id: str | None = None) -> dict:
+    """Fetch ALL active+public recipes across pages.
+
+    Optionally filtered by category. Returns a JSON:API-shaped response with
+    each item carrying a top-level `imageUrl` for convenience.
+    """
     all_items: list = []
     image_map: dict = {}
     page = 1
 
+    # Build query — keep status=on filter, paginate at 200/page
+    base_qs = "include=logo&filter%5Bstatus%5D=on&page%5Bsize%5D=200"
+    if category_id:
+        base_qs += f"&filter%5Bcategory%5D={category_id}"
+
     while True:
         data = await posiflora_request(
-            "GET", f"/v1/bouquets?include=logo&page%5Bsize%5D=200&page%5Bnumber%5D={page}"
+            "GET", f"/v1/specifications?{base_qs}&page%5Bnumber%5D={page}"
         )
         items = data.get("data") or []
         all_items.extend(items)
@@ -76,43 +115,126 @@ async def get_bouquets() -> dict:
         page += 1
 
     result = []
-    for b in all_items:
-        attrs = b.get("attributes", {})
-        if attrs.get("status") != "demonstrated" or not attrs.get("onWindowAt"):
+    for r in all_items:
+        attrs = r.get("attributes", {})
+        # Only public, non-deleted recipes that have a price
+        if not attrs.get("public"):
             continue
-        logo_rel = b.get("relationships", {}).get("logo", {}).get("data")
-        image = image_map.get(logo_rel["id"]) if logo_rel else None
-        result.append({
-            **b,
-            "imageUrl": (
-                image["attributes"].get("fileShop") or image["attributes"].get("file")
-                if image else None
-            ),
-        })
+        if attrs.get("status") != "on":
+            continue
+        result.append(_attach_image_url(r, image_map))
 
-    # Sort by onWindowAt ascending so oldest display item is first
-    result.sort(key=lambda b: b["attributes"].get("onWindowAt") or "")
-
+    # Sort by updatedAt descending (newest first)
+    result.sort(key=lambda r: r["attributes"].get("updatedAt") or "", reverse=True)
     return {"data": result, "meta": {"total": len(result)}}
 
 
-async def get_bouquet(bouquet_id: str) -> dict:
-    data = await posiflora_request("GET", f"/v1/bouquets/{bouquet_id}?include=logo")
+async def get_recipe(recipe_id: str) -> dict:
+    data = await posiflora_request(
+        "GET", f"/v1/specifications/{recipe_id}?include=logo,images,tags,category"
+    )
     image_map = {
         img["id"]: img
         for img in (data.get("included") or [])
         if img.get("type") == "images"
     }
-    b = data["data"]
-    logo_rel = b.get("relationships", {}).get("logo", {}).get("data")
-    image = image_map.get(logo_rel["id"]) if logo_rel else None
-    return {
-        **b,
-        "imageUrl": (
-            image["attributes"].get("fileShop") or image["attributes"].get("file")
-            if image else None
-        ),
-    }
+    # Also surface included tags/category so the frontend can render names
+    included_index: dict = {}
+    for inc in data.get("included") or []:
+        included_index.setdefault(inc["type"], {})[inc["id"]] = inc
+
+    item = _attach_image_url(data["data"], image_map)
+    item["included"] = included_index
+    return item
+
+
+async def get_recipe_categories() -> dict:
+    """Return only user-defined recipe categories (skip the root "Рецепты" placeholder)."""
+    data = await posiflora_request(
+        "GET", f"/v1/categories?filter%5Bgroup%5D={RECIPES_GROUP_ID}"
+    )
+    items = data.get("data") or []
+    result = []
+    for c in items:
+        attrs = c.get("attributes", {})
+        if attrs.get("deleted"):
+            continue
+        if attrs.get("status") != "on":
+            continue
+        # Root "Рецепты" category has no parent and is the group placeholder — skip it
+        parent = (c.get("relationships") or {}).get("parent", {}).get("data")
+        if parent is None and (attrs.get("title") or "").strip().lower() == "рецепты":
+            continue
+        result.append(c)
+    return {"data": result, "meta": {"total": len(result)}}
+
+
+# ---------- Orders ----------
+
+async def _get_swv_id_for_recipe(recipe_id: str) -> str:
+    """Find the specification-with-variants id used to attach a recipe to a bouquet.
+
+    Posiflora bouquets reference 'specification-with-variants' (not specifications
+    directly). Each recipe has at least one SWV; we pick the first active one,
+    preferring isDefault=true.
+    """
+    data = await posiflora_request(
+        "GET",
+        f"/v1/specification-with-variants?filter%5Bspecification%5D={recipe_id}",
+    )
+    items = [i for i in (data.get("data") or []) if i.get("attributes", {}).get("status") == "on"]
+    if not items:
+        raise Exception(f"No active specification-with-variants for recipe {recipe_id}")
+    items.sort(key=lambda i: 0 if i["attributes"].get("isDefault") else 1)
+    return items[0]["id"]
+
+
+async def _create_bouquet_from_recipe(
+    recipe_id: str, title: str, price: int
+) -> str:
+    """Create a single bouquet attached to a recipe. Returns new bouquet id."""
+    swv_id = await _get_swv_id_for_recipe(recipe_id)
+    bouquet_id = str(uuid.uuid4())
+    await posiflora_request(
+        "POST",
+        "/v1/bouquets",
+        json={
+            "data": {
+                "type": "bouquets",
+                "id": bouquet_id,
+                "attributes": {
+                    "status": "created",
+                    "title": title,
+                    "amount": price,
+                    "saleAmount": price,
+                },
+                "relationships": {
+                    "store": {
+                        "data": {"type": "stores", "id": settings.posiflora_store_id}
+                    },
+                    "specWithVar": {
+                        "data": {
+                            "type": "specification-with-variants",
+                            "id": swv_id,
+                        }
+                    },
+                },
+            }
+        },
+    )
+    return bouquet_id
+
+
+async def _delete_bouquet(bouquet_id: str) -> None:
+    """Best-effort cleanup of a bouquet (used to roll back partial order creation)."""
+    try:
+        await posiflora_request(
+            "DELETE",
+            f"/v1/bouquets/{bouquet_id}",
+            json={"data": {"type": "bouquets", "id": bouquet_id}},
+        )
+    except Exception as e:
+        print(f"[Posiflora] Failed to roll back bouquet {bouquet_id}: {e}")
 
 
 def _split_phone(phone: str) -> tuple[str, str]:
@@ -153,21 +275,42 @@ async def create_order(
     delivery_date: str | None,
     delivery_time: str | None,
     comment: str | None,
-    bouquet_ids: list[str],
+    items: list[dict],
     doc_no: str,
 ) -> dict:
-    """Create order in Posiflora with structured delivery fields."""
+    """Create order in Posiflora.
+
+    `items` is a list of {recipe_id, title, price, qty}. For each item we
+    create `qty` bouquets attached to the recipe's specification-with-variants,
+    then attach all bouquet ids to a new order. On any failure mid-way we roll
+    back the bouquets that were already created.
+    """
     from datetime import date
     today = date.today().isoformat()
     phone_code, phone_number = _split_phone(phone)
+
+    created_bouquet_ids: list[str] = []
+    try:
+        for item in items:
+            for _ in range(int(item.get("qty", 1))):
+                bid = await _create_bouquet_from_recipe(
+                    recipe_id=item["recipe_id"],
+                    title=item["title"],
+                    price=int(item["price"]),
+                )
+                created_bouquet_ids.append(bid)
+    except Exception as e:
+        for bid in created_bouquet_ids:
+            await _delete_bouquet(bid)
+        raise Exception(f"Failed to create bouquets for order: {e}")
 
     relationships: dict = {
         "store": {"data": {"type": "stores", "id": settings.posiflora_store_id}},
         "source": {"data": {"type": "order-sources", "id": settings.posiflora_source_id}},
     }
-    if bouquet_ids:
+    if created_bouquet_ids:
         relationships["bouquets"] = {
-            "data": [{"type": "bouquets", "id": bid} for bid in bouquet_ids]
+            "data": [{"type": "bouquets", "id": bid} for bid in created_bouquet_ids]
         }
 
     attributes: dict = {
@@ -192,17 +335,23 @@ async def create_order(
         attributes["deliveryTimeTo"] = time_to
         attributes["dueTime"] = time_from
 
-    return await posiflora_request(
-        "POST",
-        "/v1/orders",
-        json={
-            "data": {
-                "type": "orders",
-                "attributes": attributes,
-                "relationships": relationships,
-            }
-        },
-    )
+    try:
+        return await posiflora_request(
+            "POST",
+            "/v1/orders",
+            json={
+                "data": {
+                    "type": "orders",
+                    "attributes": attributes,
+                    "relationships": relationships,
+                }
+            },
+        )
+    except Exception as e:
+        # Order creation failed — roll back the bouquets we just made
+        for bid in created_bouquet_ids:
+            await _delete_bouquet(bid)
+        raise Exception(f"Failed to create order, bouquets rolled back: {e}")
 
 
 async def record_payment(posiflora_order_id: str, amount: int) -> dict:

@@ -13,13 +13,12 @@ export default async function HomePage() {
       {/* INTRO */}
       <section className="ed-intro">
         <Reveal kind="up">
-          <div className="eyebrow" style={{ marginBottom: 24 }}>&mdash; Манифест</div>
+          <div className="eyebrow" style={{ marginBottom: 24 }}>&mdash; Floree</div>
         </Reveal>
         <Reveal kind="up" delay={120}>
           <p className="ed-intro__lede serif">
-            Мы&nbsp;&mdash; небольшая студия в&nbsp;центре Петербурга. Каждое&nbsp;утро встречаем новый завоз
-            из&nbsp;Голландии, выбираем самые тонкие, самые живые цветы&nbsp;&mdash; и&nbsp;собираем
-            из&nbsp;них то, что хочется держать в&nbsp;руках.
+            Floree&nbsp;&mdash; это всегда чуть&nbsp;<em>больше</em>,<br />
+            чем вы&nbsp;ожидаете.
           </p>
         </Reveal>
       </section>
@@ -27,7 +26,7 @@ export default async function HomePage() {
       {/* TICKER */}
       <Ticker items={['Цветы дня', 'Свадебная флористика', 'Подписка', 'Корпоративные заказы', 'Доставка по СПб']} speed={22} />
 
-      {/* STORY */}
+      {/* STORY — Почему выбирают нас? */}
       <section className="ed-story" id="about">
         <div className="ed-story__media">
           <MaskImage
@@ -41,20 +40,26 @@ export default async function HomePage() {
         </div>
         <div className="ed-story__copy">
           <Reveal kind="up">
-            <div className="eyebrow">&mdash; О студии</div>
+            <div className="eyebrow">&mdash; О нас</div>
           </Reveal>
           <Reveal kind="up" delay={120}>
             <h3 className="ed-story__title">
-              Тишина мастерской<br />и&nbsp;звук <em>секатора</em>.
+              Почему<br />выбирают <em>нас?</em>
             </h3>
           </Reveal>
           <Reveal kind="up" delay={220}>
-            <p className="ed-story__text">
-              Floree&nbsp;&mdash; это небольшая мастерская и&nbsp;тысячи стеблей,
-              проходящих через наши руки за&nbsp;год. Мы&nbsp;работаем с&nbsp;цветами так,
-              как нам бы&nbsp;самим хотелось их&nbsp;получить&nbsp;&mdash; без&nbsp;лишнего, без&nbsp;надрыва,
-              с&nbsp;вниманием к&nbsp;каждому стеблю.
-            </p>
+            <ul className="ed-story__bullets">
+              <li>
+                Floree&nbsp;&mdash; это уверенность в&nbsp;том, что ваши любимые
+                и&nbsp;близкие получат стильный, качественный букет,
+                собранный с&nbsp;любовью.
+              </li>
+              <li>Floree&nbsp;&mdash; это всегда свежие цветы!</li>
+              <li>
+                Floree&nbsp;&mdash; это удобно, быстро и&nbsp;с&nbsp;индивидуальным
+                подходом.
+              </li>
+            </ul>
           </Reveal>
           <Reveal kind="up" delay={320}>
             <Link href="/catalog" className="btn" data-hover style={{ marginTop: 32 }}>
@@ -65,54 +70,56 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* CATEGORIES */}
-      <section className="ed-cats">
+
+      {/* REVIEWS */}
+      <section className="ed-reviews">
         <Reveal kind="up">
-          <div className="eyebrow" style={{ textAlign: 'center' }}>&mdash; Что мы делаем</div>
-          <h2 className="ed-cats__title">Три направления студии</h2>
+          <div className="eyebrow" style={{ textAlign: 'center' }}>&mdash; Отзывы</div>
+          <h2 className="ed-reviews__title">Отзывы о&nbsp;нашей студии</h2>
         </Reveal>
-        <div className="ed-cats__row">
+        <div className="ed-reviews__grid">
           {[
-            { t: 'Авторские букеты', sub: 'Каждый день — свежие композиции от флористов студии', img: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=1400&q=80&auto=format&fit=crop', n: '01' },
-            { t: 'Свадебная флористика', sub: 'От букета невесты до арки и оформления зала', img: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1400&q=80&auto=format&fit=crop', n: '02' },
-            { t: 'Подписка на цветы', sub: 'Свежие букеты домой каждую неделю или раз в две', img: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1400&q=80&auto=format&fit=crop', n: '03' },
-          ].map((c, i) => (
+            {
+              name: 'Даниил',
+              src: 'Яндекс Карты',
+              text: 'Я был просто в восторге от букета, который заказал в этом сервисе! Цветы были настолько свежие и красивые, словно только что с грядки. Аромат стоял на всю комнату! Композиция была собрана со вкусом и выглядела даже лучше, чем на фотографии на сайте. Однозначно рекомендую, если хотите порадовать близких по-настоящему!',
+            },
+            {
+              name: 'София',
+              src: 'Instagram',
+              text: 'Заказывала букет для мамы на День рождения, находясь в другом городе. Очень переживала, что доставка задержится или букет будет выглядеть неважно. Но всё прошло идеально! Заказ оформила онлайн быстро и легко, оплатила тоже без проблем. Курьер приехал точно в указанное время, позвонил заранее. Мама была в восторге от цветов! Спасибо за отличный сервис и спокойствие!',
+            },
+            {
+              name: 'Анастасия',
+              src: 'Яндекс Карты',
+              text: 'В процессе оформления заказа возникла небольшая проблема с выбором времени доставки, но сотрудники сервиса очень быстро отреагировали и предложили оптимальное решение. Было приятно видеть такую клиентоориентированность и готовность помочь. Букет доставили вовремя, он был очень красивым и соответствовал моим ожиданиям. Чувствуется, что компания заботится о своей репутации и делает всё для удовлетворения клиентов.',
+            },
+          ].map((r, i) => (
             <Reveal key={i} kind="up" delay={i * 120}>
-              <div className="ed-cat__media" data-hover>
-                <MaskImage src={c.img} alt={c.t} aspect="3/4" delay={i * 100} />
-              </div>
-              <div className="ed-cat__meta">
-                <span className="ed-cat__n">N&deg;{c.n}</span>
-                <h4 className="ed-cat__t">{c.t}</h4>
-                <p className="ed-cat__sub">{c.sub}</p>
-              </div>
+              <figure className="ed-review">
+                <blockquote className="ed-review__text">«{r.text}»</blockquote>
+                <figcaption className="ed-review__meta">
+                  <span className="ed-review__name serif">{r.name}</span>
+                  <span className="ed-review__src mono">Источник: {r.src}</span>
+                </figcaption>
+              </figure>
             </Reveal>
           ))}
         </div>
       </section>
 
-      {/* QUOTE */}
-      <section className="ed-quote">
-        <Reveal kind="fade">
-          <blockquote className="ed-quote__text serif">
-            &laquo;Цветок&nbsp;&mdash; это <em>письмо</em>, которое не нужно читать.<br />
-            Достаточно держать в&nbsp;руках.&raquo;
-          </blockquote>
-        </Reveal>
-        <Reveal kind="up" delay={300}>
-          <div className="eyebrow">&mdash; Floree</div>
-        </Reveal>
-      </section>
-
       {/* CONTACTS */}
       <section id="contacts" className="home-contacts" style={{ maxWidth: 1500, margin: '0 auto' }}>
         <Reveal kind="up">
-          <div className="eyebrow">&mdash; Контакты</div>
+          <div className="eyebrow">&mdash; Цветочная студия</div>
           <h2 className="serif" style={{ fontSize: 'clamp(48px, 5.5vw, 88px)', margin: '16px 0', fontWeight: 400, lineHeight: 1, letterSpacing: '-0.02em' }}>
             Полтавский проезд, <em style={{ fontStyle: 'italic', color: 'var(--plum)' }}>2</em>
           </h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: 17, maxWidth: '50ch', margin: '0 0 16px' }}>
+            Санкт-Петербург, м.&nbsp;Площадь Восстания. Ежедневно 09:00&nbsp;&mdash; 21:00.
+          </p>
           <p style={{ color: 'var(--ink-2)', fontSize: 17, maxWidth: '50ch', margin: '0 0 40px' }}>
-            Санкт-Петербург, м.&nbsp;Площадь Восстания&nbsp;&mdash; 4&nbsp;минуты пешком. Ежедневно 09:00&nbsp;&mdash; 21:00.
+            Связаться с&nbsp;нами: <a href="tel:+79930750577" data-hover style={{ color: 'inherit' }}>+7&nbsp;(993)&nbsp;075-05-77</a>
           </p>
         </Reveal>
         <Reveal kind="fade" delay={120}>

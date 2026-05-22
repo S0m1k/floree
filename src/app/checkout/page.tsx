@@ -81,7 +81,12 @@ export default function CheckoutPage() {
           delivery_date: form.deliveryDate || null,
           delivery_time: form.deliveryTime || null,
           comment: form.comment || null,
-          bouquet_ids: items.map((i) => i.id),
+          items: items.map((i) => ({
+            recipe_id: i.id,
+            title: i.title,
+            price: Math.round(i.price),
+            qty: i.quantity,
+          })),
           total_amount: Math.round(totalPrice()),
         }),
       });

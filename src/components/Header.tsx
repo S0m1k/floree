@@ -34,7 +34,7 @@ export default function Header() {
         <div className="fl-header__inner">
           <nav className="fl-nav fl-nav--left">
             <Link href="/catalog" data-hover>Каталог</Link>
-            <Link href="/shipping" data-hover>Доставка</Link>
+            <Link href="/shipping" data-hover>Доставка и оплата</Link>
           </nav>
 
           {/* Mobile menu toggle */}
@@ -54,13 +54,13 @@ export default function Header() {
             )}
           </button>
 
-          <Link href="/" className="fl-logo" data-hover>
-            <span className="fl-logo__mark">Floree</span>
-            <span className="fl-logo__sub">цветочная студия</span>
+          <Link href="/" className="fl-logo" data-hover aria-label="Floree — на главную">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/floree-logo.svg" alt="Floree" className="fl-logo__img" />
           </Link>
 
           <nav className="fl-nav fl-nav--right">
-            <Link href="/#about" data-hover>О студии</Link>
+            <Link href="/#about" data-hover>О нас</Link>
             <Link href="/#contacts" data-hover>Контакты</Link>
             <button className="fl-cart-btn" onClick={() => setDrawerOpen(true)} data-hover>
               Корзина <span className="fl-cart-btn__count">{itemCount}</span>
@@ -73,7 +73,7 @@ export default function Header() {
       <div className={`fl-header__mobile-menu ${menuOpen ? 'is-open' : ''}`}>
         <Link href="/catalog" onClick={() => setMenuOpen(false)}>Каталог</Link>
         <Link href="/shipping" onClick={() => setMenuOpen(false)}>Доставка и оплата</Link>
-        <Link href="/#about" onClick={() => setMenuOpen(false)}>О студии</Link>
+        <Link href="/#about" onClick={() => setMenuOpen(false)}>О нас</Link>
         <Link href="/#contacts" onClick={() => setMenuOpen(false)}>Контакты</Link>
         <button onClick={() => { setMenuOpen(false); setDrawerOpen(true); }}>
           Корзина ({itemCount})
