@@ -20,8 +20,25 @@ const sans = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: 'Floree — цветочная студия',
-  description: 'Букеты, собранные руками и сердцем. Цветочная студия в Санкт-Петербурге.',
+  title: {
+    default: 'Floree — цветочная студия в Санкт-Петербурге',
+    template: '%s | Floree',
+  },
+  description: 'Флористическая студия Floree в Санкт-Петербурге. Авторские букеты с доставкой по СПб. Полтавский проезд, 2.',
+  metadataBase: new URL('https://floree.ru'),
+  openGraph: {
+    siteName: 'Floree',
+    locale: 'ru_RU',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@floree_spb',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport: Viewport = {
@@ -30,9 +47,42 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FlowerShop',
+  name: 'Floree',
+  description: 'Флористическая студия в Санкт-Петербурге. Авторские букеты с доставкой.',
+  url: 'https://floree.ru',
+  telephone: '+79930750577',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: 'Полтавский проезд, 2',
+    addressLocality: 'Санкт-Петербург',
+    addressCountry: 'RU',
+  },
+  geo: {
+    '@type': 'GeoCoordinates',
+    latitude: 59.9279,
+    longitude: 30.3660,
+  },
+  openingHoursSpecification: {
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
+    opens: '09:00',
+    closes: '21:00',
+  },
+  priceRange: '₽₽',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" className={`${serif.variable} ${sans.variable}`}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="min-h-screen flex flex-col" style={{ fontFamily: 'var(--font-sans), Montserrat, -apple-system, sans-serif' }}>
         <Header />
         <main className="flex-1">{children}</main>

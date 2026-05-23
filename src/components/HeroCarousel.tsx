@@ -6,23 +6,27 @@ import Image from 'next/image';
 const SLIDES = [
   {
     img: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=2000&q=80&auto=format&fit=crop',
-    name: 'N\u00b0 01 \u2014 Ros\u00e9e',
-    caption: '\u041f\u0438\u043e\u043d\u043e\u0432\u0438\u0434\u043d\u044b\u0435 \u0440\u043e\u0437\u044b \u0438 \u0440\u0430\u043d\u0443\u043d\u043a\u0443\u043b\u044e\u0441',
+    alt: 'Букет из пионовидных роз и ранункулюсов — Floree Санкт-Петербург',
+    name: 'N° 01 — Rosée',
+    caption: 'Пионовидные розы и ранункулюс',
   },
   {
     img: 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=2000&q=80&auto=format&fit=crop',
-    name: 'N\u00b0 02 \u2014 Matin',
-    caption: '\u0424\u0440\u0430\u043d\u0446\u0443\u0437\u0441\u043a\u0438\u0435 \u0442\u044e\u043b\u044c\u043f\u0430\u043d\u044b \u043d\u0430 \u0434\u043b\u0438\u043d\u043d\u044b\u0445 \u0441\u0442\u0435\u0431\u043b\u044f\u0445',
+    alt: 'Французские тюльпаны на длинных стеблях — авторский букет Floree',
+    name: 'N° 02 — Matin',
+    caption: 'Французские тюльпаны на длинных стеблях',
   },
   {
     img: 'https://images.unsplash.com/photo-1455659817273-f96807779a8a?w=2000&q=80&auto=format&fit=crop',
-    name: 'N\u00b0 03 \u2014 Verger',
-    caption: '\u0412\u0435\u0442\u0432\u0438 \u044f\u0431\u043b\u043e\u043d\u0438 \u0438 \u043a\u0443\u0441\u0442\u043e\u0432\u0430\u044f \u0440\u043e\u0437\u0430',
+    alt: 'Ветви яблони и кустовая роза — весенний букет Floree СПб',
+    name: 'N° 03 — Verger',
+    caption: 'Ветви яблони и кустовая роза',
   },
   {
     img: 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?w=2000&q=80&auto=format&fit=crop',
-    name: 'N\u00b0 04 \u2014 Soir',
-    caption: '\u0422\u0451\u043c\u043d\u0430\u044f \u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u044f \u043d\u0430 \u0432\u0435\u0447\u0435\u0440',
+    alt: 'Тёмная флористическая композиция для вечернего события — Floree',
+    name: 'N° 04 — Soir',
+    caption: 'Тёмная композиция на вечер',
   },
 ];
 
@@ -41,7 +45,7 @@ export default function HeroCarousel() {
           <div key={i} className={`ed-hero__slide ${i === slide ? 'is-active' : ''}`}>
             <Image
               src={s.img}
-              alt={s.name}
+              alt={s.alt}
               fill
               sizes="100vw"
               priority={i === 0}

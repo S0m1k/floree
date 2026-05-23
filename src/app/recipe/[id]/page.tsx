@@ -18,10 +18,19 @@ async function getRecipe(id: string): Promise<RecipeDetail | null> {
 
 export async function generateMetadata({ params }: Props) {
   const recipe = await getRecipe(params.id);
-  if (!recipe) return { title: 'Букет — Floree' };
+  if (!recipe) return { title: 'Букет не найден — Floree', robots: { index: false } };
+  const title = recipe.attributes.title;
+  const description = recipe.attributes.description
+    || `Купить букет «${title}» в Санкт-Петербурге с доставкой за 2 часа. Флористическая студия Floree — свежие цветы, авторская сборка.`;
   return {
-    title: `${recipe.attributes.title} — Floree`,
-    description: recipe.attributes.description || `Купить ${recipe.attributes.title} в Floree`,
+    title: `${title} — купить букет в СПб | Floree`,
+    description,
+    openGraph: {
+      title: `${title} — Floree`,
+      description,
+      url: `https://floree.ru/recipe/${params.id}`,
+      type: 'website' as const,
+    },
   };
 }
 

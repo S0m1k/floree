@@ -2,8 +2,14 @@ import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 
 export const metadata = {
-  title: 'Доставка и оплата — Floree',
-  description: 'Условия доставки букетов по Санкт-Петербургу и способы оплаты.',
+  title: 'Доставка букетов по Санкт-Петербургу — Floree | Условия и оплата',
+  description: 'Доставка цветов и букетов по СПб ежедневно с 9:00 до 21:00. Оплата онлайн картой. Самовывоз — Полтавский проезд, 2, м. Площадь Восстания. Флористическая студия Floree.',
+  openGraph: {
+    title: 'Доставка букетов по СПб — Floree',
+    description: 'Доставка цветов ежедневно с 9:00 до 21:00. Самовывоз на Полтавском проезде, 2.',
+    url: 'https://floree.ru/shipping',
+    type: 'website' as const,
+  },
 };
 
 const faqs = [

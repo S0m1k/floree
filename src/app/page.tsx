@@ -1,8 +1,20 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import HeroCarousel from '@/components/HeroCarousel';
 import Reveal from '@/components/Reveal';
 import MaskImage from '@/components/MaskImage';
 import Ticker from '@/components/Ticker';
+
+export const metadata: Metadata = {
+  title: 'Floree — цветочная студия в Санкт-Петербурге | Купить букет с доставкой',
+  description: 'Флористическая студия Floree в Санкт-Петербурге. Авторские букеты с доставкой по СПб за 2 часа. Свежие цветы, индивидуальный подход. Полтавский проезд, 2, м. Площадь Восстания.',
+  openGraph: {
+    title: 'Floree — цветочная студия в Санкт-Петербурге',
+    description: 'Авторские букеты с доставкой по СПб за 2 часа. Свежие цветы, индивидуальный подход.',
+    url: 'https://floree.ru',
+    type: 'website',
+  },
+};
 
 export default async function HomePage() {
   return (
@@ -43,9 +55,9 @@ export default async function HomePage() {
             <div className="eyebrow">&mdash; О нас</div>
           </Reveal>
           <Reveal kind="up" delay={120}>
-            <h3 className="ed-story__title">
+            <h2 className="ed-story__title">
               Почему<br />выбирают <em>нас?</em>
-            </h3>
+            </h2>
           </Reveal>
           <Reveal kind="up" delay={220}>
             <ul className="ed-story__bullets">
@@ -153,10 +165,10 @@ export default async function HomePage() {
       <section className="ed-cta">
         <Reveal kind="up">
           <div className="ed-cta__inner">
-            <h3 className="ed-cta__t">
+            <h2 className="ed-cta__t">
               Хотите букет<br />
               <em>не&nbsp;как у&nbsp;всех?</em>
-            </h3>
+            </h2>
             <p className="ed-cta__p">
               Напишите нам&nbsp;&mdash; обсудим повод, цвет и&nbsp;настроение.
               Соберём что-то ваше.

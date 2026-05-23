@@ -5,8 +5,14 @@ import { Recipe, RecipeCategory } from '@/types';
 const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const metadata = {
-  title: 'Каталог — Floree',
-  description: 'Каталог букетов Floree. Быстрая доставка по Санкт-Петербургу.',
+  title: 'Купить букет в Санкт-Петербурге — каталог Floree | Доставка за 2 часа',
+  description: 'Каталог авторских букетов Floree в Санкт-Петербурге. Свежие цветы, сборка по рецепту флориста, доставка по СПб за 2 часа. Розы, пионы, тюльпаны и композиции.',
+  openGraph: {
+    title: 'Каталог букетов Floree — купить в СПб с доставкой',
+    description: 'Авторские букеты с доставкой за 2 часа по Санкт-Петербургу.',
+    url: 'https://floree.ru/catalog',
+    type: 'website' as const,
+  },
 };
 
 async function getRecipes(categoryId?: string): Promise<Recipe[]> {
