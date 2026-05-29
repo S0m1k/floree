@@ -5,28 +5,16 @@ import Image from 'next/image';
 
 const SLIDES = [
   {
-    img: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=2000&q=80&auto=format&fit=crop',
-    alt: 'Букет из пионовидных роз и ранункулюсов — Floree Санкт-Петербург',
-    name: 'N° 01 — Rosée',
-    caption: 'Пионовидные розы и ранункулюс',
+    img: '/hero-1.jpg',
+    alt: 'Высокая композиция из пионов Coral Charm, голубого дельфиниума и эвкалипта — Floree Санкт-Петербург',
+    name: 'N° 01 — Azur',
+    caption: 'Пионы Coral Charm и голубой дельфиниум',
   },
   {
-    img: 'https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=2000&q=80&auto=format&fit=crop',
-    alt: 'Французские тюльпаны на длинных стеблях — авторский букет Floree',
-    name: 'N° 02 — Matin',
-    caption: 'Французские тюльпаны на длинных стеблях',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1455659817273-f96807779a8a?w=2000&q=80&auto=format&fit=crop',
-    alt: 'Ветви яблони и кустовая роза — весенний букет Floree СПб',
-    name: 'N° 03 — Verger',
-    caption: 'Ветви яблони и кустовая роза',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?w=2000&q=80&auto=format&fit=crop',
-    alt: 'Тёмная флористическая композиция для вечернего события — Floree',
-    name: 'N° 04 — Soir',
-    caption: 'Тёмная композиция на вечер',
+    img: '/hero-2.jpg',
+    alt: 'Авторский букет из коралловых пионов, зелёной гвоздики и молюцеллы — Floree СПб',
+    name: 'N° 02 — Verde',
+    caption: 'Коралловые пионы, гвоздика и молюцелла',
   },
 ];
 
@@ -34,7 +22,7 @@ export default function HeroCarousel() {
   const [slide, setSlide] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 5500);
+    const id = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 8000);
     return () => clearInterval(id);
   }, []);
 

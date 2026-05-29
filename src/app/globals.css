@@ -211,7 +211,7 @@ img { display: block; max-width: 100%; }
 .ed-hero__slide {
   position: absolute; inset: 0;
   opacity: 0;
-  transition: opacity 1.6s var(--ease), transform 6s linear;
+  transition: opacity 2.8s ease-in-out, transform 9s linear;
   transform: scale(1.05);
 }
 .ed-hero__slide.is-active { opacity: 1; transform: scale(1); }
