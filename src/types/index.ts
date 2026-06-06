@@ -40,6 +40,14 @@ export interface RecipeImage {
   };
 }
 
+export interface RecipeVariant {
+  swvId: string;          // specification-with-variants id (used for ordering)
+  title: string | null;   // quantity label, e.g. "9 штук"
+  qty: number | null;     // parsed quantity
+  price: number | null;   // priceValue — sale price for this variant
+  isDefault: boolean;
+}
+
 export interface Recipe {
   id: string;
   type: 'specifications';
@@ -63,6 +71,7 @@ export interface Recipe {
   // Added by backend for convenience
   imageUrl?: string | null;
   imageUrls?: string[];
+  variants?: RecipeVariant[];
 }
 
 export interface RecipeDetail extends Recipe {
@@ -89,7 +98,9 @@ export interface RecipeCategory {
 }
 
 export interface CartItem {
-  id: string;        // recipe id
+  id: string;          // unique cart-line key: recipeId, or `recipeId:swvId` when a variant is chosen
+  recipeId: string;    // real recipe id sent to the order API
+  swvId?: string;      // chosen quantity-variant (specification-with-variants)
   title: string;
   price: number;
   quantity: number;

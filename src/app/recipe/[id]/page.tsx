@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import AddToCartButton from '@/components/AddToCartButton';
+import RecipePurchase from '@/components/RecipePurchase';
 import { RecipeDetail } from '@/types';
 
 const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -38,8 +38,7 @@ export default async function RecipePage({ params }: Props) {
   const recipe = await getRecipe(params.id);
   if (!recipe) notFound();
 
-  const formatPrice = (price: number) => new Intl.NumberFormat('ru-RU').format(Math.round(price));
-  const price = recipe.attributes.minPrice;
+  const variants = recipe.variants ?? [];
 
   // Resolve image URLs: prefer backend-provided imageUrls, else read from included
   const images = recipe.imageUrls && recipe.imageUrls.length > 0
@@ -56,14 +55,6 @@ export default async function RecipePage({ params }: Props) {
   }
 
   const primaryImage = images[0];
-
-  const cartItem = {
-    id: recipe.id,
-    title: recipe.attributes.title,
-    price,
-    quantity: 1,
-    imageUrl: primaryImage,
-  };
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--paper)', paddingTop: 88 }}>
@@ -117,11 +108,13 @@ export default async function RecipePage({ params }: Props) {
               {recipe.attributes.title}
             </h1>
 
-            <div className="mb-8" style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <span className="serif" style={{ fontSize: '2rem', color: 'var(--plum)' }}>
-                {formatPrice(price)} ₽
-              </span>
-            </div>
+            <RecipePurchase
+              recipeId={recipe.id}
+              title={recipe.attributes.title}
+              imageUrl={primaryImage}
+              fallbackPrice={recipe.attributes.minPrice}
+              variants={variants}
+            />
 
             {recipe.attributes.description && (
               <p className="mb-8" style={{ color: 'var(--ink-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
@@ -142,10 +135,6 @@ export default async function RecipePage({ params }: Props) {
                 ))}
               </div>
             )}
-
-            <div className="mb-8">
-              <AddToCartButton item={cartItem} />
-            </div>
 
             <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem' }}>
               Соберём по рецепту и доставим в течение 2 часов после оформления заказа

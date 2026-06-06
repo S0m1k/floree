@@ -129,9 +129,70 @@ async def get_recipes(category_id: str | None = None) -> dict:
     return {"data": result, "meta": {"total": len(result)}}
 
 
+def _parse_qty(title: str | None) -> int | None:
+    """Extract the leading integer from a variant title like '9 штук' -> 9."""
+    if not title:
+        return None
+    import re
+    m = re.search(r"\d+", title)
+    return int(m.group()) if m else None
+
+
+def _parse_variants(included: list[dict]) -> list[dict]:
+    """Build the list of priced quantity-variants for a recipe.
+
+    Posiflora exposes per-variant prices only via the
+    specVariants.specVariantPrices include. Each `specification-variant-prices`
+    object carries `priceValue` (the sale price the owner set) and links to a
+    `specification-with-variants` (SWV); the SWV links to a
+    `specification-variants` whose title is the quantity label ('7 штук').
+    """
+    swv_to_variant: dict[str, str] = {}
+    swv_attrs: dict[str, dict] = {}
+    variant_title: dict[str, str] = {}
+    price_objs: list[dict] = []
+    for inc in included:
+        t = inc.get("type")
+        if t == "specification-with-variants":
+            swv_attrs[inc["id"]] = inc.get("attributes", {})
+            v = ((inc.get("relationships") or {}).get("variant") or {}).get("data")
+            if v:
+                swv_to_variant[inc["id"]] = v["id"]
+        elif t == "specification-variants":
+            variant_title[inc["id"]] = inc.get("attributes", {}).get("title")
+        elif t == "specification-variant-prices":
+            price_objs.append(inc)
+
+    variants: list[dict] = []
+    for p in price_objs:
+        if p.get("attributes", {}).get("status") != "on":
+            continue
+        swv_ref = ((p.get("relationships") or {}).get("specVariants") or {}).get("data")
+        if not swv_ref:
+            continue
+        swv_id = swv_ref["id"]
+        if swv_attrs.get(swv_id, {}).get("status") not in (None, "on"):
+            continue
+        title = variant_title.get(swv_to_variant.get(swv_id, ""))
+        variants.append({
+            "swvId": swv_id,
+            "title": title,
+            "qty": _parse_qty(title),
+            "price": p["attributes"].get("priceValue"),
+            "isDefault": bool(swv_attrs.get(swv_id, {}).get("isDefault")),
+        })
+
+    variants.sort(key=lambda v: (v["qty"] is None, v["qty"] or 0, v["price"] or 0))
+    return variants
+
+
 async def get_recipe(recipe_id: str) -> dict:
     data = await posiflora_request(
-        "GET", f"/v1/specifications/{recipe_id}?include=logo,images,tags,category"
+        "GET",
+        f"/v1/specifications/{recipe_id}"
+        "?include=logo,images,tags,category,"
+        "specVariants,specVariants.variant,specVariants.specVariantPrices"
+        "&filter%5BactiveVariants%5D=true",
     )
     image_map = {
         img["id"]: img
@@ -145,6 +206,7 @@ async def get_recipe(recipe_id: str) -> dict:
 
     item = _attach_image_url(data["data"], image_map)
     item["included"] = included_index
+    item["variants"] = _parse_variants(data.get("included") or [])
     return item
 
 
@@ -190,10 +252,15 @@ async def _get_swv_id_for_recipe(recipe_id: str) -> str:
 
 
 async def _create_bouquet_from_recipe(
-    recipe_id: str, title: str, price: int
+    recipe_id: str, title: str, price: int, swv_id: str | None = None
 ) -> str:
-    """Create a single bouquet attached to a recipe. Returns new bouquet id."""
-    swv_id = await _get_swv_id_for_recipe(recipe_id)
+    """Create a single bouquet attached to a recipe. Returns new bouquet id.
+
+    If `swv_id` (a chosen quantity-variant) is given it is used directly;
+    otherwise we fall back to the recipe's default specification-with-variants.
+    """
+    if not swv_id:
+        swv_id = await _get_swv_id_for_recipe(recipe_id)
     bouquet_id = str(uuid.uuid4())
     await posiflora_request(
         "POST",
@@ -297,6 +364,7 @@ async def create_order(
                     recipe_id=item["recipe_id"],
                     title=item["title"],
                     price=int(item["price"]),
+                    swv_id=item.get("swv_id"),
                 )
                 created_bouquet_ids.append(bid)
     except Exception as e:

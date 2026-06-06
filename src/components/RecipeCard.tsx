@@ -17,6 +17,7 @@ export default function RecipeCard({ recipe, index = 0 }: { recipe: Recipe; inde
     e.stopPropagation();
     addItem({
       id: recipe.id,
+      recipeId: recipe.id,
       title: recipe.attributes.title,
       price,
       quantity: 1,

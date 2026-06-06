@@ -41,6 +41,7 @@ export default async function ProductPage({ params }: Props) {
 
   const cartItem = {
     id: product.id,
+    recipeId: product.id,
     title,
     price: minPrice,
     quantity: 1,

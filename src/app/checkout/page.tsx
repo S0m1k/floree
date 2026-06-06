@@ -82,7 +82,8 @@ export default function CheckoutPage() {
           delivery_time: form.deliveryTime || null,
           comment: form.comment || null,
           items: items.map((i) => ({
-            recipe_id: i.id,
+            recipe_id: i.recipeId || i.id,
+            swv_id: i.swvId || null,
             title: i.title,
             price: Math.round(i.price),
             qty: i.quantity,

@@ -7,6 +7,7 @@ class OrderItem(BaseModel):
     title: str
     price: int  # rubles per single bouquet
     qty: int = 1
+    swv_id: Optional[str] = None  # chosen quantity-variant (specification-with-variants)
 
 
 class OrderCreate(BaseModel):

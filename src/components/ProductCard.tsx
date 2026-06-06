@@ -17,6 +17,7 @@ export default function ProductCard({ item }: Props) {
     e.preventDefault();
     addItem({
       id: item.id,
+      recipeId: item.id,
       title: item.attributes.title,
       price: item.attributes.minPrice,
       quantity: 1,
