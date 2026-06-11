@@ -5,16 +5,39 @@ import Image from 'next/image';
 
 const SLIDES = [
   {
-    img: '/hero-1.jpg',
-    alt: 'Высокая композиция из пионов Coral Charm, голубого дельфиниума и эвкалипта — Floree Санкт-Петербург',
+    imgDesktop: '/hero/desktop-1.jpg',
+    imgMobile: '/hero/mobile-1.jpg',
+    alt: 'Авторский букет Floree — цветочная студия Санкт-Петербург',
     name: 'N° 01 — Azur',
     caption: 'Пионы Coral Charm и голубой дельфиниум',
   },
   {
-    img: '/hero-2.jpg',
-    alt: 'Авторский букет из коралловых пионов, зелёной гвоздики и молюцеллы — Floree СПб',
+    imgDesktop: '/hero/desktop-2.jpg',
+    imgMobile: '/hero/mobile-2.jpg',
+    alt: 'Авторский букет Floree — свежие цветы с доставкой по СПб',
     name: 'N° 02 — Verde',
     caption: 'Коралловые пионы, гвоздика и молюцелла',
+  },
+  {
+    imgDesktop: '/hero/desktop-3.jpg',
+    imgMobile: '/hero/mobile-3.jpg',
+    alt: 'Флористическая студия Floree — Полтавский проезд, 2',
+    name: 'N° 03 — Brume',
+    caption: 'Весенняя коллекция — нежные пастельные тона',
+  },
+  {
+    imgDesktop: '/hero/desktop-4.jpg',
+    imgMobile: '/hero/mobile-4.jpg',
+    alt: 'Букет из свежих цветов — Floree Санкт-Петербург',
+    name: 'N° 04 — Lilas',
+    caption: 'Полевые цветы и акцентная зелень',
+  },
+  {
+    imgDesktop: '/hero/desktop-5.jpg',
+    imgMobile: '/hero/mobile-5.jpg',
+    alt: 'Авторская флористика Floree — заказ онлайн',
+    name: 'N° 05 — Blanc',
+    caption: 'Белые розы и нежный эвкалипт',
   },
 ];
 
@@ -31,14 +54,26 @@ export default function HeroCarousel() {
       <div className="ed-hero__stage">
         {SLIDES.map((s, i) => (
           <div key={i} className={`ed-hero__slide ${i === slide ? 'is-active' : ''}`}>
-            <Image
-              src={s.img}
-              alt={s.alt}
-              fill
-              sizes="100vw"
-              priority={i === 0}
-              style={{ objectFit: 'cover' }}
-            />
+            <div className="ed-hero__img ed-hero__img--desktop">
+              <Image
+                src={s.imgDesktop}
+                alt={s.alt}
+                fill
+                sizes="100vw"
+                priority={i === 0}
+                style={{ objectFit: 'cover' }}
+              />
+            </div>
+            <div className="ed-hero__img ed-hero__img--mobile">
+              <Image
+                src={s.imgMobile}
+                alt={s.alt}
+                fill
+                sizes="100vw"
+                priority={i === 0}
+                style={{ objectFit: 'cover' }}
+              />
+            </div>
           </div>
         ))}
         <div className="ed-hero__veil" />
