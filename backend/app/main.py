@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import recipes, orders, payments, v1_catalog
+from app.routers import recipes, orders, payments, v1_catalog, v1_sales
 
 app = FastAPI(title="Floree API")
 
@@ -18,6 +18,7 @@ app.include_router(orders.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 # Phase 2 — Posiflora-compatible /api/v1/* endpoints served from our own DB.
 app.include_router(v1_catalog.router, prefix="/api")
+app.include_router(v1_sales.router, prefix="/api")
 
 
 @app.get("/health")

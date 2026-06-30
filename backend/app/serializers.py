@@ -149,3 +149,103 @@ def specification_resource(spec, inc: Included, with_variants: bool = False) -> 
         rels["specVariants"] = rel_many("specification-with-variants", swv_ids)
 
     return resource("specifications", spec.id, a, rels)
+
+
+# ---------- stores ----------
+
+def store_resource(store) -> dict:
+    a = {
+        "title": store.title,
+        "addressCity": None,
+        "address": store.address,
+        "printLogo": False,
+        "printAddress": False,
+        "concealmentItems": 0,
+        "calculatedAt": None,
+        "externalLinkId": None,
+        "anotherTitle": None,
+        "formDeliveryTimeFormat": "all",
+        "revision": 0,
+        "isSbp": False,
+    }
+    rels = {
+        "timezone": rel_one("timezones", None),
+        "warehouse": rel_one("warehouses", None),
+        "image": rel_one("images", None),
+        "printSettings": rel_many("print-settings", []),
+        "deliveryDiapasons": rel_many("delivery-diapason", []),
+    }
+    return resource("stores", store.id, a, rels, links={"self": f"/stores/{store.id}"})
+
+
+# ---------- customers ----------
+
+def customer_resource(cust) -> dict:
+    a = {
+        "title": cust.name,
+        "birthday": _iso(cust.birthday),
+        "email": cust.email or "",
+        "instagram": None,
+        "status": "on",
+        "isPerson": True,
+        "bonusCard": None,
+        "notes": cust.comment or "",
+        "averageCheck": 0,
+        "ordersAmount": 0,
+        "ordersQty": 0,
+        "createdAt": _iso(cust.created_at),
+        "updatedAt": None,
+        "spentPoints": 0,
+        "currentPoints": cust.bonus_balance,
+        "gender": cust.gender or "other",
+        "phone": cust.phone,
+        "revision": 0,
+        "idAmo": None,
+        "countryCode": 7,
+    }
+    rels = {
+        "person": rel_one("persons", None),
+        "discountGroups": rel_many("discount-groups", []),
+        "bonusGroup": rel_one("bonus-groups", None),
+        "customerSources": rel_many("customer-sources", []),
+        "customerPreferences": rel_many("customer-preferences", []),
+        "customerEvents": rel_one("customer-events", None),
+        "bonusCards": rel_one("bonus-cards", None),
+    }
+    return resource("customers", cust.id, a, rels, links={"self": f"/customers/{cust.id}"})
+
+
+# ---------- bouquets ----------
+
+def bouquet_resource(bq) -> dict:
+    a = {
+        "qty": 1,
+        "docNo": None,
+        "title": bq.title,
+        "height": 0,
+        "width": 0,
+        "description": "",
+        "amount": bq.amount,
+        "saleAmount": bq.sale_amount,
+        "trueSaleAmount": bq.sale_amount,
+        "status": bq.status,
+        "onWindowAt": None,
+        "createdAt": _iso(bq.created_at),
+        "updatedAt": None,
+        "completedAt": None,
+        "public": False,
+        "discount": 0,
+        "discountType": "absolute",
+        "markup": 0,
+        "markupType": "absolute",
+        "revision": 0,
+        "barcode": None,
+    }
+    rels = {
+        "store": rel_one("stores", bq.store_id),
+        "createdBy": rel_one("users", None),
+        "updatedBy": rel_one("users", None),
+        "logo": rel_one("images", None),
+        "specWithVar": rel_one("specification-with-variants", bq.spec_with_variants_id),
+    }
+    return resource("bouquets", bq.id, a, rels)
