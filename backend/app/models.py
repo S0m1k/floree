@@ -39,3 +39,13 @@ class Payment(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     order: Mapped["Order"] = relationship("Order", back_populates="payments")
+
+
+# Phase 1 — domain models. Imported here so they register on Base.metadata for
+# Alembic (alembic/env.py imports Base from app.models). Order matters only for
+# readability; SQLAlchemy resolves FKs by table name at configure time.
+from app import catalog_models  # noqa: E402,F401
+from app import dictionary_models  # noqa: E402,F401
+from app import inventory_models  # noqa: E402,F401
+from app import staff_models  # noqa: E402,F401
+from app import loyalty_models  # noqa: E402,F401
