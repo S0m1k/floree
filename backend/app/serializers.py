@@ -1,0 +1,151 @@
+"""JSON:API serializers for the catalog domain (Posiflora-compatible shapes).
+
+Each builder turns an ORM object into a JSON:API resource and registers any
+related resources into the shared `Included` collector. Attribute names and
+relationship keys match the live Posiflora API captured 2026-07-01.
+"""
+
+from datetime import datetime, date
+
+from app.jsonapi import resource, rel_one, rel_many, Included
+
+
+def _iso(dt: datetime | date | None) -> str | None:
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        # Posiflora emits offset datetimes; assume UTC if naive.
+        return dt.isoformat()
+    return dt.isoformat()
+
+
+# ---------- images ----------
+
+def image_resource(img) -> dict:
+    a = {
+        "hash": img.hash,
+        "file": img.file,
+        "fileSmall": img.file_small,
+        "fileMedium": img.file_medium,
+        "fileShop": img.file_shop,
+        "fileLogo": None,
+        "fileLogoRetina": None,
+        "fileBanner": None,
+        "createdAt": _iso(img.created_at),
+        "globalImage": None,
+    }
+    return resource("images", img.id, a)
+
+
+# ---------- categories ----------
+
+def category_resource(cat, path: list[str] | None = None, path_ids: list[str] | None = None) -> dict:
+    a = {
+        "title": cat.title,
+        "status": cat.status,
+        "path": path or [],
+        "pathIds": path_ids or [],
+        "color": cat.color,
+        "countPublicItems": 0,
+        "deleted": bool(cat.deleted),
+        "revision": 0,
+    }
+    rels = {
+        "parent": rel_one("categories", cat.parent_id),
+        "group": rel_one("inventory-groups", cat.group_id),
+        "image": rel_one("images", None),
+    }
+    return resource("categories", cat.id, a, rels, links={"self": f"/categories/{cat.id}"})
+
+
+def build_category_path(cat, by_id: dict) -> tuple[list[str], list[str]]:
+    """Walk parent chain (root first) using a {id: category} map."""
+    titles: list[str] = []
+    ids: list[str] = []
+    node = cat
+    seen = set()
+    while node is not None and node.id not in seen:
+        seen.add(node.id)
+        titles.insert(0, node.title)
+        ids.insert(0, node.id)
+        node = by_id.get(node.parent_id) if node.parent_id else None
+    return titles, ids
+
+
+# ---------- specification variant chain ----------
+
+def variant_resource(v) -> dict:
+    a = {"title": v.title, "updatedAt": None}
+    return resource("specification-variants", v.id, a, {"tags": rel_many("tags", [])})
+
+
+def variant_price_resource(p) -> dict:
+    a = {
+        "priceValue": p.price_value,
+        "fixPrice": False,
+        "compositionPrice": p.price_value,
+        "status": p.status,
+    }
+    rels = {"store": rel_one("stores", None)}
+    return resource("specification-variant-prices", p.id, a, rels)
+
+
+def swv_resource(swv, inc: Included) -> dict:
+    a = {
+        "status": swv.status,
+        "isDefault": bool(swv.is_default),
+        "width": None,
+        "height": None,
+    }
+    price_ids = []
+    for p in swv.prices:
+        inc.add(variant_price_resource(p))
+        price_ids.append(p.id)
+    if swv.variant is not None:
+        inc.add(variant_resource(swv.variant))
+    rels = {
+        "variant": rel_one("specification-variants", swv.variant_id),
+        "logo": rel_one("images", None),
+        "tags": rel_many("tags", []),
+        "specVariantPrices": rel_many("specification-variant-prices", price_ids),
+    }
+    return resource("specification-with-variants", swv.id, a, rels)
+
+
+# ---------- specifications (recipes) ----------
+
+def specification_resource(spec, inc: Included, with_variants: bool = False) -> dict:
+    a = {
+        "title": spec.title,
+        "status": spec.status,
+        "description": spec.description or "",
+        "createdAt": _iso(spec.created_at),
+        "updatedAt": _iso(spec.updated_at),
+        "public": bool(spec.public),
+        "maxPrice": spec.max_price,
+        "minPrice": spec.min_price,
+        "haveInvalidVariantPrice": False,
+        "videoUrl": spec.video_url,
+        "revision": 0,
+    }
+
+    image_ids: list[str] = []
+    if spec.logo is not None:
+        inc.add(image_resource(spec.logo))
+        image_ids.append(spec.logo_id)
+
+    rels = {
+        "category": rel_one("categories", spec.category_id),
+        "images": rel_many("images", image_ids),
+        "logo": rel_one("images", spec.logo_id),
+        "createdBy": rel_one("workers", None),
+    }
+
+    if with_variants:
+        swv_ids: list[str] = []
+        for swv in spec.variants:
+            inc.add(swv_resource(swv, inc))
+            swv_ids.append(swv.id)
+        rels["specVariants"] = rel_many("specification-with-variants", swv_ids)
+
+    return resource("specifications", spec.id, a, rels)
