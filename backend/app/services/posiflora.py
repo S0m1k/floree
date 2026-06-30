@@ -210,6 +210,32 @@ async def get_recipe(recipe_id: str) -> dict:
     return item
 
 
+async def get_recipe_variant_prices(recipe_id: str) -> dict:
+    """Authoritative pricing for a recipe, straight from Posiflora.
+
+    Returns {"prices": {swvId: price_rubles}, "default_swv_id": swvId | None}.
+    Source of truth is `specification-variant-prices.priceValue` — never the
+    price a client sends. Used to recompute order totals server-side so the
+    public storefront cannot dictate what it pays.
+    """
+    data = await posiflora_request(
+        "GET",
+        f"/v1/specifications/{recipe_id}"
+        "?include=specVariants,specVariants.variant,specVariants.specVariantPrices"
+        "&filter%5BactiveVariants%5D=true",
+    )
+    variants = _parse_variants(data.get("included") or [])
+    prices = {
+        v["swvId"]: int(v["price"])
+        for v in variants
+        if v.get("swvId") and v.get("price") is not None
+    }
+    default_swv_id = next((v["swvId"] for v in variants if v.get("isDefault")), None)
+    if default_swv_id is None and variants:
+        default_swv_id = variants[0]["swvId"]
+    return {"prices": prices, "default_swv_id": default_swv_id}
+
+
 async def get_recipe_categories() -> dict:
     """Return only user-defined recipe categories (skip the root "Рецепты" placeholder)."""
     data = await posiflora_request(

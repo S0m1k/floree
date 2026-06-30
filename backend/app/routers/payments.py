@@ -95,6 +95,19 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         )
         order = order_result.scalar_one_or_none()
         if order:
+            # Defense-in-depth: the confirmed amount must match the
+            # server-computed order total. A mismatch means the paid sum was
+            # tampered with — flag it instead of fulfilling the order.
+            if amount_rubles != order.total_amount:
+                print(
+                    f"[Payment] Amount mismatch for order {order.id}: "
+                    f"paid {amount_rubles} != total {order.total_amount}"
+                )
+                payment.status = "amount_mismatch"
+                order.status = "amount_mismatch"
+                await db.commit()
+                return Response(content="OK")
+
             order.status = "paid"
             # Record payment in Posiflora
             if order.posiflora_id:

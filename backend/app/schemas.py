@@ -5,7 +5,7 @@ from typing import Optional
 class OrderItem(BaseModel):
     recipe_id: str
     title: str
-    price: int  # rubles per single bouquet
+    price: int = 0  # advisory only — server recomputes from Posiflora (anti-tamper)
     qty: int = 1
     swv_id: Optional[str] = None  # chosen quantity-variant (specification-with-variants)
 
@@ -21,7 +21,7 @@ class OrderCreate(BaseModel):
     delivery_time: Optional[str] = None  # HH:MM start of 30-min slot
     comment: Optional[str] = None
     items: list[OrderItem]
-    total_amount: int  # rubles
+    total_amount: int = 0  # advisory only — server recomputes the authoritative total
 
 
 class OrderResponse(BaseModel):
