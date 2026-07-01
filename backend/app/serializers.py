@@ -86,7 +86,10 @@ def variant_price_resource(p) -> dict:
         "compositionPrice": p.price_value,
         "status": p.status,
     }
-    rels = {"store": rel_one("stores", None)}
+    rels = {
+        "specVariants": rel_one("specification-with-variants", p.spec_with_variants_id),
+        "store": rel_one("stores", None),
+    }
     return resource("specification-variant-prices", p.id, a, rels)
 
 
