@@ -17,8 +17,11 @@ class Order(Base):
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_time: Mapped[str | None] = mapped_column(String, nullable=True)
     total_amount: Mapped[int] = mapped_column(Integer, default=0)  # rubles
-    status: Mapped[str] = mapped_column(String, default="pending")  # pending, paid, failed, cancelled
-    bouquet_ids: Mapped[str] = mapped_column(Text)  # JSON array of bouquet UUIDs
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending, paid, failed, cancelled, amount_mismatch
+    bouquet_ids: Mapped[str] = mapped_column(Text)  # JSON array of priced order items
+    # Full create args (JSON) so the Posiflora order can be built lazily in the
+    # payment webhook — the order is only pushed to Posiflora after CONFIRMED.
+    order_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

@@ -249,3 +249,105 @@ def bouquet_resource(bq) -> dict:
         "specWithVar": rel_one("specification-with-variants", bq.spec_with_variants_id),
     }
     return resource("bouquets", bq.id, a, rels)
+
+
+# ---------- orders ----------
+
+def _date(dt) -> str | None:
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        return dt.date().isoformat()
+    return dt.isoformat()
+
+
+def order_resource(order) -> dict:
+    """Serialize the checkout Order to the Posiflora `orders` shape.
+
+    Many fields are approximations until the order aggregate is enriched
+    (delivery/fiscal/posting details) — see docs/posiflora/api-clone.md.
+    `paymentsAmount` is summed from confirmed payments.
+    """
+    paid = sum(
+        p.amount for p in getattr(order, "payments", []) or []
+        if p.status in ("CONFIRMED", "paid")
+    )
+    a = {
+        "status": order.status,
+        "date": _date(order.created_at),
+        "docNo": order.posiflora_doc_no,
+        "description": order.comment or "",
+        "budget": 0,
+        "dueTime": order.due_time,
+        "delivery": bool(order.address),
+        "deliveryComments": order.comment or "",
+        "deliveryCity": "",
+        "deliveryStreet": "",
+        "deliveryHouse": "",
+        "deliveryApartment": "",
+        "deliveryBuilding": "",
+        "deliveryTimeFrom": None,
+        "deliveryTimeTo": None,
+        "deliveryContact": order.customer_name,
+        "deliveryPhoneNumber": order.phone,
+        "createdAt": _iso(order.created_at),
+        "updatedAt": _iso(order.updated_at),
+        "updatedStatusAt": None,
+        "modifiedAt": _iso(order.updated_at),
+        "fiscal": False,
+        "fiscalized": False,
+        "byBonuses": False,
+        "posted": order.status == "paid",
+        "postedAt": None,
+        "cancelComment": None,
+        "totalAmount": order.total_amount,
+        "paymentsAmount": paid,
+        "isExternal": False,
+        "externalId": None,
+        "deliveryStatus": None,
+        "fiscalizedAt": None,
+        "revision": 0,
+        "amoLeadId": None,
+        "deliveryPhoneCode": None,
+    }
+    rels = {
+        "source": rel_one("order-sources", None),
+        "store": rel_one("stores", None),
+        "customer": rel_one("customers", None),
+        "postedBy": rel_one("users", None),
+        "createdBy": rel_one("users", None),
+        "lockedBy": rel_one("users", None),
+        "lockedAt": rel_one("", None),
+        "lockedAtSmartphone": rel_one("", None),
+        "pendingPayments": rel_many("order-payments", []),
+    }
+    return resource("orders", order.id, a, rels, links={"self": f"/orders/{order.id}"})
+
+
+# ---------- order-payments ----------
+
+def order_payment_resource(p) -> dict:
+    confirmed = p.status in ("CONFIRMED", "paid")
+    a = {
+        "paymentType": "payment",
+        "date": _date(p.created_at),
+        "amount": p.amount,
+        "bonusAmount": 0,
+        "description": "",
+        "createdAt": _iso(p.created_at),
+        "posted": confirmed,
+        "postedAt": _iso(p.updated_at) if confirmed else None,
+        "terminalTransactionId": p.tbank_payment_id,
+        "fiscalized": False,
+        "prepayment": False,
+        "fiscalizedAt": None,
+        "paymentLink": p.payment_url,
+    }
+    rels = {
+        "method": rel_one("payment-methods", None),
+        "shift": rel_one("shifts", None),
+        "order": rel_one("orders", p.order_id),
+        "createdBy": rel_one("workers", None),
+        "postedBy": rel_one("workers", None),
+    }
+    return resource("order-payments", p.id, a, rels)

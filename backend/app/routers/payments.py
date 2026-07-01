@@ -4,8 +4,9 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import Order, Payment
 from app.schemas import PaymentInitRequest, PaymentInitResponse
+import json
 from app.services.tbank import init_payment, verify_notification
-from app.services.posiflora import record_payment
+from app.services.posiflora import record_payment, create_order as posiflora_create_order
 from app.config import settings
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -84,37 +85,54 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     if not payment:
         return Response(content="OK")  # unknown order, ignore
 
-    # Update payment status
-    payment.status = status
-    payment.tbank_payment_id = tbank_payment_id
-
+    order = None
     if status == "CONFIRMED":
-        # Update order status
         order_result = await db.execute(
             select(Order).where(Order.id == payment.order_id)
         )
         order = order_result.scalar_one_or_none()
-        if order:
-            # Defense-in-depth: the confirmed amount must match the
-            # server-computed order total. A mismatch means the paid sum was
-            # tampered with — flag it instead of fulfilling the order.
-            if amount_rubles != order.total_amount:
-                print(
-                    f"[Payment] Amount mismatch for order {order.id}: "
-                    f"paid {amount_rubles} != total {order.total_amount}"
-                )
-                payment.status = "amount_mismatch"
-                order.status = "amount_mismatch"
-                await db.commit()
-                return Response(content="OK")
 
-            order.status = "paid"
-            # Record payment in Posiflora
-            if order.posiflora_id:
-                try:
-                    await record_payment(order.posiflora_id, amount_rubles)
-                except Exception as e:
-                    print(f"[Posiflora] Record payment failed: {e}")
+    # Idempotency: a repeated CONFIRMED webhook must not create the order or
+    # record the payment twice. Once fulfilled, acknowledge and stop.
+    if order is not None and order.status == "paid":
+        return Response(content="OK")
+
+    payment.status = status
+    payment.tbank_payment_id = tbank_payment_id
+
+    if status == "CONFIRMED" and order is not None:
+        # Defense-in-depth: the confirmed amount must match the server-computed
+        # total. A mismatch means the paid sum was tampered with.
+        if amount_rubles != order.total_amount:
+            print(
+                f"[Payment] Amount mismatch for order {order.id}: "
+                f"paid {amount_rubles} != total {order.total_amount}"
+            )
+            payment.status = "amount_mismatch"
+            order.status = "amount_mismatch"
+            await db.commit()
+            return Response(content="OK")
+
+        # Now that payment is confirmed, create the order in Posiflora (only
+        # once) from the stashed payload, then record the payment against it.
+        order.status = "paid"
+        if order.posiflora_id is None and order.order_payload:
+            try:
+                args = json.loads(order.order_payload)
+                pf_resp = await posiflora_create_order(**args)
+                order.posiflora_id = pf_resp["data"]["id"]
+                order.posiflora_doc_no = (
+                    pf_resp["data"]["attributes"].get("docNo") or order.posiflora_doc_no
+                )
+            except Exception as e:
+                # Keep the order paid; leave posiflora_id empty for later retry.
+                print(f"[Posiflora] Deferred order creation failed: {e}")
+
+        if order.posiflora_id:
+            try:
+                await record_payment(order.posiflora_id, amount_rubles)
+            except Exception as e:
+                print(f"[Posiflora] Record payment failed: {e}")
 
     await db.commit()
     return Response(content="OK")

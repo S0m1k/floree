@@ -15,6 +15,8 @@
 | GET | `/api/v1/stores` · `/stores/{id}` | `page[...]` | `data[]`/`data` stores |
 | GET | `/api/v1/customers` · `/customers/{id}` | `filter[phone]`, `page[...]` | `data[]`/`data` customers |
 | GET | `/api/v1/bouquets` · `/bouquets/{id}` | `filter[store]`, `page[...]` | `data[]`/`data` bouquets |
+| GET | `/api/v1/orders` · `/orders/{id}` | `filter[status]`, `page[...]` | `data[]`/`data` orders (`paymentsAmount` из подтверждённых платежей) |
+| GET | `/api/v1/payments` | `filter[order]`, `page[...]` | `data[]` order-payments |
 
 Формы выверены автотестом против эталона: атрибуты и связи `categories`,
 `specifications`, `specification-with-variants`, `specification-variants`,
@@ -26,8 +28,24 @@
 - `createdBy` у спецификации — `null` (нет связи worker в модели).
 - M2M `specifications.images[]` пока = `[logo]`; полноценную галерею добавить вместе со связью.
 
+## Флоу заказа (ребилд, прод-паритет)
+Заказ в Posiflora больше **не** создаётся при оформлении. `POST /api/orders`
+только считает цену на сервере и сохраняет PENDING-заказ с полным набором
+аргументов в `orders.order_payload`. Создание заказа в Posiflora и запись
+платежа происходят **лениво в вебхуке** `POST /api/payments/webhook` по
+`CONFIRMED`:
+- идемпотентно — повторный вебхук по уже оплаченному заказу это no-op
+  (заказ создаётся 1 раз, платёж записывается 1 раз);
+- сверка суммы — если подтверждённая сумма ≠ серверному тоталу, заказ помечается
+  `amount_mismatch` и не исполняется;
+- fail-safe — если Posiflora недоступна, заказ остаётся `paid` (posiflora_id
+  пуст для последующего ретрая).
+
+Проверено ASGI-тестами: shape'ы orders/order-payments 1:1; флоу
+deferred-create+idempotency и блокировка amount-mismatch — зелёные.
+
 ## Дальше
 - `/v1/sessions` (аутентификация, JWT) — нужно решить хранение паролей сотрудников + секрет подписи; для полной замены вендора.
-- `orders` (богатая сущность) + `order-payments` (эндпоинт `/v1/payments`, тип `order-payments`: paymentType/date/amount/bonusAmount/description/posted/prepayment/fiscalized + rels method→payment-methods, shift, order) — вместе с ребилдом флоу «заказ только после CONFIRMED».
 - Склад/справочники по тем же сериализаторам.
 - Наполнение БД (Фаза 3: экспорт из Posiflora → импорт), затем переключение фронта на наш `/v1`.
+- Обогащение orders/order-payments реальными связями (customer/store/source) и полями (fiscal/delivery) при переносе данных.

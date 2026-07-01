@@ -6,10 +6,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import Order
 from app.schemas import OrderCreate, OrderResponse
-from app.services.posiflora import (
-    create_order as posiflora_create_order,
-    get_recipe_variant_prices,
-)
+from app.services.posiflora import get_recipe_variant_prices
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -86,33 +83,27 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
     #    Fails closed (502/422) if any line price can't be verified.
     items_payload, server_total = await _price_items_server_side(payload.items)
 
-    # 2. Create in Posiflora (best-effort — don't fail if Posiflora is down)
-    posiflora_id = None
-    posiflora_doc_no = None
-    try:
-        pf_resp = await posiflora_create_order(
-            customer_name=payload.customer_name,
-            phone=payload.phone,
-            city=payload.city,
-            street=payload.street,
-            house=payload.house,
-            apartment=payload.apartment,
-            delivery_date=payload.delivery_date,
-            delivery_time=payload.delivery_time,
-            comment=payload.comment,
-            items=items_payload,
-            doc_no=doc_no,
-        )
-        posiflora_id = pf_resp["data"]["id"]
-        posiflora_doc_no = pf_resp["data"]["attributes"].get("docNo")
-    except Exception as e:
-        # Log but continue — order is still saved locally
-        print(f"[Posiflora] Order creation failed: {e}")
+    # 2. Persist a PENDING order only. The Posiflora order is NOT created here —
+    #    it is built lazily in the payment webhook once payment is CONFIRMED, so
+    #    unpaid orders never reach the florist. The full create args are stashed
+    #    in `order_payload` for that deferred step.
+    order_payload = {
+        "customer_name": payload.customer_name,
+        "phone": payload.phone,
+        "city": payload.city,
+        "street": payload.street,
+        "house": payload.house,
+        "apartment": payload.apartment,
+        "delivery_date": payload.delivery_date,
+        "delivery_time": payload.delivery_time,
+        "comment": payload.comment,
+        "items": items_payload,
+        "doc_no": doc_no,
+    }
 
-    # 3. Save to DB (`bouquet_ids` column repurposed to store recipe order items as JSON)
     order = Order(
-        posiflora_id=posiflora_id,
-        posiflora_doc_no=posiflora_doc_no or doc_no,
+        posiflora_id=None,
+        posiflora_doc_no=doc_no,
         customer_name=payload.customer_name,
         phone=payload.phone,
         address=combined_address,
@@ -121,6 +112,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         total_amount=server_total,
         status="pending",
         bouquet_ids=json.dumps(items_payload),
+        order_payload=json.dumps(order_payload),
     )
     db.add(order)
     await db.commit()
