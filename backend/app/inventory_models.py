@@ -18,10 +18,14 @@ from sqlalchemy import (
     ForeignKey,
     func,
 )
+from decimal import Decimal
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.catalog_models import _uuid
+
+Money = Numeric(12, 2)  # transactional rubles, 2 decimal places
 
 
 class Item(Base):
@@ -74,7 +78,7 @@ class StockBalance(Base):
     item_id: Mapped[str] = mapped_column(String, ForeignKey("items.id"))
     quantity: Mapped[float] = mapped_column(Numeric(12, 3), default=0)
     reserve: Mapped[float] = mapped_column(Numeric(12, 3), default=0)
-    cost_price: Mapped[int] = mapped_column(Integer, default=0)  # себестоимость, rubles
+    cost_price: Mapped[Decimal] = mapped_column(Money, default=0)  # себестоимость, rubles
 
 
 class Vendor(Base):
@@ -106,8 +110,8 @@ class PackingInvoice(Base):
     store_id: Mapped[str] = mapped_column(String, ForeignKey("stores.id"))
     vendor_id: Mapped[str | None] = mapped_column(String, ForeignKey("vendors.id"), nullable=True)
     worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
-    total_amount: Mapped[int] = mapped_column(Integer, default=0)
-    payment_amount: Mapped[int] = mapped_column(Integer, default=0)
+    total_amount: Mapped[Decimal] = mapped_column(Money, default=0)
+    payment_amount: Mapped[Decimal] = mapped_column(Money, default=0)
     items_count: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -124,8 +128,8 @@ class PackingInvoiceItem(Base):
     invoice_id: Mapped[str] = mapped_column(String, ForeignKey("packing_invoices.id"))
     item_id: Mapped[str] = mapped_column(String, ForeignKey("items.id"))
     quantity: Mapped[float] = mapped_column(Numeric(12, 3), default=0)
-    price: Mapped[int] = mapped_column(Integer, default=0)
-    amount: Mapped[int] = mapped_column(Integer, default=0)
+    price: Mapped[Decimal] = mapped_column(Money, default=0)
+    amount: Mapped[Decimal] = mapped_column(Money, default=0)
 
     invoice: Mapped["PackingInvoice"] = relationship(
         "PackingInvoice", back_populates="lines"
@@ -143,7 +147,7 @@ class WriteoffInvoice(Base):
     store_id: Mapped[str] = mapped_column(String, ForeignKey("stores.id"))
     reason: Mapped[str | None] = mapped_column(String, nullable=True)  # Порча, по инвентаризации…
     worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
-    total_amount: Mapped[int] = mapped_column(Integer, default=0)
+    total_amount: Mapped[Decimal] = mapped_column(Money, default=0)
     items_count: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -160,7 +164,7 @@ class WriteoffInvoiceItem(Base):
     invoice_id: Mapped[str] = mapped_column(String, ForeignKey("writeoff_invoices.id"))
     item_id: Mapped[str] = mapped_column(String, ForeignKey("items.id"))
     quantity: Mapped[float] = mapped_column(Numeric(12, 3), default=0)
-    cost_price: Mapped[int] = mapped_column(Integer, default=0)
+    cost_price: Mapped[Decimal] = mapped_column(Money, default=0)
 
     invoice: Mapped["WriteoffInvoice"] = relationship(
         "WriteoffInvoice", back_populates="lines"
@@ -194,8 +198,8 @@ class MarkdownActItem(Base):
     act_id: Mapped[str] = mapped_column(String, ForeignKey("markdown_acts.id"))
     item_id: Mapped[str] = mapped_column(String, ForeignKey("items.id"))
     quantity: Mapped[float] = mapped_column(Numeric(12, 3), default=0)
-    old_price: Mapped[int] = mapped_column(Integer, default=0)
-    new_price: Mapped[int] = mapped_column(Integer, default=0)
+    old_price: Mapped[Decimal] = mapped_column(Money, default=0)
+    new_price: Mapped[Decimal] = mapped_column(Money, default=0)
 
     act: Mapped["MarkdownAct"] = relationship("MarkdownAct", back_populates="lines")
 
@@ -244,7 +248,7 @@ class InventoryAct(Base):
     store_id: Mapped[str] = mapped_column(String, ForeignKey("stores.id"))
     worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
     items_count: Mapped[int] = mapped_column(Integer, default=0)
-    financial_result: Mapped[int] = mapped_column(Integer, default=0)  # ±, rubles
+    financial_result: Mapped[Decimal] = mapped_column(Money, default=0)  # ±, rubles
     status: Mapped[str] = mapped_column(String, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -276,7 +280,7 @@ class MovementAct(Base):
     from_store_id: Mapped[str] = mapped_column(String, ForeignKey("stores.id"))
     to_store_id: Mapped[str] = mapped_column(String, ForeignKey("stores.id"))
     worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
-    cost: Mapped[int] = mapped_column(Integer, default=0)
+    cost: Mapped[Decimal] = mapped_column(Money, default=0)
     items_count: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -293,6 +297,6 @@ class MovementActItem(Base):
     act_id: Mapped[str] = mapped_column(String, ForeignKey("movement_acts.id"))
     item_id: Mapped[str] = mapped_column(String, ForeignKey("items.id"))
     quantity: Mapped[float] = mapped_column(Numeric(12, 3), default=0)
-    cost_price: Mapped[int] = mapped_column(Integer, default=0)
+    cost_price: Mapped[Decimal] = mapped_column(Money, default=0)
 
     act: Mapped["MovementAct"] = relationship("MovementAct", back_populates="lines")

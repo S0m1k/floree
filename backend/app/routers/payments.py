@@ -75,7 +75,7 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     status = body.get("Status")
     tbank_payment_id = str(body.get("PaymentId", ""))
     amount_kopecks = int(body.get("Amount", 0))
-    amount_rubles = amount_kopecks // 100
+    amount_rubles = amount_kopecks / 100  # exact rubles (may be fractional)
 
     # Find payment record
     result = await db.execute(
@@ -102,11 +102,12 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     if status == "CONFIRMED" and order is not None:
         # Defense-in-depth: the confirmed amount must match the server-computed
-        # total. A mismatch means the paid sum was tampered with.
-        if amount_rubles != order.total_amount:
+        # total. Compare in kopecks so fractional-ruble totals don't false-flag.
+        order_kopecks = int(round(float(order.total_amount) * 100))
+        if amount_kopecks != order_kopecks:
             print(
                 f"[Payment] Amount mismatch for order {order.id}: "
-                f"paid {amount_rubles} != total {order.total_amount}"
+                f"paid {amount_kopecks}k != total {order_kopecks}k"
             )
             payment.status = "amount_mismatch"
             order.status = "amount_mismatch"

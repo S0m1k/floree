@@ -23,10 +23,12 @@ CONFIRMED payment).
 
 import uuid
 from datetime import datetime, date
+from decimal import Decimal
 
 from sqlalchemy import (
     String,
     Integer,
+    Numeric,
     Boolean,
     DateTime,
     Date,
@@ -37,6 +39,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+Money = Numeric(12, 2)  # transactional rubles, 2 decimal places
 
 
 def _uuid() -> str:
@@ -197,8 +201,8 @@ class Bouquet(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     title: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="created")
-    amount: Mapped[int] = mapped_column(Integer, default=0)  # rubles
-    sale_amount: Mapped[int] = mapped_column(Integer, default=0)  # rubles
+    amount: Mapped[Decimal] = mapped_column(Money, default=0)  # rubles (2dp)
+    sale_amount: Mapped[Decimal] = mapped_column(Money, default=0)  # rubles (2dp)
     store_id: Mapped[str] = mapped_column(String, ForeignKey("stores.id"))
     spec_with_variants_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("specification_with_variants.id"), nullable=True

@@ -6,6 +6,7 @@ data and upserts the results.
 """
 
 from datetime import datetime
+from decimal import Decimal
 
 
 def _attrs(raw: dict) -> dict:
@@ -177,11 +178,11 @@ def parse_spec_graph(detail: dict) -> dict:
 
 
 # ---------- transactional entities ----------
-# NOTE: our money columns are Integer rubles; Posiflora amounts can be
-# fractional (e.g. 5142.5) — rounded here (documented limitation).
+# Transactional money columns are Numeric(12,2); keep the fractional rubles
+# Posiflora sends (e.g. 5142.5) exactly via Decimal.
 
-def _money(v) -> int:
-    return int(round(float(v or 0)))
+def _money(v) -> Decimal:
+    return Decimal(str(v if v is not None else 0))
 
 
 def map_bouquet(raw: dict) -> dict:

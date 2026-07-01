@@ -1,8 +1,14 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, func
+from decimal import Decimal
+from sqlalchemy import String, Integer, Numeric, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+
+# Money precision: transactional amounts use Numeric(12,2) so fractional
+# rubles from Posiflora (e.g. 5142.50) are preserved exactly. Catalog prices
+# stay Integer (integer rubles on the vendor).
+Money = Numeric(12, 2)
 
 
 class Order(Base):
@@ -16,7 +22,7 @@ class Order(Base):
     address: Mapped[str] = mapped_column(String)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_time: Mapped[str | None] = mapped_column(String, nullable=True)
-    total_amount: Mapped[int] = mapped_column(Integer, default=0)  # rubles
+    total_amount: Mapped[Decimal] = mapped_column(Money, default=0)  # rubles (2dp)
     status: Mapped[str] = mapped_column(String, default="pending")  # pending, paid, failed, cancelled, amount_mismatch
     bouquet_ids: Mapped[str] = mapped_column(Text)  # JSON array of priced order items
     # Full create args (JSON) so the Posiflora order can be built lazily in the
@@ -35,7 +41,7 @@ class Payment(Base):
     order_id: Mapped[str] = mapped_column(String, ForeignKey("orders.id"))
     tbank_payment_id: Mapped[str | None] = mapped_column(String, nullable=True)
     tbank_order_id: Mapped[str] = mapped_column(String)  # OrderId sent to T-Bank
-    amount: Mapped[int] = mapped_column(Integer)  # rubles
+    amount: Mapped[Decimal] = mapped_column(Money)  # rubles (2dp)
     status: Mapped[str] = mapped_column(String, default="INIT")  # INIT, NEW, CONFIRMED, CANCELLED, REJECTED
     payment_url: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
