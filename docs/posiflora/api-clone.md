@@ -17,6 +17,14 @@
 | GET | `/api/v1/bouquets` · `/bouquets/{id}` | `filter[store]`, `page[...]` | `data[]`/`data` bouquets |
 | GET | `/api/v1/orders` · `/orders/{id}` | `filter[status]`, `page[...]` | `data[]`/`data` orders (`paymentsAmount` из подтверждённых платежей) |
 | GET | `/api/v1/payments` | `filter[order]`, `page[...]` | `data[]` order-payments |
+| GET | `/api/v1/inventory-items` · `/{id}` | `filter[category]`, `page[...]` | номенклатура (товары/услуги) |
+| GET | `/api/v1/warehouses` | `page[...]` | склады |
+| GET | `/api/v1/vendors` · `/{id}` | `page[...]` | поставщики |
+| GET | `/api/v1/{order-tags,recipe-tags,discount-reasons,cash-reasons,customer-preferences,customer-sources,order-sources,customer-celebrations,measures}` | `page[...]` | справочники (title/deleted/revision; у discount-reasons + `discountType`) |
+
+> Имена эндпоинтов, выясненные с живого API: номенклатура = `inventory-items`
+> (закрывает вопрос «goods/nomenclature»), единицы = тип `measures`, источники
+> сделок = `order-sources`, накладные на списание = `write-off-invoices`.
 
 Формы выверены автотестом против эталона: атрибуты и связи `categories`,
 `specifications`, `specification-with-variants`, `specification-variants`,
@@ -46,6 +54,6 @@ deferred-create+idempotency и блокировка amount-mismatch — зелё
 
 ## Дальше
 - `/v1/sessions` (аутентификация, JWT) — нужно решить хранение паролей сотрудников + секрет подписи; для полной замены вендора.
-- Склад/справочники по тем же сериализаторам.
+- Складские документы: `packing-invoices`, `write-off-invoices`, `markdown-acts`, `sorting-acts`, `inventory-acts`, `movement-acts` — с позициями (line items) через include.
 - Наполнение БД (Фаза 3: экспорт из Posiflora → импорт), затем переключение фронта на наш `/v1`.
 - Обогащение orders/order-payments реальными связями (customer/store/source) и полями (fiscal/delivery) при переносе данных.

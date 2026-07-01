@@ -351,3 +351,67 @@ def order_payment_resource(p) -> dict:
         "postedBy": rel_one("workers", None),
     }
     return resource("order-payments", p.id, a, rels)
+
+
+# ---------- dictionaries ----------
+
+def dictionary_resource(obj, type_: str, extra: dict | None = None) -> dict:
+    """Generic reference dictionary (title/deleted/revision) → JSON:API."""
+    a = {
+        "title": obj.title,
+        "deleted": bool(getattr(obj, "deleted", False)),
+        "revision": 0,
+    }
+    if extra:
+        a.update(extra)
+    return resource(type_, obj.id, a, links={"self": f"/{type_}/{obj.id}"})
+
+
+# ---------- vendors ----------
+
+def vendor_resource(v) -> dict:
+    a = {
+        "title": v.title,
+        "description": v.comment,
+        "email": v.email,
+        "phone": v.phone,
+        "phoneValid": bool(v.phone),
+        "countryCode": 7,
+    }
+    rels = {"person": rel_one("persons", None)}
+    return resource("vendors", v.id, a, rels, links={"self": f"/vendors/{v.id}"})
+
+
+# ---------- warehouses ----------
+
+def warehouse_resource(w) -> dict:
+    return resource("warehouses", w.id, {"title": w.title})
+
+
+# ---------- inventory items (nomenclature) ----------
+
+def item_resource(item) -> dict:
+    a = {
+        "title": item.title,
+        "description": None,
+        "itemType": item.item_type,
+        "globalId": item.global_id,
+        "updatedAt": _iso(item.updated_at),
+        "added": None,
+        "postfix": None,
+        "public": bool(item.public),
+        "fractional": bool(item.fractional),
+        "priceMin": item.min_price,
+        "priceMax": item.max_price,
+        "revision": 0,
+        "deleted": False,
+        "showInCheckout": False,
+    }
+    rels = {
+        "group": rel_one("inventory-groups", None),
+        "category": rel_one("categories", item.category_id),
+        "measure": rel_one("measures", item.unit_id),
+        "logo": rel_one("images", item.logo_id),
+        "markdowns": rel_many("markdowns", []),
+    }
+    return resource("inventory-items", item.id, a, rels, links={"self": f"/inventory-items/{item.id}"})
