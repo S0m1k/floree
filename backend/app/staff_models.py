@@ -28,7 +28,8 @@ class Worker(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String)
-    login: Mapped[str | None] = mapped_column(String, nullable=True)
+    login: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     role_id: Mapped[str | None] = mapped_column(String, ForeignKey("roles.id"), nullable=True)
     store_id: Mapped[str | None] = mapped_column(String, ForeignKey("stores.id"), nullable=True)
     # JSON list of access-right sets (Администратор, Флорист, Курьер, Менеджер склада…)

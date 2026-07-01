@@ -42,6 +42,22 @@
 - `createdBy` у спецификации — `null` (нет связи worker в модели).
 - M2M `specifications.images[]` пока = `[logo]`; полноценную галерею добавить вместе со связью.
 
+## Аутентификация (`/v1/sessions`, JWT + Redis)
+- `POST /api/v1/sessions` — двойной режим:
+  - **логин**: `{data:{type:sessions,attributes:{username,password}}}` → проверка `workers.login` + bcrypt-хэш `password_hash`;
+  - **refresh**: `{...attributes:{refreshToken}}` → ротация (одноразовый refresh).
+  - Ответ: `data.type=sessions` с `{accessToken, expireAt, refreshToken, refreshExpireAt}` (то, что читают фронт/бэк).
+- `DELETE /api/v1/sessions` `{...refreshToken}` → logout (revoke), `204`.
+- `GET /api/v1/sessions/current` — `Authorization: Bearer <jwt>` → текущий `workers` (расширение клона).
+- Токены: access — stateless **HS256 JWT** (`sub`=worker.id, TTL `ACCESS_TOKEN_TTL_SECONDS`); refresh — непрозрачный, хранится в **Redis** (`REDIS_URL`; иначе in-memory для dev/тестов), ротация через атомарный `GETDEL`.
+- Конфиг: `JWT_SECRET` (обязателен), `JWT_ALGORITHM`, TTL, `REDIS_URL`. Модель: `workers.password_hash` + индекс `login` (миграция 0004).
+- Зависимость `app.deps.get_current_worker` (Bearer → активный Worker или 401).
+- Проверено ASGI-тестом: логин/current/неверные креды/ротация refresh/одноразовость/logout — зелёные.
+
+> Пока read-эндпоинты `/v1/*` **не** закрыты авторизацией — фронт клона ещё не
+> переключён на нашу сессию (это делается на этапе cutover, Фаза 6). `get_current_worker`
+> готов для навешивания на записи/чувствительные ручки.
+
 ## Флоу заказа (ребилд, прод-паритет)
 Заказ в Posiflora больше **не** создаётся при оформлении. `POST /api/orders`
 только считает цену на сервере и сохраняет PENDING-заказ с полным набором
@@ -59,6 +75,5 @@
 deferred-create+idempotency и блокировка amount-mismatch — зелёные.
 
 ## Дальше
-- `/v1/sessions` (аутентификация, JWT) — нужно решить хранение паролей сотрудников + секрет подписи; для полной замены вендора.
-- Наполнение БД (Фаза 3: экспорт из Posiflora → импорт), затем переключение фронта на наш `/v1`.
+- **Фаза 3** — наполнение БД (экспорт из Posiflora → импорт в наши таблицы), затем переключение фронта на наш `/v1` (и включение авторизации на всех ручках, cutover — Фаза 6).
 - Обогащение orders/order-payments/документов реальными связями и полями при переносе данных (markdown/movement заголовки — без живого образца, по общему паттерну).
