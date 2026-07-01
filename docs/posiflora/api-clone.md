@@ -21,6 +21,12 @@
 | GET | `/api/v1/warehouses` | `page[...]` | склады |
 | GET | `/api/v1/vendors` · `/{id}` | `page[...]` | поставщики |
 | GET | `/api/v1/{order-tags,recipe-tags,discount-reasons,cash-reasons,customer-preferences,customer-sources,order-sources,customer-celebrations,measures}` | `page[...]` | справочники (title/deleted/revision; у discount-reasons + `discountType`) |
+| GET | `/api/v1/{packing-invoices,write-off-invoices,markdown-acts,sorting-acts,inventory-acts,movement-acts}` · `/{id}` | `filter[store]`, `page[...]` | складские документы; by-id включает позиции (`*-lines`) в `included` |
+
+> Складские документы: общий заголовок (`date/docNo/amount/linesCount/status/posted/…`)
+> + связь `lines`. Тип позиции = `<doc>-lines` (напр. `packing-invoice-lines`
+> {qty, amount, cost, prevCost, costPrice, idExternal} rels {item, measure, invoice}).
+> В списке `lines` пустой (без N+1), в by-id — заполнен и включён.
 
 > Имена эндпоинтов, выясненные с живого API: номенклатура = `inventory-items`
 > (закрывает вопрос «goods/nomenclature»), единицы = тип `measures`, источники
@@ -54,6 +60,5 @@ deferred-create+idempotency и блокировка amount-mismatch — зелё
 
 ## Дальше
 - `/v1/sessions` (аутентификация, JWT) — нужно решить хранение паролей сотрудников + секрет подписи; для полной замены вендора.
-- Складские документы: `packing-invoices`, `write-off-invoices`, `markdown-acts`, `sorting-acts`, `inventory-acts`, `movement-acts` — с позициями (line items) через include.
 - Наполнение БД (Фаза 3: экспорт из Posiflora → импорт), затем переключение фронта на наш `/v1`.
-- Обогащение orders/order-payments реальными связями (customer/store/source) и полями (fiscal/delivery) при переносе данных.
+- Обогащение orders/order-payments/документов реальными связями и полями при переносе данных (markdown/movement заголовки — без живого образца, по общему паттерну).

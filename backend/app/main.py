@@ -9,6 +9,7 @@ from app.routers import (
     v1_sales,
     v1_dictionaries,
     v1_inventory,
+    v1_warehouse_docs,
 )
 
 app = FastAPI(title="Floree API")
@@ -29,6 +30,7 @@ app.include_router(v1_catalog.router, prefix="/api")
 app.include_router(v1_sales.router, prefix="/api")
 app.include_router(v1_dictionaries.router, prefix="/api")
 app.include_router(v1_inventory.router, prefix="/api")
+app.include_router(v1_warehouse_docs.router, prefix="/api")
 
 
 @app.get("/health")
