@@ -13,14 +13,17 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from app.database import AsyncSessionLocal
 from app.services.posiflora import posiflora_request
 from app.catalog_models import (
     Store, Image, Category, Specification, SpecificationVariant,
-    SpecificationWithVariants, SpecificationVariantPrice, Customer,
+    SpecificationWithVariants, SpecificationVariantPrice, Customer, Bouquet,
 )
 from app.inventory_models import Item, Vendor
 from app.dictionary_models import UnitOfMeasure
+from app.models import Order, Payment
 from app.etl import transforms as T
 
 
@@ -113,6 +116,31 @@ async def import_specifications(session) -> int:
     return n
 
 
+async def import_bouquets(session) -> int:
+    data, _ = await _fetch_all("/v1/bouquets")
+    known_swv = set((await session.execute(select(SpecificationWithVariants.id))).scalars().all())
+    rows = []
+    for r in data:
+        b = T.map_bouquet(r)
+        if b["spec_with_variants_id"] not in known_swv:
+            b["spec_with_variants_id"] = None  # avoid dangling FK
+        rows.append(b)
+    return await _merge_all(session, Bouquet, rows)
+
+
+async def import_orders(session) -> int:
+    data, _ = await _fetch_all("/v1/orders")
+    return await _merge_all(session, Order, [T.map_order(r) for r in data])
+
+
+async def import_order_payments(session) -> int:
+    data, _ = await _fetch_all("/v1/payments")
+    known_orders = set((await session.execute(select(Order.id))).scalars().all())
+    rows = [T.map_order_payment(r) for r in data]
+    rows = [r for r in rows if r["order_id"] in known_orders]  # FK safety
+    return await _merge_all(session, Payment, rows)
+
+
 async def run() -> None:
     async with AsyncSessionLocal() as session:
         print("stores:", await import_stores(session))
@@ -120,7 +148,10 @@ async def run() -> None:
         print("items(+measures,images):", await import_items(session))
         print("vendors:", await import_vendors(session))
         print("specifications(+graph):", await import_specifications(session))
+        print("bouquets:", await import_bouquets(session))
         print("customers:", await import_customers(session))
+        print("orders:", await import_orders(session))
+        print("order-payments:", await import_order_payments(session))
     print("done.")
 
 

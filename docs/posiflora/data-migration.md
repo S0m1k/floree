@@ -19,14 +19,22 @@ cd backend && python -m app.etl.posiflora_import
 | 3 | measures, images, items | `/v1/inventory-items?include=measure,logo,category` | measures/images — только из includes (своих коллекций нет / 404) |
 | 4 | vendors | `/v1/vendors` | |
 | 5 | specifications + граф | `/v1/specifications` + деталь каждой | SWV/цены берутся из детали спецификации (коллекция SWV не отдаёт ни parent, ни цены) |
-| 6 | customers | `/v1/customers` | имя=`title`, бонусы=`currentPoints` |
+| 6 | bouquets | `/v1/bouquets` | FK `specWithVar`; неизвестный SWV → `NULL` (без висячего FK) |
+| 7 | customers | `/v1/customers` | имя=`title`, бонусы=`currentPoints` |
+| 8 | orders | `/v1/orders` | в тонкую модель Order: contact/phone/адрес из `delivery*`, `posiflora_id`=id; заказ↔букеты на чтении не связаны → `bouquet_ids="[]"` |
+| 9 | order-payments | `/v1/payments` | FK `order`; платежи к неимпортированным заказам пропускаются |
+
+## Ограничения (документированы)
+- **Деньги**: наши колонки — `Integer` рубли, у Posiflora суммы бывают дробные (напр. `5142.5`) → округляются. При необходимости точности — перейти на копейки/`Numeric` (отдельная задача).
+- **orders/bouquets**: тонкая checkout-модель теряет часть полей (qty/discount/fiscal/delivery-детали); обогатим при cutover.
+- **markdown/movement документы** — ридеры есть, ETL пока не тянет (пусто на аккаунте).
 
 ## Проверено (ASGI/DB, temp venv)
 Раннер с замоканным `posiflora_request` → импорт в sqlite: FK графа рецептов
 (spec→swv→price, item→measure/category), идемпотентность (повторный прогон —
 те же счётчики), read round-trip (`/v1/specifications/{id}` отдаёт импортированную цену). 19/19 ✅
 
-## Отложено (следующий заход)
-- `bouquets` (витрина), `orders` + `order-payments`, складские документы — транзакционные/объёмные; заказы к тому же лягут в обогащённую модель при cutover.
-- Справочники (tags/reasons/sources/preferences/celebrations) — при необходимости, тем же паттерном.
+## Отложено
+- Складские документы (packing/writeoff/inventory/… + позиции) — при необходимости, тем же паттерном.
+- Справочники (tags/reasons/sources/preferences/celebrations) — при необходимости.
 - После импорта: переключение фронта на наш `/v1` + включение авторизации (Фаза 6).

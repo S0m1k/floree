@@ -174,3 +174,66 @@ def parse_spec_graph(detail: dict) -> dict:
 
     return {"spec": map_specification(spec), "images": images,
             "variants": variants, "swvs": swvs, "prices": prices}
+
+
+# ---------- transactional entities ----------
+# NOTE: our money columns are Integer rubles; Posiflora amounts can be
+# fractional (e.g. 5142.5) — rounded here (documented limitation).
+
+def _money(v) -> int:
+    return int(round(float(v or 0)))
+
+
+def map_bouquet(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"],
+        "title": a.get("title") or "",
+        "status": a.get("status", "created"),
+        "amount": _money(a.get("amount")),
+        "sale_amount": _money(a.get("saleAmount")),
+        "store_id": _rel_id(raw, "store"),
+        "spec_with_variants_id": _rel_id(raw, "specWithVar"),
+    }
+
+
+def _order_address(a: dict) -> str:
+    parts = [
+        a.get("deliveryCity"),
+        ", ".join(p for p in [a.get("deliveryStreet"), a.get("deliveryHouse")] if p),
+    ]
+    apt = a.get("deliveryApartment")
+    if apt:
+        parts.append(f"кв. {apt}")
+    return ", ".join(p for p in parts if p)
+
+
+def map_order(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"],
+        "posiflora_id": raw["id"],
+        "posiflora_doc_no": a.get("docNo"),
+        "customer_name": a.get("deliveryContact") or "",
+        "phone": a.get("deliveryPhoneNumber") or "",
+        "address": _order_address(a),
+        "comment": a.get("description") or None,
+        "due_time": a.get("dueTime"),
+        "total_amount": _money(a.get("totalAmount")),
+        "status": a.get("status", "imported"),
+        "bouquet_ids": "[]",  # order<->bouquet linkage not exposed on read
+    }
+
+
+def map_order_payment(raw: dict) -> dict:
+    a = _attrs(raw)
+    order_id = _rel_id(raw, "order")
+    return {
+        "id": raw["id"],
+        "order_id": order_id,
+        "tbank_order_id": order_id or "",
+        "tbank_payment_id": a.get("terminalTransactionId"),
+        "amount": _money(a.get("amount")),
+        "status": "CONFIRMED" if a.get("posted") else "INIT",
+        "payment_url": a.get("paymentLink"),
+    }
