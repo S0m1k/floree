@@ -23,6 +23,8 @@ cd backend && python -m app.etl.posiflora_import
 | 7 | customers | `/v1/customers` | имя=`title`, бонусы=`currentPoints` |
 | 8 | orders | `/v1/orders` | в тонкую модель Order: contact/phone/адрес из `delivery*`, `posiflora_id`=id; заказ↔букеты на чтении не связаны → `bouquet_ids="[]"` |
 | 9 | order-payments | `/v1/payments` | FK `order`; платежи к неимпортированным заказам пропускаются |
+| 10 | справочники | `/v1/{order-tags,recipe-tags,discount-reasons,cash-reasons,customer-preferences,customer-sources,order-sources,customer-celebrations}` | `{id,title}`; отсутствующий эндпоинт пропускается |
+| 11 | складские документы | `/v1/{packing,write-off,markdown,sorting,inventory,movement}-...` | заголовки всех 6; связи `worker`/`author` → `NULL` (workers не импортируются); **позиции только для packing** (их shape верифицирован; строка с неизвестным item пропускается) |
 
 ## Точность денег
 Транзакционные суммы (итоги заказов, платежи, суммы букетов, складские
@@ -34,7 +36,8 @@ T-Bank/вебхук сравнивают суммы в копейках (`amount
 
 ## Ограничения (документированы)
 - **orders/bouquets**: тонкая checkout-модель теряет часть полей (qty/discount/fiscal/delivery-детали); обогатим при cutover.
-- **markdown/movement документы** — ридеры есть, ETL пока не тянет (пусто на аккаунте).
+- **Складские документы**: тянутся заголовки; позиции — только для packing (shape остальных строк не верифицирован). Связи на сотрудников не проставляются (workers не импортируются).
+- **markdown/movement**: пусто на аккаунте — заголовки импортируются, если появятся.
 
 ## Проверено (ASGI/DB, temp venv)
 Раннер с замоканным `posiflora_request` → импорт в sqlite: FK графа рецептов

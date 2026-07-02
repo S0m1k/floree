@@ -21,8 +21,14 @@ from app.catalog_models import (
     Store, Image, Category, Specification, SpecificationVariant,
     SpecificationWithVariants, SpecificationVariantPrice, Customer, Bouquet,
 )
-from app.inventory_models import Item, Vendor
-from app.dictionary_models import UnitOfMeasure
+from app.inventory_models import (
+    Item, Vendor, PackingInvoice, PackingInvoiceItem, WriteoffInvoice,
+    MarkdownAct, SortingAct, InventoryAct, MovementAct,
+)
+from app.dictionary_models import (
+    UnitOfMeasure, OrderTag, RecipeTag, DiscountReason, CashReason,
+    CustomerPreference, CustomerSource, CustomerDealSource, CustomerCelebration,
+)
 from app.models import Order, Payment
 from app.etl import transforms as T
 
@@ -141,6 +147,64 @@ async def import_order_payments(session) -> int:
     return await _merge_all(session, Payment, rows)
 
 
+# reference dictionaries: (Posiflora path, model)
+_DICTS = [
+    ("order-tags", OrderTag),
+    ("recipe-tags", RecipeTag),
+    ("discount-reasons", DiscountReason),
+    ("cash-reasons", CashReason),
+    ("customer-preferences", CustomerPreference),
+    ("customer-sources", CustomerSource),
+    ("order-sources", CustomerDealSource),
+    ("customer-celebrations", CustomerCelebration),
+]
+
+
+async def import_dictionaries(session) -> int:
+    total = 0
+    for path, model in _DICTS:
+        try:
+            data, _ = await _fetch_all(f"/v1/{path}")
+        except Exception as e:  # tolerate a missing/renamed dictionary endpoint
+            print(f"  [skip {path}] {e}")
+            continue
+        total += await _merge_all(session, model, [T.map_dictionary_simple(r) for r in data])
+    return total
+
+
+# warehouse document headers: (Posiflora path, model, header mapper)
+_DOCS = [
+    ("packing-invoices", PackingInvoice, T.map_packing_invoice),
+    ("write-off-invoices", WriteoffInvoice, T.map_writeoff_invoice),
+    ("markdown-acts", MarkdownAct, T.map_markdown_act),
+    ("sorting-acts", SortingAct, T.map_sorting_act),
+    ("inventory-acts", InventoryAct, T.map_inventory_act),
+    ("movement-acts", MovementAct, T.map_movement_act),
+]
+
+
+async def import_warehouse_docs(session) -> int:
+    total = 0
+    for path, model, mapper in _DOCS:
+        try:
+            data, _ = await _fetch_all(f"/v1/{path}")
+        except Exception as e:
+            print(f"  [skip {path}] {e}")
+            continue
+        total += await _merge_all(session, model, [mapper(r) for r in data])
+
+    # Packing-invoice lines (only verified line shape) — fetched per document.
+    known_items = set((await session.execute(select(Item.id))).scalars().all())
+    pack, _ = await _fetch_all("/v1/packing-invoices")
+    for d in pack:
+        detail = await posiflora_request("GET", f"/v1/packing-invoices/{d['id']}?include=lines")
+        lines = [i for i in (detail.get("included") or []) if i.get("type") == "packing-invoice-lines"]
+        rows = [T.map_packing_line(l, d["id"]) for l in lines]
+        rows = [r for r in rows if r["item_id"] in known_items]  # FK safety
+        await _merge_all(session, PackingInvoiceItem, rows)
+    return total
+
+
 async def run() -> None:
     async with AsyncSessionLocal() as session:
         print("stores:", await import_stores(session))
@@ -152,6 +216,8 @@ async def run() -> None:
         print("customers:", await import_customers(session))
         print("orders:", await import_orders(session))
         print("order-payments:", await import_order_payments(session))
+        print("dictionaries:", await import_dictionaries(session))
+        print("warehouse docs(+packing lines):", await import_warehouse_docs(session))
     print("done.")
 
 

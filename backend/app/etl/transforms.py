@@ -5,7 +5,7 @@ without a network or DB. The import runner (posiflora_import.py) fetches the
 data and upserts the results.
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 
 
@@ -97,10 +97,10 @@ def map_vendor(raw: dict) -> dict:
     }
 
 
-def _date_only(v: str | None) -> str | None:
+def _date_only(v: str | None) -> date | None:
     if not v:
         return None
-    return v[:10]  # 'YYYY-MM-DD...' -> date
+    return date.fromisoformat(v[:10])  # 'YYYY-MM-DD...' -> date object
 
 
 def map_customer(raw: dict) -> dict:
@@ -237,4 +237,88 @@ def map_order_payment(raw: dict) -> dict:
         "amount": _money(a.get("amount")),
         "status": "CONFIRMED" if a.get("posted") else "INIT",
         "payment_url": a.get("paymentLink"),
+    }
+
+
+# ---------- dictionaries ----------
+
+def map_dictionary_simple(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {"id": raw["id"], "title": a.get("title") or ""}
+
+
+# ---------- warehouse documents (headers) ----------
+# Worker FKs are left NULL — workers aren't imported yet. Line-item shapes are
+# only verified for packing; other docs import headers only for now.
+
+def _qty(v) -> Decimal:
+    return Decimal(str(v if v is not None else 0))
+
+
+def map_packing_invoice(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"], "doc_no": a.get("docNo"), "date": _date_only(a.get("date")),
+        "store_id": _rel_id(raw, "store"), "vendor_id": _rel_id(raw, "vendor"),
+        "worker_id": None, "total_amount": _money(a.get("amount")),
+        "payment_amount": _money(0), "items_count": a.get("linesCount") or 0,
+        "status": a.get("status", "draft"),
+    }
+
+
+def map_packing_line(raw: dict, invoice_id: str) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"], "invoice_id": invoice_id, "item_id": _rel_id(raw, "item"),
+        "quantity": _qty(a.get("qty")), "price": _money(a.get("cost")),
+        "amount": _money(a.get("amount")),
+    }
+
+
+def map_writeoff_invoice(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"], "doc_no": a.get("docNo"), "date": _date_only(a.get("date")),
+        "store_id": _rel_id(raw, "store"), "reason": None, "worker_id": None,
+        "total_amount": _money(a.get("amount")), "items_count": a.get("linesCount") or 0,
+        "status": a.get("status", "draft"),
+    }
+
+
+def map_inventory_act(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"], "doc_no": a.get("docNo"), "act_date": _date_only(a.get("date")),
+        "posted_date": None, "store_id": _rel_id(raw, "store"), "worker_id": None,
+        "items_count": a.get("linesCount") or 0,
+        "financial_result": _money(a.get("amount")), "status": a.get("status", "draft"),
+    }
+
+
+def map_sorting_act(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"], "doc_no": a.get("docNo"), "created_date": _date_only(a.get("date")),
+        "posted_date": None, "store_id": _rel_id(raw, "store"), "author_id": None,
+        "items_count": a.get("linesCount") or 0, "status": a.get("status", "draft"),
+    }
+
+
+def map_markdown_act(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"], "doc_no": a.get("docNo"), "created_date": _date_only(a.get("date")),
+        "posted_date": None, "store_id": _rel_id(raw, "store"), "author_id": None,
+        "items_count": a.get("linesCount") or 0, "status": a.get("status", "draft"),
+    }
+
+
+def map_movement_act(raw: dict) -> dict:
+    a = _attrs(raw)
+    return {
+        "id": raw["id"], "doc_no": a.get("docNo"), "date": _date_only(a.get("date")),
+        "from_store_id": _rel_id(raw, "fromStore") or _rel_id(raw, "store"),
+        "to_store_id": _rel_id(raw, "toStore"), "worker_id": None,
+        "cost": _money(a.get("amount")), "items_count": a.get("linesCount") or 0,
+        "status": a.get("status", "draft"),
     }
