@@ -91,6 +91,7 @@ export interface RecipeCategory {
     color: string;
     path: string[];
     pathIds: string[];
+    slug?: string; // derived on the backend for /catalog/<slug> URLs
   };
   relationships: {
     parent: { data: { type: 'categories'; id: string } | null };
