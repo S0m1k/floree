@@ -93,10 +93,11 @@ async def get_recipes(category_id: str | None = None) -> dict:
     image_map: dict = {}
     page = 1
 
-    # Build query — keep status=on filter, paginate at 200/page
+    # Build query — keep status=on filter, paginate at 200/page.
+    # NOTE: Posiflora ignores filter[category] on /v1/specifications (it returns
+    # every recipe regardless), so category filtering is done client-side below
+    # via each recipe's category relationship.
     base_qs = "include=logo&filter%5Bstatus%5D=on&page%5Bsize%5D=200"
-    if category_id:
-        base_qs += f"&filter%5Bcategory%5D={category_id}"
 
     while True:
         data = await posiflora_request(
@@ -122,6 +123,12 @@ async def get_recipes(category_id: str | None = None) -> dict:
             continue
         if attrs.get("status") != "on":
             continue
+        # Posiflora does not honor filter[category]; filter by the recipe's own
+        # category relationship so a category page shows only its own items.
+        if category_id:
+            cat = ((r.get("relationships") or {}).get("category") or {}).get("data")
+            if not cat or cat.get("id") != category_id:
+                continue
         result.append(_attach_image_url(r, image_map))
 
     # Sort by updatedAt descending (newest first)
