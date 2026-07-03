@@ -61,7 +61,7 @@ async def init_payment(
     Initialize T-Bank payment. Returns PaymentId and PaymentURL.
     Amount is sent in KOPECKS (rubles * 100).
     """
-    amount_kopecks = amount_rubles * 100
+    amount_kopecks = int(round(float(amount_rubles) * 100))
     params = {
         "TerminalKey": settings.tbank_terminal_key,
         "Amount": amount_kopecks,
