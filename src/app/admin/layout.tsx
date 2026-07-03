@@ -14,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="admin-topbar__nav">
           <AdminNavLink href="/admin/retail-stores">Аналитика</AdminNavLink>
           <AdminNavLink href="/admin/orders">Заказы</AdminNavLink>
+          <AdminNavLink href="/admin/customers">Клиенты</AdminNavLink>
         </nav>
       </header>
       <div className="admin-body">{children}</div>

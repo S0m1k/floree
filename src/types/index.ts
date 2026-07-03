@@ -187,6 +187,24 @@ export interface Worker {
   attributes: { name: string; login: string | null; status: string };
 }
 
+export interface AdminCustomer {
+  id: string;
+  type: 'customers';
+  attributes: {
+    title: string | null;
+    phone: string;
+    birthday: string | null;
+    notes: string;
+    averageCheck: number;
+    ordersAmount: number;
+    ordersQty: number;
+    currentPoints: number;
+    gender: 'male' | 'female' | 'other';
+    bonusCard: string | null;
+    createdAt: string | null;
+  };
+}
+
 export interface MoneyDashboard {
   period: { from: string; to: string };
   updatedAt: string;

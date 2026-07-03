@@ -57,14 +57,62 @@ async def get_store(store_id: str, db: AsyncSession = Depends(get_db)):
     return document(store_resource(row))
 
 
+async def _customer_order_stats(db: AsyncSession, phones: list[str]) -> dict[str, dict]:
+    """Orders carry no customer_id FK — match by phone (the only field a
+    checkout order and a Customer row share) and aggregate per phone.
+    """
+    if not phones:
+        return {}
+    stmt = (
+        select(Order.phone, func.count(), func.coalesce(func.sum(Order.total_amount), 0))
+        .where(Order.phone.in_(phones))
+        .group_by(Order.phone)
+    )
+    rows = (await db.execute(stmt)).all()
+    return {
+        phone: {
+            "ordersQty": count,
+            "ordersAmount": float(total),
+            "avgCheck": round(float(total) / count, 2) if count else 0,
+        }
+        for phone, count, total in rows
+    }
+
+
 @router.get("/customers")
 async def list_customers(request: Request, db: AsyncSession = Depends(get_db)):
     qs = request.query_params
-    where = None
+    number, size = _page(qs)
+    base = select(Customer)
+
     phone = qs.get("filter[phone]")
     if phone:
-        where = Customer.phone == phone
-    return await _list(db, Customer, customer_resource, request, where)
+        base = base.where(Customer.phone == phone)
+    source = qs.get("filter[source]")
+    if source:
+        base = base.where(Customer.source_id == source)
+    gender = qs.get("filter[gender]")
+    if gender:
+        base = base.where(Customer.gender == gender)
+    registered_from = qs.get("filter[registeredFrom]")
+    if registered_from:
+        base = base.where(Customer.created_at >= datetime.fromisoformat(registered_from))
+    registered_to = qs.get("filter[registeredTo]")
+    if registered_to:
+        base = base.where(Customer.created_at < datetime.fromisoformat(registered_to) + timedelta(days=1))
+    q = qs.get("q")
+    if q:
+        like = f"%{q}%"
+        base = base.where(or_(Customer.name.ilike(like), Customer.phone.ilike(like)))
+
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+    rows = (
+        await db.execute(base.order_by(Customer.created_at.desc()).offset((number - 1) * size).limit(size))
+    ).scalars().all()
+
+    stats_by_phone = await _customer_order_stats(db, [r.phone for r in rows])
+    data = [customer_resource(r, stats_by_phone.get(r.phone)) for r in rows]
+    return document(data, meta={"page": {"number": number, "size": size}, "total": total})
 
 
 @router.get("/customers/{customer_id}")
@@ -72,7 +120,8 @@ async def get_customer(customer_id: str, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(Customer).where(Customer.id == customer_id))).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Customer not found")
-    return document(customer_resource(row))
+    stats = await _customer_order_stats(db, [row.phone])
+    return document(customer_resource(row, stats.get(row.phone)))
 
 
 @router.get("/bouquets")

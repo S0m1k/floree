@@ -184,7 +184,12 @@ def store_resource(store) -> dict:
 
 # ---------- customers ----------
 
-def customer_resource(cust) -> dict:
+def customer_resource(cust, stats: dict | None = None) -> dict:
+    # Orders have no customer_id FK — they're matched to a customer by phone
+    # (see routers/v1_sales.py list_customers). `stats` is that lookup's
+    # result for this customer's phone; None means "not computed" (0s), not
+    # necessarily "no orders".
+    stats = stats or {"avgCheck": 0, "ordersAmount": 0, "ordersQty": 0}
     a = {
         "title": cust.name,
         "birthday": _iso(cust.birthday),
@@ -192,11 +197,13 @@ def customer_resource(cust) -> dict:
         "instagram": None,
         "status": "on",
         "isPerson": True,
+        # No per-customer card assignment exists yet — bonus_cards is a
+        # template the business issues, not a customer-owned instance.
         "bonusCard": None,
         "notes": cust.comment or "",
-        "averageCheck": 0,
-        "ordersAmount": 0,
-        "ordersQty": 0,
+        "averageCheck": stats["avgCheck"],
+        "ordersAmount": stats["ordersAmount"],
+        "ordersQty": stats["ordersQty"],
         "createdAt": _iso(cust.created_at),
         "updatedAt": None,
         "spentPoints": 0,
