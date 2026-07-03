@@ -803,3 +803,35 @@ img { display: block; max-width: 100%; }
 @media (max-width: 900px) {
   .admin-layout { grid-template-columns: 1fr; }
 }
+
+/* Dashboard (Аналитика) */
+.admin-dashboard-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+.admin-dashboard-header__meta { color: var(--admin-text-3); font-size: 12px; margin-top: 4px; }
+.admin-period-form { display: flex; align-items: center; gap: 8px; }
+.admin-period-form input { border: 1px solid var(--admin-border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+.admin-period-form button { padding: 6px 12px; }
+
+.admin-subtabs { display: flex; gap: 4px; margin-bottom: 20px; }
+.admin-subtab { padding: 8px 14px; font-size: 13px; border-radius: 6px; text-decoration: none; color: var(--admin-text-2); }
+.admin-subtab--active { background: var(--admin-accent-2); color: var(--admin-accent); font-weight: 600; }
+.admin-subtab--disabled { color: var(--admin-text-3); cursor: not-allowed; }
+
+.admin-metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.admin-metric-card { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; padding: 14px 16px; }
+.admin-metric-card__label { font-size: 12px; color: var(--admin-text-3); margin-bottom: 6px; }
+.admin-metric-card__value { font-size: 20px; font-weight: 700; }
+.admin-metric-card__value--muted { font-size: 13px; font-weight: 400; color: var(--admin-text-3); }
+.admin-metric-card__delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
+.admin-metric-card__delta--up { color: #166534; }
+.admin-metric-card__delta--down { color: #991B1B; }
+
+.admin-section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--admin-text-2); margin: 24px 0 10px; }
+
+.admin-list-row { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--admin-border); font-size: 13px; }
+.admin-list-row:last-child { border-bottom: none; }
+.admin-list-row__share { color: var(--admin-text-3); margin-left: 8px; }
+
+.admin-calendar { display: flex; gap: 8px; padding: 16px; }
+.admin-calendar__day { flex: 1; text-align: center; background: #FAFBFC; border: 1px solid var(--admin-border); border-radius: 6px; padding: 10px 4px; }
+.admin-calendar__day-label { font-size: 11px; color: var(--admin-text-3); text-transform: uppercase; }
+.admin-calendar__day-count { font-size: 16px; font-weight: 700; margin-top: 4px; }

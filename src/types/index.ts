@@ -186,3 +186,22 @@ export interface Worker {
   type: 'workers';
   attributes: { name: string; login: string | null; status: string };
 }
+
+export interface MoneyDashboard {
+  period: { from: string; to: string };
+  updatedAt: string;
+  revenueByShipment: { amount: number; changePct: number | null };
+  revenueByPayment: { amount: number; changePct: number | null };
+  grossProfit: null;
+  totalDiscount: null;
+  receiptsPrinted: null;
+  marginPct: null;
+  ordersCount: number;
+  avgCheck: number;
+  returnsCount: number;
+  returnsAmount: number;
+  employees: { workerId: string | null; name: string; avgCheck: number; sales: number; sharePct: number }[];
+  paymentMethods: { title: string; amount: number; sharePct: number }[];
+  dealSources: { title: string; amount: number; sharePct: number }[];
+  upcomingWeek: { date: string; ordersCount: number }[];
+}

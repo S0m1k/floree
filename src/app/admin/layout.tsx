@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import AdminNavLink from '@/components/admin/AdminNavLink';
 
 export const metadata: Metadata = {
   title: 'Floree Admin',
@@ -12,9 +12,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="admin-topbar">
         <span className="admin-topbar__brand">Floree Admin</span>
         <nav className="admin-topbar__nav">
-          <Link href="/admin/orders" className="admin-topbar__link admin-topbar__link--active">
-            Заказы
-          </Link>
+          <AdminNavLink href="/admin/retail-stores">Аналитика</AdminNavLink>
+          <AdminNavLink href="/admin/orders">Заказы</AdminNavLink>
         </nav>
       </header>
       <div className="admin-body">{children}</div>
