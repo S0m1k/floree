@@ -122,6 +122,14 @@ export interface OrderFormData {
 export type OrderWorkflowStatus =
   | 'new' | 'assembled' | 'courier' | 'completed' | 'cancelled' | 'return' | 'credit';
 
+export interface AdminOrderItem {
+  recipe_id: string;
+  title: string;
+  price: number;
+  qty: number;
+  swv_id?: string | null;
+}
+
 export interface AdminOrder {
   id: string;
   type: 'orders';
@@ -138,6 +146,7 @@ export interface AdminOrder {
     closedAt: string | null;
     totalAmount: number;
     paymentsAmount: number;
+    items: AdminOrderItem[];
   };
   relationships: {
     store?: { data: { type: 'stores'; id: string } | null };
@@ -146,6 +155,24 @@ export interface AdminOrder {
     createdBy?: { data: { type: 'users'; id: string } | null };
     closedBy?: { data: { type: 'users'; id: string } | null };
   };
+}
+
+export interface AdminOrderPayment {
+  id: string;
+  type: 'order-payments';
+  attributes: {
+    date: string | null;
+    amount: number;
+    posted: boolean;
+    terminalTransactionId: string | null;
+  };
+}
+
+export interface AdminOrderStatusHistoryEntry {
+  id: string;
+  type: 'order-status-history';
+  attributes: { status: OrderWorkflowStatus; changedAt: string | null };
+  relationships: { worker?: { data: { type: 'users'; id: string } | null } };
 }
 
 export interface SimpleDictEntry {

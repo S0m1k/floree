@@ -5,6 +5,7 @@ related resources into the shared `Included` collector. Attribute names and
 relationship keys match the live Posiflora API captured 2026-07-01.
 """
 
+import json
 from datetime import datetime, date
 
 from app.jsonapi import resource, rel_one, rel_many, Included
@@ -275,11 +276,20 @@ def order_resource(order) -> dict:
         p.amount for p in getattr(order, "payments", []) or []
         if p.status in ("CONFIRMED", "paid")
     )
+    try:
+        items = json.loads(order.bouquet_ids) or []
+    except (TypeError, ValueError):
+        items = []
     a = {
         "status": order.status,
         # Not a Posiflora field — our own extension so the admin can tell the
         # CRM workflow status (`status`) apart from the T-Bank payment lifecycle.
         "paymentStatus": order.payment_status,
+        # Not a Posiflora field either — order composition (Продукты tab) is
+        # only known for checkout-created orders; ETL-imported orders have no
+        # line items on read (see docs/posiflora/data-migration.md), so this
+        # is `[]` for them.
+        "items": items,
         "date": _date(order.created_at),
         "docNo": order.posiflora_doc_no,
         "description": order.comment or "",
@@ -331,6 +341,20 @@ def order_resource(order) -> dict:
         "pendingPayments": rel_many("order-payments", []),
     }
     return resource("orders", order.id, a, rels, links={"self": f"/orders/{order.id}"})
+
+
+# ---------- order status history ----------
+
+def order_status_history_resource(h) -> dict:
+    """История статусов (admin `/admin/orders/:id`, вкладка «Общая информация»).
+
+    Not a Posiflora field — our own extension, since nothing writes to this
+    table yet (no status-transition workflow is implemented). Always empty
+    today; the shape is real so the admin UI doesn't need to change later.
+    """
+    a = {"status": h.status, "changedAt": _iso(h.changed_at)}
+    rels = {"worker": rel_one("users", h.worker_id)}
+    return resource("order-status-history", h.id, a, rels)
 
 
 # ---------- order-payments ----------

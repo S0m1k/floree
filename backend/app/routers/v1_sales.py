@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.catalog_models import Store, Customer, Bouquet
-from app.models import Order, Payment, ORDER_STATUSES
+from app.models import Order, Payment, OrderStatusHistory, ORDER_STATUSES
 from app.jsonapi import document
 from app.serializers import (
     store_resource,
@@ -18,6 +18,7 @@ from app.serializers import (
     bouquet_resource,
     order_resource,
     order_payment_resource,
+    order_status_history_resource,
 )
 
 router = APIRouter(prefix="/v1", tags=["v1-sales"])
@@ -210,6 +211,17 @@ async def get_order_v1(order_id: str, db: AsyncSession = Depends(get_db)):
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
     return document(order_resource(order))
+
+
+@router.get("/orders/{order_id}/status-history")
+async def get_order_status_history(order_id: str, db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(OrderStatusHistory)
+        .where(OrderStatusHistory.order_id == order_id)
+        .order_by(OrderStatusHistory.changed_at)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return document([order_status_history_resource(h) for h in rows])
 
 
 @router.get("/payments")

@@ -1,4 +1,4 @@
-import { AdminOrder, SimpleDictEntry, Worker } from '@/types';
+import { AdminOrder, AdminOrderPayment, AdminOrderStatusHistoryEntry, SimpleDictEntry, Worker } from '@/types';
 
 const API_URL =
   process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -69,6 +69,27 @@ export async function getOrders(params: OrdersSearchParams): Promise<OrdersListR
     statusCounts: json.meta?.statusCounts ?? {},
     aggregates: json.meta?.aggregates ?? { totalAmount: 0, paymentsAmount: 0 },
   };
+}
+
+export async function getOrder(id: string): Promise<AdminOrder | null> {
+  const res = await fetch(`${API_URL}/api/v1/orders/${id}`, { cache: 'no-store' });
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data ?? null;
+}
+
+export async function getOrderPayments(orderId: string): Promise<AdminOrderPayment[]> {
+  const res = await fetch(`${API_URL}/api/v1/payments?filter[order]=${orderId}`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json.data || [];
+}
+
+export async function getOrderStatusHistory(orderId: string): Promise<AdminOrderStatusHistoryEntry[]> {
+  const res = await fetch(`${API_URL}/api/v1/orders/${orderId}/status-history`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json.data || [];
 }
 
 async function getDict(path: string): Promise<SimpleDictEntry[]> {

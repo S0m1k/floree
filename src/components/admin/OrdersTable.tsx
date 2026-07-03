@@ -49,7 +49,7 @@ export default function OrdersTable({ orders, total, current, workersById }: Pro
             const author = createdById ? workersById[createdById]?.attributes.name : null;
             return (
               <tr key={o.id}>
-                <td>{a.docNo || o.id.slice(0, 8)}</td>
+                <td><Link href={`/admin/orders/${o.id}`}>{a.docNo || o.id.slice(0, 8)}</Link></td>
                 <td><OrderStatusBadge status={a.status} /></td>
                 <td>
                   <div>{a.deliveryContact || '—'}</div>
