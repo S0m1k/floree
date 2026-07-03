@@ -11,6 +11,11 @@ from app.database import Base
 Money = Numeric(12, 2)
 
 
+# Workflow (CRM/fulfillment) statuses, matching Posiflora's `orders.status` and
+# the admin "Заказы" status tabs (docs/posiflora/admin-map.md §2.2).
+ORDER_STATUSES = ("new", "assembled", "courier", "completed", "cancelled", "return", "credit")
+
+
 class Order(Base):
     __tablename__ = "orders"
 
@@ -23,15 +28,49 @@ class Order(Base):
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_time: Mapped[str | None] = mapped_column(String, nullable=True)
     total_amount: Mapped[Decimal] = mapped_column(Money, default=0)  # rubles (2dp)
-    status: Mapped[str] = mapped_column(String, default="pending")  # pending, paid, failed, cancelled, amount_mismatch
+    # CRM/fulfillment status — one of ORDER_STATUSES. This is Posiflora's real
+    # `orders.status` (assembly/delivery workflow), distinct from the payment
+    # gateway lifecycle tracked in `payment_status`.
+    status: Mapped[str] = mapped_column(String, default="new")
+    # Payment gateway lifecycle: pending, paid, failed, cancelled, amount_mismatch.
+    payment_status: Mapped[str] = mapped_column(String, default="pending")
     bouquet_ids: Mapped[str] = mapped_column(Text)  # JSON array of priced order items
     # Full create args (JSON) so the Posiflora order can be built lazily in the
     # payment webhook — the order is only pushed to Posiflora after CONFIRMED.
     order_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    store_id: Mapped[str | None] = mapped_column(String, ForeignKey("stores.id"), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String, ForeignKey("customer_deal_sources.id"), nullable=True)
+    florist_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
+    created_by_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
+    closed_by_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    # store/source/florist/created_by/closed_by are plain FKs, resolved by a
+    # separate lookup where needed — matching the rest of the codebase's
+    # convention of not declaring ORM relationship() across model modules
+    # (see inventory_models.py store_id usages).
     payments: Mapped[list["Payment"]] = relationship("Payment", back_populates="order")
+    status_history: Mapped[list["OrderStatusHistory"]] = relationship(
+        "OrderStatusHistory", back_populates="order", order_by="OrderStatusHistory.changed_at"
+    )
+
+
+class OrderStatusHistory(Base):
+    """История смены статусов заказа (admin `/admin/orders/:id`, вкладка «Общая информация»)."""
+
+    __tablename__ = "order_status_history"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    order_id: Mapped[str] = mapped_column(String, ForeignKey("orders.id"))
+    status: Mapped[str] = mapped_column(String)
+    worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    order: Mapped["Order"] = relationship("Order", back_populates="status_history")
 
 
 class Payment(Base):

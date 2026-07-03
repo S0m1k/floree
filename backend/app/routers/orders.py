@@ -110,7 +110,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         comment=payload.comment,
         due_time=local_due_time,
         total_amount=server_total,
-        status="pending",
+        payment_status="pending",
         bouquet_ids=json.dumps(items_payload),
         order_payload=json.dumps(order_payload),
     )

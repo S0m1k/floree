@@ -116,3 +116,46 @@ export interface OrderFormData {
   deliveryTime: string;
   comment: string;
 }
+
+// ---------- Admin (Posiflora 1:1 clone) ----------
+
+export type OrderWorkflowStatus =
+  | 'new' | 'assembled' | 'courier' | 'completed' | 'cancelled' | 'return' | 'credit';
+
+export interface AdminOrder {
+  id: string;
+  type: 'orders';
+  attributes: {
+    status: OrderWorkflowStatus;
+    paymentStatus: string;
+    date: string | null;
+    docNo: string | null;
+    description: string;
+    dueTime: string | null;
+    deliveryContact: string;
+    deliveryPhoneNumber: string;
+    createdAt: string;
+    closedAt: string | null;
+    totalAmount: number;
+    paymentsAmount: number;
+  };
+  relationships: {
+    store?: { data: { type: 'stores'; id: string } | null };
+    source?: { data: { type: 'order-sources'; id: string } | null };
+    florist?: { data: { type: 'users'; id: string } | null };
+    createdBy?: { data: { type: 'users'; id: string } | null };
+    closedBy?: { data: { type: 'users'; id: string } | null };
+  };
+}
+
+export interface SimpleDictEntry {
+  id: string;
+  type: string;
+  attributes: { title: string };
+}
+
+export interface Worker {
+  id: string;
+  type: 'workers';
+  attributes: { name: string; login: string | null; status: string };
+}

@@ -221,7 +221,12 @@ def map_order(raw: dict) -> dict:
         "comment": a.get("description") or None,
         "due_time": a.get("dueTime"),
         "total_amount": _money(a.get("totalAmount")),
-        "status": a.get("status", "imported"),
+        # Posiflora's `status` is the CRM/fulfillment workflow status (new,
+        # assembled, completed, ...) — payment_status is derived separately
+        # from order-payments once those are imported (see import_orders_payment_status).
+        "status": a.get("status", "new"),
+        "store_id": _rel_id(raw, "store"),
+        "source_id": _rel_id(raw, "source"),
         "bouquet_ids": "[]",  # order<->bouquet linkage not exposed on read
     }
 

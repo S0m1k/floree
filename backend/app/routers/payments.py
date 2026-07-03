@@ -94,7 +94,7 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     # Idempotency: a repeated CONFIRMED webhook must not create the order or
     # record the payment twice. Once fulfilled, acknowledge and stop.
-    if order is not None and order.status == "paid":
+    if order is not None and order.payment_status == "paid":
         return Response(content="OK")
 
     payment.status = status
@@ -110,13 +110,13 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 f"paid {amount_kopecks}k != total {order_kopecks}k"
             )
             payment.status = "amount_mismatch"
-            order.status = "amount_mismatch"
+            order.payment_status = "amount_mismatch"
             await db.commit()
             return Response(content="OK")
 
         # Now that payment is confirmed, create the order in Posiflora (only
         # once) from the stashed payload, then record the payment against it.
-        order.status = "paid"
+        order.payment_status = "paid"
         if order.posiflora_id is None and order.order_payload:
             try:
                 args = json.loads(order.order_payload)

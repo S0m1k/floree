@@ -1,14 +1,16 @@
 """Phase 2 — Posiflora-compatible /v1 endpoints for stores, customers, bouquets."""
 
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.catalog_models import Store, Customer, Bouquet
-from app.models import Order, Payment
+from app.models import Order, Payment, ORDER_STATUSES
 from app.jsonapi import document
 from app.serializers import (
     store_resource,
@@ -90,14 +92,67 @@ async def get_bouquet(bouquet_id: str, db: AsyncSession = Depends(get_db)):
     return document(bouquet_resource(row))
 
 
+def _order_filters(qs, *, include_status: bool):
+    """Build the WHERE clauses for /v1/orders shared by the list and the
+    per-tab status counts (admin "Заказы" — docs/posiflora/admin-map.md §2.2).
+    `include_status` is False when counting each status tab, since a tab's
+    count must reflect every other active filter but not itself.
+    """
+    clauses = []
+    if include_status:
+        status = qs.get("filter[status]")
+        if status:
+            clauses.append(Order.status == status)
+    for key, column in (
+        ("store", Order.store_id),
+        ("source", Order.source_id),
+        ("florist", Order.florist_id),
+        ("createdBy", Order.created_by_id),
+        ("closedBy", Order.closed_by_id),
+    ):
+        value = qs.get(f"filter[{key}]")
+        if value:
+            clauses.append(column == value)
+
+    def _date_range(prefix: str, column):
+        from_str, to_str = qs.get(f"filter[{prefix}From]"), qs.get(f"filter[{prefix}To]")
+        if from_str:
+            clauses.append(column >= datetime.fromisoformat(from_str))
+        if to_str:
+            # inclusive end-of-day
+            clauses.append(column < datetime.fromisoformat(to_str) + timedelta(days=1))
+
+    _date_range("created", Order.created_at)
+    _date_range("closed", Order.closed_at)
+    # due_time is a free-form ISO string (may be null); string comparison is a
+    # reasonable approximation since values share the same offset format.
+    due_from, due_to = qs.get("filter[dueFrom]"), qs.get("filter[dueTo]")
+    if due_from:
+        clauses.append(Order.due_time >= due_from)
+    if due_to:
+        clauses.append(Order.due_time <= due_to + "T23:59:59")
+
+    q = qs.get("q")
+    if q:
+        like = f"%{q}%"
+        clauses.append(or_(
+            Order.posiflora_doc_no.ilike(like),
+            Order.customer_name.ilike(like),
+            Order.phone.ilike(like),
+            Order.comment.ilike(like),
+        ))
+    return clauses
+
+
 @router.get("/orders")
 async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
     qs = request.query_params
     number, size = _page(qs)
+
     base = select(Order)
-    status = qs.get("filter[status]")
-    if status:
-        base = base.where(Order.status == status)
+    for clause in _order_filters(qs, include_status=True):
+        base = base.where(clause)
+
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     stmt = (
         base.options(selectinload(Order.payments))
@@ -107,7 +162,45 @@ async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
     )
     rows = (await db.execute(stmt)).scalars().all()
     data = [order_resource(o) for o in rows]
-    return document(data, meta={"page": {"number": number, "size": size}, "total": total})
+
+    # Status-tab counts + sum aggregates honor every filter except `status`
+    # itself, so switching tabs doesn't reset the rest of the filter panel.
+    no_status_clauses = _order_filters(qs, include_status=False)
+
+    def _scoped(*extra):
+        stmt = select(func.count()).select_from(Order)
+        for clause in (*no_status_clauses, *extra):
+            stmt = stmt.where(clause)
+        return stmt
+
+    status_counts = {}
+    for s in ORDER_STATUSES:
+        status_counts[s] = (await db.execute(_scoped(Order.status == s))).scalar_one()
+    status_counts["all"] = (await db.execute(_scoped())).scalar_one()
+
+    agg_stmt = select(
+        func.coalesce(func.sum(Order.total_amount), 0),
+    ).select_from(Order)
+    for clause in _order_filters(qs, include_status=True):
+        agg_stmt = agg_stmt.where(clause)
+    sum_total = (await db.execute(agg_stmt)).scalar_one()
+
+    paid_stmt = (
+        select(func.coalesce(func.sum(Payment.amount), 0))
+        .select_from(Order)
+        .join(Payment, Payment.order_id == Order.id)
+        .where(Payment.status.in_(("CONFIRMED", "paid")))
+    )
+    for clause in _order_filters(qs, include_status=True):
+        paid_stmt = paid_stmt.where(clause)
+    sum_paid = (await db.execute(paid_stmt)).scalar_one()
+
+    return document(data, meta={
+        "page": {"number": number, "size": size},
+        "total": total,
+        "statusCounts": status_counts,
+        "aggregates": {"totalAmount": sum_total, "paymentsAmount": sum_paid},
+    })
 
 
 @router.get("/orders/{order_id}")

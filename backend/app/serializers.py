@@ -277,6 +277,9 @@ def order_resource(order) -> dict:
     )
     a = {
         "status": order.status,
+        # Not a Posiflora field — our own extension so the admin can tell the
+        # CRM workflow status (`status`) apart from the T-Bank payment lifecycle.
+        "paymentStatus": order.payment_status,
         "date": _date(order.created_at),
         "docNo": order.posiflora_doc_no,
         "description": order.comment or "",
@@ -296,11 +299,12 @@ def order_resource(order) -> dict:
         "createdAt": _iso(order.created_at),
         "updatedAt": _iso(order.updated_at),
         "updatedStatusAt": None,
+        "closedAt": _iso(order.closed_at),
         "modifiedAt": _iso(order.updated_at),
         "fiscal": False,
         "fiscalized": False,
         "byBonuses": False,
-        "posted": order.status == "paid",
+        "posted": order.payment_status == "paid",
         "postedAt": None,
         "cancelComment": None,
         "totalAmount": order.total_amount,
@@ -314,11 +318,13 @@ def order_resource(order) -> dict:
         "deliveryPhoneCode": None,
     }
     rels = {
-        "source": rel_one("order-sources", None),
-        "store": rel_one("stores", None),
+        "source": rel_one("order-sources", order.source_id),
+        "store": rel_one("stores", order.store_id),
         "customer": rel_one("customers", None),
         "postedBy": rel_one("users", None),
-        "createdBy": rel_one("users", None),
+        "createdBy": rel_one("users", order.created_by_id),
+        "closedBy": rel_one("users", order.closed_by_id),
+        "florist": rel_one("users", order.florist_id),
         "lockedBy": rel_one("users", None),
         "lockedAt": rel_one("", None),
         "lockedAtSmartphone": rel_one("", None),
@@ -389,6 +395,24 @@ def vendor_resource(v) -> dict:
 
 def warehouse_resource(w) -> dict:
     return resource("warehouses", w.id, {"title": w.title})
+
+
+# ---------- workers ----------
+
+def worker_resource(w) -> dict:
+    """Posiflora exposes staff as `workers`; the admin "Заказы" filter panel
+    (КЕМ СОЗДАН / ФЛОРИСТ / КЕМ ЗАКРЫТ) needs this for its florist selects.
+    """
+    a = {
+        "name": w.name,
+        "login": w.login,
+        "status": w.status,
+    }
+    rels = {
+        "role": rel_one("roles", w.role_id),
+        "store": rel_one("stores", w.store_id),
+    }
+    return resource("workers", w.id, a, rels, links={"self": f"/workers/{w.id}"})
 
 
 # ---------- inventory items (nomenclature) ----------

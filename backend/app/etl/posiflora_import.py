@@ -13,7 +13,7 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.database import AsyncSessionLocal
 from app.services.posiflora import posiflora_request
@@ -136,7 +136,17 @@ async def import_bouquets(session) -> int:
 
 async def import_orders(session) -> int:
     data, _ = await _fetch_all("/v1/orders")
-    return await _merge_all(session, Order, [T.map_order(r) for r in data])
+    known_stores = set((await session.execute(select(Store.id))).scalars().all())
+    known_sources = set((await session.execute(select(CustomerDealSource.id))).scalars().all())
+    rows = []
+    for r in data:
+        o = T.map_order(r)
+        if o["store_id"] not in known_stores:
+            o["store_id"] = None
+        if o["source_id"] not in known_sources:
+            o["source_id"] = None
+        rows.append(o)
+    return await _merge_all(session, Order, rows)
 
 
 async def import_order_payments(session) -> int:
@@ -144,7 +154,18 @@ async def import_order_payments(session) -> int:
     known_orders = set((await session.execute(select(Order.id))).scalars().all())
     rows = [T.map_order_payment(r) for r in data]
     rows = [r for r in rows if r["order_id"] in known_orders]  # FK safety
-    return await _merge_all(session, Payment, rows)
+    n = await _merge_all(session, Payment, rows)
+    # Derive payment_status from confirmed payments — Posiflora's orders
+    # collection doesn't expose the payment-gateway lifecycle, only order-payments.
+    await session.execute(text(
+        "UPDATE orders SET payment_status = 'paid' "
+        "WHERE EXISTS ("
+        "  SELECT 1 FROM payments WHERE payments.order_id = orders.id "
+        "  AND payments.status = 'CONFIRMED'"
+        ")"
+    ))
+    await session.commit()
+    return n
 
 
 # reference dictionaries: (Posiflora path, model)
@@ -214,9 +235,11 @@ async def run() -> None:
         print("specifications(+graph):", await import_specifications(session))
         print("bouquets:", await import_bouquets(session))
         print("customers:", await import_customers(session))
+        # Dictionaries (incl. customer-deal-sources) before orders so
+        # import_orders can resolve `source_id` FKs.
+        print("dictionaries:", await import_dictionaries(session))
         print("orders:", await import_orders(session))
         print("order-payments:", await import_order_payments(session))
-        print("dictionaries:", await import_dictionaries(session))
         print("warehouse docs(+packing lines):", await import_warehouse_docs(session))
     print("done.")
 

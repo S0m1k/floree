@@ -30,7 +30,7 @@ class OrderResponse(BaseModel):
     posiflora_doc_no: Optional[str]
     customer_name: str
     phone: str
-    status: str
+    payment_status: str
     total_amount: int
 
     class Config:

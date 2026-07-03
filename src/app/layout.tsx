@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Cormorant_Garamond, Montserrat } from 'next/font/google';
 import './globals.css';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import SiteChrome from '@/components/SiteChrome';
 
 const serif = Cormorant_Garamond({
   subsets: ['cyrillic', 'latin'],
@@ -84,9 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen flex flex-col" style={{ fontFamily: 'var(--font-sans), Montserrat, -apple-system, sans-serif' }}>
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );
