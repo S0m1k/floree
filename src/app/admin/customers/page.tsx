@@ -40,6 +40,11 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
           {searchParams.q && <input type="hidden" name="q" value={searchParams.q} />}
           <p className="admin-panel__title">Фильтр клиентов</p>
 
+          <div className="admin-filter-actions">
+            <button type="submit" className="admin-btn admin-btn--primary">Применить фильтр</button>
+            <a href="/admin/customers" className="admin-btn admin-btn--outline-blue">Сбросить фильтры</a>
+          </div>
+
           <div className="admin-field">
             <label htmlFor="source">Откуда узнал о нас</label>
             <select id="source" name="source" defaultValue={searchParams.source || ''}>
@@ -66,11 +71,7 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
               <input type="date" name="registeredTo" defaultValue={searchParams.registeredTo || ''} />
             </div>
           </div>
-
-          <div className="admin-filter-actions">
-            <button type="submit" className="admin-btn admin-btn--primary">Применить фильтр</button>
-            <a href="/admin/customers" className="admin-btn">Сбросить фильтры</a>
-          </div>
+          <div style={{ height: 8 }} />
         </form>
 
         <div>

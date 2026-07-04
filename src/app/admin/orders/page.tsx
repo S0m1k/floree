@@ -40,7 +40,8 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
               href={buildOrdersHref(searchParams, { status: tab.value, page: undefined })}
               className={`admin-tab ${isActive ? 'admin-tab--active' : ''}`}
             >
-              {tab.label.toUpperCase()} ({count})
+              {tab.label.toUpperCase()}
+              <span className={`admin-tab__count admin-tab__count--${tab.value}`}>{count}</span>
             </Link>
           );
         })}

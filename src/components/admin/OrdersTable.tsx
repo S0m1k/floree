@@ -50,7 +50,7 @@ export default function OrdersTable({ orders, total, current, workersById }: Pro
             return (
               <tr key={o.id}>
                 <td><Link href={`/admin/orders/${o.id}`}>{a.docNo || o.id.slice(0, 8)}</Link></td>
-                <td><OrderStatusBadge status={a.status} /></td>
+                <td><OrderStatusBadge status={a.status} variant="text" /></td>
                 <td>
                   <div>{a.deliveryContact || '—'}</div>
                   <div style={{ color: 'var(--admin-text-3)', fontSize: 12 }}>{a.deliveryPhoneNumber}</div>

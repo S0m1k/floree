@@ -31,6 +31,11 @@ export default function OrdersFilterPanel({ current, stores, sources, workers }:
 
       <p className="admin-panel__title">Фильтр заказов</p>
 
+      <div className="admin-filter-actions">
+        <button type="submit" className="admin-btn admin-btn--primary">Применить фильтр</button>
+        <a href="/admin/orders" className="admin-btn admin-btn--outline-blue">Сбросить фильтры</a>
+      </div>
+
       <div className="admin-field">
         <label htmlFor="dueFrom">Дата исполнения</label>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -78,11 +83,7 @@ export default function OrdersFilterPanel({ current, stores, sources, workers }:
       <WorkerSelect name="createdBy" label="Кем создан" workers={workers} value={current.createdBy} />
       <WorkerSelect name="closedBy" label="Кем закрыт" workers={workers} value={current.closedBy} />
       <WorkerSelect name="florist" label="Флорист" workers={workers} value={current.florist} />
-
-      <div className="admin-filter-actions">
-        <button type="submit" className="admin-btn admin-btn--primary">Применить фильтр</button>
-        <a href="/admin/orders" className="admin-btn">Сбросить фильтры</a>
-      </div>
+      <div style={{ height: 8 }} />
     </form>
   );
 }

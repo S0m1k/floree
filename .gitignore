@@ -46,6 +46,7 @@ __pycache__/
 *.pyc
 backend/venv/
 backend/uvicorn.log
+backend/*.db
 
 # scratch / reference dumps
 .scratch_old_site/
