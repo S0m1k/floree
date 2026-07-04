@@ -205,6 +205,30 @@ export interface AdminCustomer {
   };
 }
 
+export interface AdminCategory {
+  id: string;
+  type: 'categories';
+  attributes: { title: string; status: 'on' | 'off'; deleted: boolean };
+  relationships: { parent: { data: { type: 'categories'; id: string } | null } };
+}
+
+export interface AdminSpecification {
+  id: string;
+  type: 'specifications';
+  attributes: {
+    title: string;
+    status: string;
+    public: boolean;
+    minPrice: number;
+    maxPrice: number;
+    variantsCount: number;
+  };
+  relationships: {
+    category?: { data: { type: 'categories'; id: string } | null };
+    logo?: { data: { type: 'images'; id: string } | null };
+  };
+}
+
 export interface MoneyDashboard {
   period: { from: string; to: string };
   updatedAt: string;

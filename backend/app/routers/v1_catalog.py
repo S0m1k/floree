@@ -6,7 +6,7 @@ page[...]) are parsed straight off the query string.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -62,6 +62,8 @@ async def list_specifications(request: Request, db: AsyncSession = Depends(get_d
     qs = request.query_params
     status = qs.get("filter[status]")
     category = qs.get("filter[category]")
+    public = qs.get("filter[public]")
+    q = qs.get("q")
     number = _int(qs, "page[number]", 1)
     size = _int(qs, "page[size]", 200)
 
@@ -70,6 +72,13 @@ async def list_specifications(request: Request, db: AsyncSession = Depends(get_d
         base = base.where(Specification.status == status)
     if category is not None:
         base = base.where(Specification.category_id == category)
+    if public is not None:
+        base = base.where(Specification.public.is_(public == "true"))
+    if q:
+        base = base.where(or_(
+            Specification.title.ilike(f"%{q}%"),
+            Specification.description.ilike(f"%{q}%"),
+        ))
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
@@ -81,8 +90,29 @@ async def list_specifications(request: Request, db: AsyncSession = Depends(get_d
     )
     rows = (await db.execute(stmt)).scalars().all()
 
+    # Variant counts aren't loaded with the list query (selectinload of the full
+    # variant chain is reserved for the detail endpoint) — a single grouped
+    # count query is cheap and lets admin cards show "N вариантов" per spec.
+    spec_ids = [s.id for s in rows]
+    variant_counts: dict[str, int] = {}
+    if spec_ids:
+        count_stmt = (
+            select(SpecificationWithVariants.specification_id, func.count())
+            .where(
+                SpecificationWithVariants.specification_id.in_(spec_ids),
+                SpecificationWithVariants.status == "on",
+            )
+            .group_by(SpecificationWithVariants.specification_id)
+        )
+        variant_counts = dict((await db.execute(count_stmt)).all())
+
     inc = Included()
-    data = [specification_resource(s, inc, with_variants=False) for s in rows]
+    data = []
+    for s in rows:
+        res = specification_resource(s, inc, with_variants=False)
+        # Not a Posiflora field — our own extension for the admin card grid.
+        res["attributes"]["variantsCount"] = variant_counts.get(s.id, 0)
+        data.append(res)
     return document(
         data,
         included=inc.as_list(),
