@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: '/admin/retail-stores', icon: 'home', label: 'Аналитика' },
   { href: '/admin/orders', icon: 'event', label: 'Заказы' },
   { href: '/admin/specifications', icon: 'local_florist', label: 'Букеты и каталог' },
-  { href: '/admin/finance', icon: 'currency_exchange', label: 'Учёт и финансы' },
+  { href: '/admin/warehouse', icon: 'currency_exchange', label: 'Учёт и финансы' },
   { href: '/admin/customers', icon: 'group', label: 'Клиенты и развитие' },
   { href: '/admin/staff', icon: 'manage_accounts', label: 'Контроль сотрудников' },
   { href: '/admin/settings', icon: 'settings', label: 'Настройки' },

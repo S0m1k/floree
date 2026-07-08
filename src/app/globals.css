@@ -942,3 +942,24 @@ img { display: block; max-width: 100%; }
   background: #FDECEC; border: 1px solid #F5C2C2; color: #B3261E;
   padding: 10px 12px; border-radius: 8px; font-size: 13px;
 }
+
+/* Учёт и финансы: каталог, склад, документы, поставщики */
+.admin-doc-status {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.admin-doc-status--posted { background: var(--admin-accent); color: #fff; }
+.admin-doc-status--draft { background: var(--admin-field-bg); color: var(--admin-text-2); }
+
+.admin-table-thumb {
+  width: 32px; height: 32px; border-radius: 6px; background: var(--admin-bg);
+  display: flex; align-items: center; justify-content: center; color: var(--admin-text-3);
+  flex-shrink: 0;
+}
+
+.admin-table tfoot td { background: var(--admin-bg); font-weight: 700; }
+
+.admin-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.admin-btn:disabled:hover { background: #fff; }
+
+.admin-subtabs--wrap { width: 100%; flex-wrap: wrap; margin-bottom: 20px; }
