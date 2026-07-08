@@ -1,7 +1,5 @@
 import { AdminOrder, AdminOrderPayment, AdminOrderStatusHistoryEntry, SimpleDictEntry, Worker } from '@/types';
-
-const API_URL =
-  process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { adminFetch } from './adminApi';
 
 export const STATUS_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Все' },
@@ -58,7 +56,7 @@ export async function getOrders(params: OrdersSearchParams): Promise<OrdersListR
   qs.set('page[number]', String(page));
   qs.set('page[size]', String(PAGE_SIZE));
 
-  const res = await fetch(`${API_URL}/api/v1/orders?${qs.toString()}`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/orders?${qs.toString()}`);
   if (!res.ok) {
     return { orders: [], total: 0, statusCounts: {}, aggregates: { totalAmount: 0, paymentsAmount: 0 } };
   }
@@ -72,21 +70,21 @@ export async function getOrders(params: OrdersSearchParams): Promise<OrdersListR
 }
 
 export async function getOrder(id: string): Promise<AdminOrder | null> {
-  const res = await fetch(`${API_URL}/api/v1/orders/${id}`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/orders/${id}`);
   if (!res.ok) return null;
   const json = await res.json();
   return json.data ?? null;
 }
 
 export async function getOrderPayments(orderId: string): Promise<AdminOrderPayment[]> {
-  const res = await fetch(`${API_URL}/api/v1/payments?filter[order]=${orderId}`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/payments?filter[order]=${orderId}`);
   if (!res.ok) return [];
   const json = await res.json();
   return json.data || [];
 }
 
 export async function getOrderStatusHistory(orderId: string): Promise<AdminOrderStatusHistoryEntry[]> {
-  const res = await fetch(`${API_URL}/api/v1/orders/${orderId}/status-history`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/orders/${orderId}/status-history`);
   if (!res.ok) return [];
   const json = await res.json();
   return json.data || [];
@@ -94,7 +92,7 @@ export async function getOrderStatusHistory(orderId: string): Promise<AdminOrder
 
 async function getDict(path: string): Promise<SimpleDictEntry[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/${path}?page[size]=200`, { cache: 'no-store' });
+    const res = await adminFetch(`/api/v1/${path}?page[size]=200`);
     if (!res.ok) return [];
     const json = await res.json();
     return json.data || [];
@@ -129,7 +127,7 @@ export function buildOrdersHref(
 
 export async function getWorkers(): Promise<Worker[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/workers?page[size]=200`, { cache: 'no-store' });
+    const res = await adminFetch(`/api/v1/workers?page[size]=200`);
     if (!res.ok) return [];
     const json = await res.json();
     return json.data || [];

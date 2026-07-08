@@ -1,7 +1,5 @@
 import { AdminCustomer, SimpleDictEntry } from '@/types';
-
-const API_URL =
-  process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { adminFetch } from './adminApi';
 
 export const PAGE_SIZE = 25;
 
@@ -34,7 +32,7 @@ export async function getCustomers(params: CustomersSearchParams): Promise<Custo
   qs.set('page[number]', String(page));
   qs.set('page[size]', String(PAGE_SIZE));
 
-  const res = await fetch(`${API_URL}/api/v1/customers?${qs.toString()}`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/customers?${qs.toString()}`);
   if (!res.ok) return { customers: [], total: 0 };
   const json = await res.json();
   return { customers: json.data || [], total: json.meta?.total ?? 0 };
@@ -42,7 +40,7 @@ export async function getCustomers(params: CustomersSearchParams): Promise<Custo
 
 export async function getCustomerSources(): Promise<SimpleDictEntry[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/customer-sources?page[size]=200`, { cache: 'no-store' });
+    const res = await adminFetch(`/api/v1/customer-sources?page[size]=200`);
     if (!res.ok) return [];
     const json = await res.json();
     return json.data || [];

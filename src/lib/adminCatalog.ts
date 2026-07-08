@@ -1,7 +1,5 @@
 import { AdminCategory, AdminSpecification } from '@/types';
-
-const API_URL =
-  process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { adminFetch } from './adminApi';
 
 export const PAGE_SIZE = 24;
 
@@ -19,7 +17,7 @@ interface JsonApiImage {
 }
 
 export async function getCategories(): Promise<AdminCategory[]> {
-  const res = await fetch(`${API_URL}/api/v1/categories?page[size]=200`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/categories?page[size]=200`);
   if (!res.ok) return [];
   const json = await res.json();
   return json.data || [];
@@ -40,7 +38,7 @@ export async function getSpecifications(params: SpecificationsSearchParams): Pro
   qs.set('page[number]', String(page));
   qs.set('page[size]', String(PAGE_SIZE));
 
-  const res = await fetch(`${API_URL}/api/v1/specifications?${qs.toString()}`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/specifications?${qs.toString()}`);
   if (!res.ok) return { specifications: [], imagesById: {}, total: 0 };
   const json = await res.json();
   const imagesById: Record<string, JsonApiImage> = {};

@@ -1,7 +1,5 @@
 import { MoneyDashboard } from '@/types';
-
-const API_URL =
-  process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { adminFetch } from './adminApi';
 
 export interface DashboardSearchParams {
   from?: string;
@@ -29,7 +27,7 @@ export async function getMoneyDashboard(params: DashboardSearchParams): Promise<
   qs.set('to', params.to || defaults.to);
   if (params.store) qs.set('store', params.store);
 
-  const res = await fetch(`${API_URL}/api/v1/analytics/money?${qs.toString()}`, { cache: 'no-store' });
+  const res = await adminFetch(`/api/v1/analytics/money?${qs.toString()}`);
   if (!res.ok) return null;
   return res.json();
 }
