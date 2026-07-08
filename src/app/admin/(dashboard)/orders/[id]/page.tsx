@@ -4,6 +4,7 @@ import {
   getOrder, getOrderPayments, getOrderStatusHistory, getStores, getWorkers,
 } from '@/lib/adminOrders';
 import OrderStatusBadge from '@/components/admin/OrderStatusBadge';
+import OrderStatusControl from '@/components/admin/OrderStatusControl';
 
 export const metadata = { title: 'Заказ' };
 
@@ -47,7 +48,7 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
         <Link href="/admin/orders" className="admin-btn" style={{ flex: '0 0 auto' }}>← Назад</Link>
         <h1 className="admin-title" style={{ margin: 0 }}>Заказ № {a.docNo || order.id.slice(0, 8)}</h1>
-        <OrderStatusBadge status={a.status} />
+        <OrderStatusControl orderId={order.id} status={a.status} />
       </div>
 
       <nav className="admin-tabs">

@@ -963,3 +963,58 @@ img { display: block; max-width: 100%; }
 .admin-btn:disabled:hover { background: #fff; }
 
 .admin-subtabs--wrap { width: 100%; flex-wrap: wrap; margin-bottom: 20px; }
+
+/* Status pills — remaining workflow states (create/detail; admin-map §2.2.1) */
+.admin-status-pill--cancelled { background: #B3261E; border-color: #B3261E; color: #fff; }
+.admin-status-pill--return { background: var(--admin-text-2); border-color: var(--admin-text-2); color: #fff; }
+.admin-status-pill--credit { background: var(--admin-blue-bg); border-color: var(--admin-blue); color: var(--admin-blue); }
+
+/* Создание заказа — форма (admin-map §2.2.2) */
+.admin-order-form { display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+.admin-order-form .admin-panel { padding-bottom: 6px; }
+.admin-field textarea.admin-textarea {
+  border: none; border-radius: 4px; padding: 10px 12px; min-height: 84px; resize: vertical;
+  font-size: 14px; font-family: inherit; color: var(--admin-text); background: var(--admin-field-bg);
+}
+.admin-field textarea.admin-textarea:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+.admin-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 8px; }
+
+.admin-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-chip {
+  display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 17px;
+  font-size: 13px; border: 1px solid var(--admin-border); background: #fff; color: var(--admin-text);
+  cursor: pointer; white-space: nowrap;
+}
+.admin-chip:hover { background: var(--admin-bg); }
+.admin-chip--active { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.admin-chip--active:hover { background: #17a077; }
+
+.admin-form-hint { font-size: 12px; color: var(--admin-blue); margin-top: 4px; }
+.admin-form-hint--disabled { color: var(--admin-text-3); cursor: not-allowed; }
+.admin-form-counter { font-size: 11px; color: var(--admin-text-3); align-self: flex-end; }
+.admin-form-error {
+  background: #FDECEC; border: 1px solid #F5C2C2; color: #B3261E;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px;
+}
+.admin-form-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* Кликабельный бейдж статуса заказа с выпадающим списком */
+.admin-status-control { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.admin-status-control__trigger {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: none;
+  padding: 0; cursor: pointer;
+}
+.admin-status-control__trigger:disabled { opacity: 0.6; cursor: default; }
+.admin-status-control__caret { font-size: 12px; color: var(--admin-text-2); }
+.admin-status-control__menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; margin: 0; padding: 6px;
+  list-style: none; background: var(--admin-surface); border: 1px solid var(--admin-border);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 4px;
+}
+.admin-status-control__item {
+  display: flex; width: 100%; padding: 6px 8px; border: none; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left;
+}
+.admin-status-control__item:hover { background: var(--admin-bg); }
+.admin-status-control__item.is-current { background: var(--admin-accent-2); }
+.admin-status-control__error { font-size: 12px; color: #B3261E; }

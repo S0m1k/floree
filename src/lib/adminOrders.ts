@@ -1,16 +1,10 @@
-import { AdminOrder, AdminOrderPayment, AdminOrderStatusHistoryEntry, SimpleDictEntry, Worker } from '@/types';
+import { AdminCustomer, AdminOrder, AdminOrderPayment, AdminOrderStatusHistoryEntry, SimpleDictEntry, Worker } from '@/types';
 import { adminFetch } from './adminApi';
 
-export const STATUS_TABS: { value: string; label: string }[] = [
-  { value: '', label: 'Все' },
-  { value: 'new', label: 'Новые' },
-  { value: 'assembled', label: 'Собранные' },
-  { value: 'cancelled', label: 'Отменённые' },
-  { value: 'completed', label: 'Завершённые' },
-  { value: 'return', label: 'Возврат' },
-  { value: 'credit', label: 'Кредит' },
-  { value: 'courier', label: 'У курьера' },
-];
+// Re-exported from the client-safe module so existing importers of
+// `@/lib/adminOrders` keep working; client components should import these from
+// `@/lib/orderStatus` directly to avoid pulling in the server data layer.
+export { STATUS_TABS, TERMINAL_STATUSES } from './orderStatus';
 
 // Query params accepted by the /admin/orders page (mirrors admin-map.md §2.2
 // "Фильтр заказов"). Maps 1:1 to the /v1/orders `filter[...]` params.
@@ -107,6 +101,22 @@ export async function getStores(): Promise<SimpleDictEntry[]> {
 
 export async function getOrderSources(): Promise<SimpleDictEntry[]> {
   return getDict('order-sources');
+}
+
+export async function getOrderTags(): Promise<SimpleDictEntry[]> {
+  return getDict('order-tags');
+}
+
+// Flat customer list for the create-order «Клиент» select (admin-map §2.2.2).
+export async function getCustomersForSelect(): Promise<AdminCustomer[]> {
+  try {
+    const res = await adminFetch(`/api/v1/customers?page[size]=200`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch {
+    return [];
+  }
 }
 
 // Builds an /admin/orders href that preserves every current filter/search

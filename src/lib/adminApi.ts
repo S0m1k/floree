@@ -29,3 +29,26 @@ export async function adminFetch(path: string, init: RequestInit = {}): Promise<
   }
   return res;
 }
+
+/**
+ * Server-side mutation (POST/PATCH/…) to a protected /api/v1 endpoint. Unlike
+ * `adminFetch` it never redirects — the caller (a Route Handler proxied by a
+ * client form) inspects the status itself so it can surface the backend's
+ * validation error (400/409) to the user instead of bouncing to login.
+ */
+export async function adminMutate(
+  path: string,
+  method: string,
+  body: unknown,
+): Promise<Response> {
+  const token = cookies().get(ADMIN_ACCESS_COOKIE)?.value;
+  return fetch(`${ADMIN_API_URL}${path}`, {
+    method,
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+}

@@ -1,4 +1,4 @@
-import { STATUS_TABS } from '@/lib/adminOrders';
+import { STATUS_TABS } from '@/lib/orderStatus';
 
 export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
   STATUS_TABS.filter((t) => t.value).map((t) => [t.value, t.label])

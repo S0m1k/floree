@@ -28,7 +28,10 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
 
   return (
     <div>
-      <h1 className="admin-title">Заказы</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+        <h1 className="admin-title" style={{ margin: 0 }}>Заказы</h1>
+        <Link href="/admin/orders/create" className="admin-btn admin-btn--primary">Создать новый</Link>
+      </div>
 
       <nav className="admin-tabs">
         {STATUS_TABS.map((tab) => {
