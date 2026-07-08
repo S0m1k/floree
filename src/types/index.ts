@@ -229,6 +229,93 @@ export interface AdminSpecification {
   };
 }
 
+// ---------- Учёт и финансы (склад, каталог товаров, поставщики) ----------
+
+export interface AdminMeasure {
+  id: string;
+  type: 'measures';
+  attributes: { title: string; deleted: boolean };
+}
+
+export interface AdminInventoryItem {
+  id: string;
+  type: 'inventory-items';
+  attributes: {
+    title: string;
+    itemType: 'item' | 'service';
+    priceMin: number;
+    priceMax: number;
+    public: boolean;
+    fractional: boolean;
+    updatedAt: string;
+    deleted: boolean;
+  };
+  relationships: {
+    category?: { data: { type: 'categories'; id: string } | null };
+    measure?: { data: { type: 'measures'; id: string } | null };
+    logo?: { data: { type: 'images'; id: string } | null };
+  };
+}
+
+export interface AdminVendor {
+  id: string;
+  type: 'vendors';
+  attributes: {
+    title: string;
+    description: string | null;
+    email: string | null;
+    phone: string | null;
+  };
+}
+
+export type AdminWarehouseDocType =
+  | 'packing-invoices'
+  | 'write-off-invoices'
+  | 'markdown-acts'
+  | 'sorting-acts'
+  | 'inventory-acts'
+  | 'movement-acts';
+
+export interface AdminWarehouseDoc {
+  id: string;
+  type: AdminWarehouseDocType;
+  attributes: {
+    date: string | null;
+    docNo: string | null;
+    amount: number;
+    linesCount: number;
+    createdAt: string;
+    posted: boolean;
+    status: string;
+  };
+  relationships: {
+    store?: { data: { type: 'stores'; id: string } | null };
+    fromStore?: { data: { type: 'stores'; id: string } | null };
+    toStore?: { data: { type: 'stores'; id: string } | null };
+    vendor?: { data: { type: 'vendors'; id: string } | null };
+    createdBy?: { data: { type: 'workers'; id: string } | null };
+  };
+}
+
+export interface AdminWarehouseDocLine {
+  id: string;
+  type: string;
+  attributes: {
+    qty?: number;
+    amount?: number;
+    cost?: number;
+    costPrice?: number;
+    oldPrice?: number;
+    newPrice?: number;
+    expectedQty?: number;
+  };
+  relationships: {
+    item?: { data: { type: 'inventory-items'; id: string } | null };
+    itemFrom?: { data: { type: 'inventory-items'; id: string } | null };
+    itemTo?: { data: { type: 'inventory-items'; id: string } | null };
+  };
+}
+
 export interface MoneyDashboard {
   period: { from: string; to: string };
   updatedAt: string;
