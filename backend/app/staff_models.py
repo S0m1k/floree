@@ -27,11 +27,25 @@ class Worker(Base):
     __tablename__ = "workers"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    # `name` stays "Имя Фамилия" for backward compatibility with existing
+    # screens (order florist/author columns etc.) that already read it.
     name: Mapped[str] = mapped_column(String)
+    surname: Mapped[str | None] = mapped_column(String, nullable=True)
+    patronymic: Mapped[str | None] = mapped_column(String, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
     login: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    # 4-digit POS/Florist-app PIN, bcrypt-hashed like the password — never
+    # stored or returned in plaintext.
+    pin_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     role_id: Mapped[str | None] = mapped_column(String, ForeignKey("roles.id"), nullable=True)
+    # Kept for compatibility with code that still filters by a single store
+    # (order filters etc.) — always mirrors the first id in store_ids.
     store_id: Mapped[str | None] = mapped_column(String, ForeignKey("stores.id"), nullable=True)
+    # JSON list of every store id the worker is assigned to (admin «Доступы»
+    # multi-select). store_id above stays in sync with store_ids[0].
+    store_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
     # JSON list of access-right sets (Администратор, Флорист, Курьер, Менеджер склада…)
     access_rights: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String, default="active")  # active | inactive
