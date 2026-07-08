@@ -72,25 +72,55 @@ async def get_store(store_id: str, db: AsyncSession = Depends(get_db)):
     return document(store_resource(row))
 
 
-async def _customer_order_stats(db: AsyncSession, phones: list[str]) -> dict[str, dict]:
-    """Orders carry no customer_id FK — match by phone (the only field a
-    checkout order and a Customer row share) and aggregate per phone.
+async def _customer_order_stats(db: AsyncSession, customers: list) -> dict[str, dict]:
+    """Per-customer order aggregates, keyed by customer id.
+
+    An order belongs to a customer when its customer_id FK matches; legacy
+    ETL/checkout rows carry no customer_id and are matched by the customer's
+    phone instead. Two grouped queries total (no N+1), merged here — an order
+    is counted exactly once (by FK when present, by phone only when the FK is
+    NULL).
     """
-    if not phones:
+    if not customers:
         return {}
-    stmt = (
-        select(Order.phone, func.count(), func.coalesce(func.sum(Order.total_amount), 0))
-        .where(Order.phone.in_(phones))
-        .group_by(Order.phone)
-    )
-    rows = (await db.execute(stmt)).all()
+    totals: dict[str, list] = {c.id: [0, 0.0] for c in customers}
+
+    by_id = (
+        await db.execute(
+            select(Order.customer_id, func.count(), func.coalesce(func.sum(Order.total_amount), 0))
+            .where(Order.customer_id.in_(list(totals)))
+            .group_by(Order.customer_id)
+        )
+    ).all()
+    for cid, count, total in by_id:
+        totals[cid][0] += count
+        totals[cid][1] += float(total)
+
+    # First customer wins a shared phone — mirrors the ETL's dedup rule.
+    id_by_phone: dict[str, str] = {}
+    for c in customers:
+        if c.phone and c.phone not in id_by_phone:
+            id_by_phone[c.phone] = c.id
+    if id_by_phone:
+        by_phone = (
+            await db.execute(
+                select(Order.phone, func.count(), func.coalesce(func.sum(Order.total_amount), 0))
+                .where(Order.customer_id.is_(None), Order.phone.in_(list(id_by_phone)))
+                .group_by(Order.phone)
+            )
+        ).all()
+        for phone, count, total in by_phone:
+            cid = id_by_phone[phone]
+            totals[cid][0] += count
+            totals[cid][1] += float(total)
+
     return {
-        phone: {
-            "ordersQty": count,
-            "ordersAmount": float(total),
-            "avgCheck": round(float(total) / count, 2) if count else 0,
+        cid: {
+            "ordersQty": qty,
+            "ordersAmount": amount,
+            "avgCheck": round(amount / qty, 2) if qty else 0,
         }
-        for phone, count, total in rows
+        for cid, (qty, amount) in totals.items()
     }
 
 
@@ -125,8 +155,8 @@ async def list_customers(request: Request, db: AsyncSession = Depends(get_db)):
         await db.execute(base.order_by(Customer.created_at.desc()).offset((number - 1) * size).limit(size))
     ).scalars().all()
 
-    stats_by_phone = await _customer_order_stats(db, [r.phone for r in rows])
-    data = [customer_resource(r, stats_by_phone.get(r.phone)) for r in rows]
+    stats_by_id = await _customer_order_stats(db, list(rows))
+    data = [customer_resource(r, stats_by_id.get(r.id)) for r in rows]
     return document(data, meta={"page": {"number": number, "size": size}, "total": total})
 
 
@@ -135,8 +165,8 @@ async def get_customer(customer_id: str, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(Customer).where(Customer.id == customer_id))).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Customer not found")
-    stats = await _customer_order_stats(db, [row.phone])
-    return document(customer_resource(row, stats.get(row.phone)))
+    stats = await _customer_order_stats(db, [row])
+    return document(customer_resource(row, stats.get(row.id)))
 
 
 @router.get("/bouquets")
@@ -209,13 +239,33 @@ def _order_filters(qs, *, include_status: bool):
     return clauses
 
 
+async def _order_customer_clauses(db: AsyncSession, qs) -> list:
+    """filter[customer] — the customer card's «Заказы» tab. An order belongs
+    to the customer via the customer_id FK, or (legacy ETL rows that predate
+    the FK) via the customer's phone.
+    """
+    customer_id = qs.get("filter[customer]")
+    if not customer_id:
+        return []
+    cust = (
+        await db.execute(select(Customer).where(Customer.id == customer_id))
+    ).scalar_one_or_none()
+    if cust is None or not cust.phone:
+        return [Order.customer_id == customer_id]
+    return [or_(Order.customer_id == customer_id, Order.phone == cust.phone)]
+
+
 @router.get("/orders")
 async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
     qs = request.query_params
     number, size = _page(qs)
 
+    # filter[customer] needs a DB lookup (phone match), so it's resolved once
+    # here and appended to every clause set below.
+    customer_clauses = await _order_customer_clauses(db, qs)
+
     base = select(Order)
-    for clause in _order_filters(qs, include_status=True):
+    for clause in (*_order_filters(qs, include_status=True), *customer_clauses):
         base = base.where(clause)
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
@@ -230,7 +280,7 @@ async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
 
     # Status-tab counts + sum aggregates honor every filter except `status`
     # itself, so switching tabs doesn't reset the rest of the filter panel.
-    no_status_clauses = _order_filters(qs, include_status=False)
+    no_status_clauses = [*_order_filters(qs, include_status=False), *customer_clauses]
 
     def _scoped(*extra):
         stmt = select(func.count()).select_from(Order)
@@ -246,7 +296,7 @@ async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
     agg_stmt = select(
         func.coalesce(func.sum(Order.total_amount), 0),
     ).select_from(Order)
-    for clause in _order_filters(qs, include_status=True):
+    for clause in (*_order_filters(qs, include_status=True), *customer_clauses):
         agg_stmt = agg_stmt.where(clause)
     sum_total = (await db.execute(agg_stmt)).scalar_one()
 
@@ -256,7 +306,7 @@ async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
         .join(Payment, Payment.order_id == Order.id)
         .where(Payment.status.in_(("CONFIRMED", "paid")))
     )
-    for clause in _order_filters(qs, include_status=True):
+    for clause in (*_order_filters(qs, include_status=True), *customer_clauses):
         paid_stmt = paid_stmt.where(clause)
     sum_paid = (await db.execute(paid_stmt)).scalar_one()
 

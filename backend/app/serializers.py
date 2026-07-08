@@ -194,9 +194,15 @@ def customer_resource(cust, stats: dict | None = None) -> dict:
         "title": cust.name,
         "birthday": _iso(cust.birthday),
         "email": cust.email or "",
-        "instagram": None,
+        "instagram": cust.instagram,
         "status": "on",
-        "isPerson": True,
+        "isPerson": cust.customer_type != "company",
+        # person (Физическое лицо) | company (Юридическое лицо)
+        "customerType": cust.customer_type or "person",
+        # «Номер карты» from the admin form. Distinct from bonus_cards (the
+        # Wallet-card template the business issues).
+        "cardNumber": cust.card_number,
+        "preferences": cust.preferences,
         # No per-customer card assignment exists yet — bonus_cards is a
         # template the business issues, not a customer-owned instance.
         "bonusCard": None,
@@ -218,12 +224,33 @@ def customer_resource(cust, stats: dict | None = None) -> dict:
         "person": rel_one("persons", None),
         "discountGroups": rel_many("discount-groups", []),
         "bonusGroup": rel_one("bonus-groups", None),
+        # «Откуда узнал о нас» — the admin customer form's source select.
+        "source": rel_one("order-sources", cust.source_id),
         "customerSources": rel_many("customer-sources", []),
         "customerPreferences": rel_many("customer-preferences", []),
         "customerEvents": rel_one("customer-events", None),
         "bonusCards": rel_one("bonus-cards", None),
     }
     return resource("customers", cust.id, a, rels, links={"self": f"/customers/{cust.id}"})
+
+
+# ---------- customer bonus history ----------
+
+def customer_bonus_history_resource(h) -> dict:
+    """История списаний/начислений бонусов (карточка клиента, вкладка
+    «Бонусы»). Written by the manual balance adjustment in
+    PATCH /v1/customers/{id} — not a Posiflora API field, our own extension.
+    """
+    a = {
+        "amount": h.amount,
+        "comment": h.comment or "",
+        "createdAt": _iso(h.created_at),
+    }
+    rels = {
+        "order": rel_one("orders", h.order_id),
+        "worker": rel_one("users", h.worker_id),
+    }
+    return resource("customer-bonus-history", h.id, a, rels)
 
 
 # ---------- bouquets ----------

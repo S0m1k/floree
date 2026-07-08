@@ -229,4 +229,27 @@ class Customer(Base):
     bonus_balance: Mapped[int] = mapped_column(Integer, default=0)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Admin «Создание/редактирование клиента» form fields (admin-map §2.5.1).
+    instagram: Mapped[str | None] = mapped_column(String, nullable=True)
+    # person (Физическое лицо) | company (Юридическое лицо)
+    customer_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    card_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    preferences: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class CustomerBonusHistory(Base):
+    """История списаний/начислений бонусов клиента (карточка клиента,
+    вкладка «Бонусы»). Ручная корректировка баланса (PATCH /v1/customers/{id}
+    с bonusBalance) пишет сюда строку с дельтой и автором из JWT.
+    """
+
+    __tablename__ = "customer_bonus_history"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"), index=True)
+    amount: Mapped[int] = mapped_column(Integer)  # signed delta, bonuses
+    comment: Mapped[str | None] = mapped_column(String, nullable=True)
+    order_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
