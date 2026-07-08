@@ -19,7 +19,13 @@ from app.models import Order, Payment
 from app.staff_models import Worker
 from app.dictionary_models import CustomerDealSource
 
-router = APIRouter(prefix="/v1/analytics", tags=["v1-analytics"])
+from app.deps import get_current_worker
+
+router = APIRouter(
+    prefix="/v1/analytics",
+    tags=["v1-analytics"],
+    dependencies=[Depends(get_current_worker)],
+)
 
 
 def _parse_date(s: str | None, default: date) -> date:

@@ -21,7 +21,11 @@ from app.serializers import (
     order_status_history_resource,
 )
 
-router = APIRouter(prefix="/v1", tags=["v1-sales"])
+from app.deps import get_current_worker
+
+router = APIRouter(
+    prefix="/v1", tags=["v1-sales"], dependencies=[Depends(get_current_worker)]
+)
 
 
 def _page(qs) -> tuple[int, int]:

@@ -13,7 +13,11 @@ from app.staff_models import Worker
 from app.jsonapi import document
 from app.serializers import worker_resource
 
-router = APIRouter(prefix="/v1", tags=["v1-staff"])
+from app.deps import get_current_worker
+
+router = APIRouter(
+    prefix="/v1", tags=["v1-staff"], dependencies=[Depends(get_current_worker)]
+)
 
 
 @router.get("/workers")

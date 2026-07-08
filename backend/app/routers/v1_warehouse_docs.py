@@ -21,7 +21,11 @@ from app.inventory_models import (
 )
 from app import serializers_docs as sd
 
-router = APIRouter(prefix="/v1", tags=["v1-warehouse-docs"])
+from app.deps import get_current_worker
+
+router = APIRouter(
+    prefix="/v1", tags=["v1-warehouse-docs"], dependencies=[Depends(get_current_worker)]
+)
 
 # (url path, model, header serializer, line serializer)
 _DOCS = [

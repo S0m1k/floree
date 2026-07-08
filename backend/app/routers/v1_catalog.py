@@ -19,7 +19,11 @@ from app.serializers import (
     build_category_path,
 )
 
-router = APIRouter(prefix="/v1", tags=["v1-catalog"])
+from app.deps import get_current_worker
+
+router = APIRouter(
+    prefix="/v1", tags=["v1-catalog"], dependencies=[Depends(get_current_worker)]
+)
 
 # Eager-load the full recipe→variant→price chain for the detail endpoint.
 _SPEC_INCLUDES = (

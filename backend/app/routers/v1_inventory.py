@@ -15,7 +15,11 @@ from app.inventory_models import Item, Warehouse, Vendor
 from app.jsonapi import document
 from app.serializers import item_resource, warehouse_resource, vendor_resource
 
-router = APIRouter(prefix="/v1", tags=["v1-inventory"])
+from app.deps import get_current_worker
+
+router = APIRouter(
+    prefix="/v1", tags=["v1-inventory"], dependencies=[Depends(get_current_worker)]
+)
 
 
 def _page(qs) -> tuple[int, int]:

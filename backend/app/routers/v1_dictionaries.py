@@ -23,7 +23,11 @@ from app.dictionary_models import (
     UnitOfMeasure,
 )
 
-router = APIRouter(prefix="/v1", tags=["v1-dictionaries"])
+from app.deps import get_current_worker
+
+router = APIRouter(
+    prefix="/v1", tags=["v1-dictionaries"], dependencies=[Depends(get_current_worker)]
+)
 
 # (url path, ORM model, JSON:API type, extra static attributes)
 _DICTS = [
