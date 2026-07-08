@@ -1,8 +1,9 @@
 """Phase 2 — Posiflora-compatible /v1 endpoints for stores, customers, bouquets."""
 
+import json
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +11,15 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.catalog_models import Store, Customer, Bouquet
-from app.models import Order, Payment, OrderStatusHistory, ORDER_STATUSES
+from app.models import (
+    Order,
+    Payment,
+    OrderStatusHistory,
+    ORDER_STATUSES,
+    TERMINAL_STATUSES,
+    DELIVERY_TYPES,
+)
+from app.staff_models import Worker
 from app.jsonapi import document
 from app.serializers import (
     store_resource,
@@ -22,6 +31,8 @@ from app.serializers import (
 )
 
 from app.deps import get_current_worker
+
+COMMENT_MAX_LEN = 500
 
 router = APIRouter(
     prefix="/v1", tags=["v1-sales"], dependencies=[Depends(get_current_worker)]
@@ -275,6 +286,182 @@ async def get_order_status_history(order_id: str, db: AsyncSession = Depends(get
     )
     rows = (await db.execute(stmt)).scalars().all()
     return document([order_status_history_resource(h) for h in rows])
+
+
+def _rel_id(rels: dict, key: str) -> str | None:
+    """Extract a to-one relationship id from a JSON:API relationships block."""
+    node = (rels.get(key) or {}).get("data") if isinstance(rels.get(key), dict) else None
+    return node.get("id") if isinstance(node, dict) else None
+
+
+def _rel_ids(rels: dict, key: str) -> list[str]:
+    """Extract to-many relationship ids from a JSON:API relationships block."""
+    data = (rels.get(key) or {}).get("data") if isinstance(rels.get(key), dict) else None
+    if not isinstance(data, list):
+        return []
+    return [n["id"] for n in data if isinstance(n, dict) and n.get("id")]
+
+
+async def _load_order(db: AsyncSession, order_id: str) -> Order | None:
+    stmt = select(Order).where(Order.id == order_id).options(selectinload(Order.payments))
+    return (await db.execute(stmt)).scalar_one_or_none()
+
+
+async def _next_order_number(db: AsyncSession) -> int:
+    current = (await db.execute(select(func.max(Order.order_number)))).scalar_one()
+    return int(current or 0) + 1
+
+
+def _combined_address(attrs: dict) -> str:
+    """Build the flat address string the checkout Order stores, from the admin
+    form's structured delivery fields — keeps list/search behavior consistent."""
+    street, house = attrs.get("deliveryStreet"), attrs.get("deliveryHouse")
+    parts = [attrs.get("deliveryCity"), ", ".join(p for p in (street, house) if p)]
+    if attrs.get("deliveryApartment"):
+        parts.append(f"кв. {attrs['deliveryApartment']}")
+    return ", ".join(p for p in parts if p)
+
+
+@router.post("/orders", status_code=201)
+async def create_order_v1(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """Create an order from the admin «Создание заказа» form (admin-map §2.2.2).
+
+    Prices/composition are NOT accepted here — «Бюджет» is advisory only and the
+    order total stays server-owned (§2.2.1). The server assigns the sequential
+    order number, sets status='new', records the author and the first history
+    entry, and echoes the same shape as GET /v1/orders/{id}.
+    """
+    body = await request.json()
+    data = (body or {}).get("data") or {}
+    if data.get("type") not in (None, "orders"):
+        raise HTTPException(status_code=400, detail="data.type must be 'orders'")
+    attrs = data.get("attributes") or {}
+    rels = data.get("relationships") or {}
+
+    # --- relationships ---
+    store_id = _rel_id(rels, "store")
+    if not store_id:
+        raise HTTPException(status_code=400, detail="store relationship is required")
+    store = (await db.execute(select(Store).where(Store.id == store_id))).scalar_one_or_none()
+    if store is None:
+        raise HTTPException(status_code=400, detail="store not found")
+
+    customer = None
+    customer_id = _rel_id(rels, "customer")
+    if customer_id:
+        customer = (
+            await db.execute(select(Customer).where(Customer.id == customer_id))
+        ).scalar_one_or_none()
+        if customer is None:
+            raise HTTPException(status_code=400, detail="customer not found")
+
+    source_id = _rel_id(rels, "source") or attrs.get("source")
+
+    # --- attributes ---
+    comment = attrs.get("comment") or attrs.get("description")
+    if comment is not None and len(comment) > COMMENT_MAX_LEN:
+        raise HTTPException(
+            status_code=400, detail=f"comment exceeds {COMMENT_MAX_LEN} characters"
+        )
+
+    delivery_type = attrs.get("delivery") or attrs.get("deliveryType") or "delivery"
+    if delivery_type not in DELIVERY_TYPES:
+        raise HTTPException(
+            status_code=400, detail=f"delivery must be one of {DELIVERY_TYPES}"
+        )
+
+    budget = attrs.get("budget")
+    if budget is not None:
+        try:
+            budget = float(budget)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="budget must be a number")
+
+    tag_ids = _rel_ids(rels, "tags") or (attrs.get("tags") if isinstance(attrs.get("tags"), list) else [])
+
+    order = Order(
+        posiflora_id=None,
+        posiflora_doc_no=None,
+        order_number=await _next_order_number(db),
+        customer_name=(customer.name if customer else "") or "",
+        phone=(customer.phone if customer else "") or "",
+        address=_combined_address(attrs) if delivery_type == "delivery" else "",
+        comment=comment,
+        status="new",
+        payment_status="pending",
+        bouquet_ids="[]",
+        total_amount=0,
+        budget=budget,
+        store_id=store_id,
+        source_id=source_id,
+        customer_id=customer_id,
+        created_by_id=worker.id,
+        delivery_type=delivery_type,
+        delivery_city=attrs.get("deliveryCity"),
+        delivery_street=attrs.get("deliveryStreet"),
+        delivery_house=attrs.get("deliveryHouse"),
+        delivery_apartment=attrs.get("deliveryApartment"),
+        delivery_building=attrs.get("deliveryBuilding"),
+        delivery_time_from=attrs.get("deliveryTimeFrom"),
+        delivery_time_to=attrs.get("deliveryTimeTo"),
+        due_date=attrs.get("dueDate"),
+        due_time=attrs.get("dueTime"),
+        tags_json=json.dumps(tag_ids) if tag_ids else None,
+    )
+    db.add(order)
+    await db.flush()
+    db.add(OrderStatusHistory(order_id=order.id, status="new", worker_id=worker.id))
+    await db.commit()
+
+    fresh = await _load_order(db, order.id)
+    return document(order_resource(fresh))
+
+
+@router.patch("/orders/{order_id}")
+async def update_order_status_v1(
+    order_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """Change an order's CRM/fulfillment status (admin-map §2.2.1).
+
+    Posiflora allows free transitions between active statuses, but terminal ones
+    (completed/cancelled/return) are read-only — attempting to move out of them
+    is a 409. Every change appends a history entry; terminal moves stamp
+    closed_at / closed_by.
+    """
+    body = await request.json()
+    attrs = ((body or {}).get("data") or {}).get("attributes") or {}
+    new_status = attrs.get("status")
+    if new_status not in ORDER_STATUSES:
+        raise HTTPException(
+            status_code=400, detail=f"status must be one of {ORDER_STATUSES}"
+        )
+
+    order = await _load_order(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status in TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Order is in terminal status '{order.status}' and cannot be changed",
+        )
+
+    order.status = new_status
+    if new_status in TERMINAL_STATUSES:
+        order.closed_at = datetime.utcnow()
+        order.closed_by_id = worker.id
+    db.add(OrderStatusHistory(order_id=order.id, status=new_status, worker_id=worker.id))
+    await db.commit()
+
+    fresh = await _load_order(db, order.id)
+    return document(order_resource(fresh))
 
 
 @router.get("/payments")

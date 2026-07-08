@@ -15,6 +15,15 @@ Money = Numeric(12, 2)
 # the admin "Заказы" status tabs (docs/posiflora/admin-map.md §2.2).
 ORDER_STATUSES = ("new", "assembled", "courier", "completed", "cancelled", "return", "credit")
 
+# Terminal workflow statuses — once an order reaches one of these it cannot be
+# moved again (admin PATCH /v1/orders/{id} returns 409). Matches Posiflora's
+# rule that closed/cancelled/returned orders are read-only.
+TERMINAL_STATUSES = ("completed", "cancelled", "return")
+
+# Order fulfillment method for admin-created orders (docs/posiflora/admin-map.md
+# §2.2.2 «Получение заказа»).
+DELIVERY_TYPES = ("pickup", "delivery")
+
 
 class Order(Base):
     __tablename__ = "orders"
@@ -28,6 +37,30 @@ class Order(Base):
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_time: Mapped[str | None] = mapped_column(String, nullable=True)
     total_amount: Mapped[Decimal] = mapped_column(Money, default=0)  # rubles (2dp)
+
+    # Admin-created orders (POST /v1/orders) — Posiflora CRM create form
+    # (docs/posiflora/admin-map.md §2.2.2). All nullable so ETL/checkout rows
+    # that predate these columns keep working.
+    # Sequential human-facing order number, generated server-side. Distinct from
+    # posiflora_doc_no (imported rows carry Posiflora's own doc number there).
+    order_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # «Бюджет» — an advisory target, NOT the order price. Prices are never taken
+    # from the client (admin-map.md §2.2.1); order sums are computed server-side.
+    budget: Mapped[Decimal | None] = mapped_column(Money, nullable=True)
+    # «Получение заказа»: pickup | delivery.
+    delivery_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    delivery_city: Mapped[str | None] = mapped_column(String, nullable=True)
+    delivery_street: Mapped[str | None] = mapped_column(String, nullable=True)
+    delivery_house: Mapped[str | None] = mapped_column(String, nullable=True)
+    delivery_apartment: Mapped[str | None] = mapped_column(String, nullable=True)
+    delivery_building: Mapped[str | None] = mapped_column(String, nullable=True)
+    delivery_time_from: Mapped[str | None] = mapped_column(String, nullable=True)
+    delivery_time_to: Mapped[str | None] = mapped_column(String, nullable=True)
+    # «Когда выполнить» — target date (YYYY-MM-DD). due_time keeps the full ISO
+    # timestamp for back-compat with the checkout/ETL path.
+    due_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    # «Быстрые теги» — JSON array of order-tag ids.
+    tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     # CRM/fulfillment status — one of ORDER_STATUSES. This is Posiflora's real
     # `orders.status` (assembly/delivery workflow), distinct from the payment
     # gateway lifecycle tracked in `payment_status`.
@@ -41,6 +74,7 @@ class Order(Base):
 
     store_id: Mapped[str | None] = mapped_column(String, ForeignKey("stores.id"), nullable=True)
     source_id: Mapped[str | None] = mapped_column(String, ForeignKey("customer_deal_sources.id"), nullable=True)
+    customer_id: Mapped[str | None] = mapped_column(String, ForeignKey("customers.id"), nullable=True)
     florist_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
     created_by_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
     closed_by_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)

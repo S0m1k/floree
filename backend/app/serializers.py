@@ -287,6 +287,19 @@ def order_resource(order) -> dict:
         items = json.loads(order.bouquet_ids) or []
     except (TypeError, ValueError):
         items = []
+    try:
+        tag_ids = json.loads(order.tags_json) if order.tags_json else []
+    except (TypeError, ValueError):
+        tag_ids = []
+    delivery_type = getattr(order, "delivery_type", None)
+    # `delivery` boolean: prefer the explicit admin choice; fall back to
+    # "has an address" for legacy checkout/ETL rows that predate delivery_type.
+    is_delivery = (delivery_type == "delivery") if delivery_type else bool(order.address)
+    # Human-facing doc number: admin-created orders use their sequential
+    # order_number; imported rows keep Posiflora's posiflora_doc_no.
+    doc_no = order.posiflora_doc_no or (
+        str(order.order_number) if getattr(order, "order_number", None) is not None else None
+    )
     a = {
         "status": order.status,
         # Not a Posiflora field — our own extension so the admin can tell the
@@ -298,19 +311,21 @@ def order_resource(order) -> dict:
         # is `[]` for them.
         "items": items,
         "date": _date(order.created_at),
-        "docNo": order.posiflora_doc_no,
+        "docNo": doc_no,
         "description": order.comment or "",
-        "budget": 0,
+        "budget": getattr(order, "budget", None) or 0,
         "dueTime": order.due_time,
-        "delivery": bool(order.address),
+        "dueDate": getattr(order, "due_date", None),
+        "delivery": is_delivery,
+        "deliveryType": delivery_type or ("delivery" if is_delivery else "pickup"),
         "deliveryComments": order.comment or "",
-        "deliveryCity": "",
-        "deliveryStreet": "",
-        "deliveryHouse": "",
-        "deliveryApartment": "",
-        "deliveryBuilding": "",
-        "deliveryTimeFrom": None,
-        "deliveryTimeTo": None,
+        "deliveryCity": getattr(order, "delivery_city", None) or "",
+        "deliveryStreet": getattr(order, "delivery_street", None) or "",
+        "deliveryHouse": getattr(order, "delivery_house", None) or "",
+        "deliveryApartment": getattr(order, "delivery_apartment", None) or "",
+        "deliveryBuilding": getattr(order, "delivery_building", None) or "",
+        "deliveryTimeFrom": getattr(order, "delivery_time_from", None),
+        "deliveryTimeTo": getattr(order, "delivery_time_to", None),
         "deliveryContact": order.customer_name,
         "deliveryPhoneNumber": order.phone,
         "createdAt": _iso(order.created_at),
@@ -337,7 +352,8 @@ def order_resource(order) -> dict:
     rels = {
         "source": rel_one("order-sources", order.source_id),
         "store": rel_one("stores", order.store_id),
-        "customer": rel_one("customers", None),
+        "customer": rel_one("customers", getattr(order, "customer_id", None)),
+        "tags": rel_many("order-tags", tag_ids),
         "postedBy": rel_one("users", None),
         "createdBy": rel_one("users", order.created_by_id),
         "closedBy": rel_one("users", order.closed_by_id),
@@ -355,9 +371,8 @@ def order_resource(order) -> dict:
 def order_status_history_resource(h) -> dict:
     """История статусов (admin `/admin/orders/:id`, вкладка «Общая информация»).
 
-    Not a Posiflora field — our own extension, since nothing writes to this
-    table yet (no status-transition workflow is implemented). Always empty
-    today; the shape is real so the admin UI doesn't need to change later.
+    Written by POST/PATCH /v1/orders (order create + status change) and by the
+    ETL import. Not a Posiflora API field — our own extension for the admin UI.
     """
     a = {"status": h.status, "changedAt": _iso(h.changed_at)}
     rels = {"worker": rel_one("users", h.worker_id)}
