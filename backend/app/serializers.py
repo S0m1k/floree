@@ -470,22 +470,91 @@ def warehouse_resource(w) -> dict:
     return resource("warehouses", w.id, {"title": w.title})
 
 
-# ---------- workers ----------
+# ---------- workers / roles / shifts / devices (Контроль сотрудников) ----------
+
+def _json_list(raw: str | None) -> list:
+    """Parse a JSON-list Text column defensively (None/garbage → [])."""
+    if not raw:
+        return []
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return value if isinstance(value, list) else []
+
 
 def worker_resource(w) -> dict:
-    """Posiflora exposes staff as `workers`; the admin "Заказы" filter panel
-    (КЕМ СОЗДАН / ФЛОРИСТ / КЕМ ЗАКРЫТ) needs this for its florist selects.
+    """Posiflora exposes staff as `workers`. Used by the admin "Заказы" filter
+    panel selects and the «Контроль сотрудников → Сотрудники» screens.
+
+    Security: password_hash / pin_hash NEVER appear here — only their presence
+    flags, so the edit form can show "пароль задан" without the secret.
     """
+    store_ids = _json_list(w.store_ids) or ([w.store_id] if w.store_id else [])
     a = {
         "name": w.name,
+        "surname": w.surname,
+        "patronymic": w.patronymic,
+        "phone": w.phone,
+        "email": w.email,
         "login": w.login,
         "status": w.status,
+        "accessRights": _json_list(w.access_rights),
+        "storeIds": store_ids,
+        "hasPassword": bool(w.password_hash),
+        "hasPin": bool(w.pin_hash),
+        "createdAt": _iso(w.created_at),
     }
     rels = {
         "role": rel_one("roles", w.role_id),
         "store": rel_one("stores", w.store_id),
+        "stores": rel_many("stores", store_ids),
     }
     return resource("workers", w.id, a, rels, links={"self": f"/workers/{w.id}"})
+
+
+def role_resource(r) -> dict:
+    """Permission set (admin «Настройки доступов», admin-map §2.6.3)."""
+    permissions = None
+    if r.permissions:
+        try:
+            parsed = json.loads(r.permissions)
+            permissions = parsed if isinstance(parsed, dict) else None
+        except (TypeError, ValueError):
+            permissions = None
+    a = {
+        "title": r.title,
+        "permissions": permissions,
+        "isSystem": bool(r.is_system),
+    }
+    return resource("roles", r.id, a, links={"self": f"/roles/{r.id}"})
+
+
+def shift_resource(s) -> dict:
+    """Cash-register shift (admin «Рабочие смены», admin-map §2.6.1)."""
+    a = {
+        "deviceName": s.device_name,
+        "openedAt": _iso(s.opened_at),
+        "closedAt": _iso(s.closed_at),
+        "openDiscrepancy": s.open_discrepancy,
+        "closeDiscrepancy": s.close_discrepancy,
+    }
+    rels = {
+        "store": rel_one("stores", s.store_id),
+        "openedBy": rel_one("workers", s.opened_by_id),
+        "closedBy": rel_one("workers", s.closed_by_id),
+    }
+    return resource("shifts", s.id, a, rels, links={"self": f"/shifts/{s.id}"})
+
+
+def device_resource(d) -> dict:
+    """Florist-app device binding (admin «Устройства флористов», §2.6.4)."""
+    a = {
+        "name": d.name,
+        "createdAt": _iso(d.created_at),
+    }
+    rels = {"worker": rel_one("workers", d.worker_id)}
+    return resource("devices", d.id, a, rels, links={"self": f"/devices/{d.id}"})
 
 
 # ---------- inventory items (nomenclature) ----------
