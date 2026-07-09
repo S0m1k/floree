@@ -1,4 +1,10 @@
-import { AdminCustomer, SimpleDictEntry } from '@/types';
+import {
+  AdminBonusHistoryEntry,
+  AdminCustomer,
+  AdminCustomerSpend,
+  AdminCustomerStats,
+  SimpleDictEntry,
+} from '@/types';
 import { adminFetch } from './adminApi';
 
 export const PAGE_SIZE = 25;
@@ -36,6 +42,53 @@ export async function getCustomers(params: CustomersSearchParams): Promise<Custo
   if (!res.ok) return { customers: [], total: 0 };
   const json = await res.json();
   return { customers: json.data || [], total: json.meta?.total ?? 0 };
+}
+
+export async function getCustomer(id: string): Promise<AdminCustomer | null> {
+  const res = await adminFetch(`/api/v1/customers/${id}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data ?? null;
+}
+
+// Плитки статистики карточки клиента (вкладка «Общая информация»).
+export async function getCustomerStats(id: string): Promise<AdminCustomerStats | null> {
+  const res = await adminFetch(`/api/v1/customers/${id}/stats`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data?.attributes ?? null;
+}
+
+// Дневные суммы заказов для бар-чарта «Траты клиента».
+export async function getCustomerSpend(
+  id: string,
+  from?: string,
+  to?: string,
+): Promise<AdminCustomerSpend | null> {
+  const qs = new URLSearchParams();
+  if (from) qs.set('filter[from]', from);
+  if (to) qs.set('filter[to]', to);
+  const query = qs.toString();
+  const res = await adminFetch(`/api/v1/customers/${id}/spend${query ? `?${query}` : ''}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data?.attributes ?? null;
+}
+
+// «История списаний и начислений бонусов» (вкладка «Бонусы»).
+export async function getCustomerBonusHistory(
+  id: string,
+  from?: string,
+  to?: string,
+): Promise<AdminBonusHistoryEntry[]> {
+  const qs = new URLSearchParams();
+  if (from) qs.set('filter[from]', from);
+  if (to) qs.set('filter[to]', to);
+  const query = qs.toString();
+  const res = await adminFetch(`/api/v1/customers/${id}/bonus-history${query ? `?${query}` : ''}`);
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json.data || [];
 }
 
 export async function getCustomerSources(): Promise<SimpleDictEntry[]> {

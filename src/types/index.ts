@@ -193,6 +193,7 @@ export interface AdminCustomer {
   attributes: {
     title: string | null;
     phone: string;
+    email: string;
     birthday: string | null;
     notes: string;
     averageCheck: number;
@@ -201,7 +202,43 @@ export interface AdminCustomer {
     currentPoints: number;
     gender: 'male' | 'female' | 'other';
     bonusCard: string | null;
+    instagram: string | null;
+    customerType: 'person' | 'company';
+    isPerson: boolean;
+    cardNumber: string | null;
+    preferences: string | null;
     createdAt: string | null;
+  };
+  relationships?: {
+    source?: { data: { type: 'order-sources'; id: string } | null };
+  };
+}
+
+// GET /v1/customers/{id}/stats — плитки статистики карточки клиента.
+export interface AdminCustomerStats {
+  ordersCount: number;
+  ordersTotal: number;
+  avgCheck: number;
+  firstOrderAt: string | null;
+  lastOrderAt: string | null;
+}
+
+// GET /v1/customers/{id}/spend — бар-чарт «Траты клиента».
+export interface AdminCustomerSpend {
+  from: string;
+  to: string;
+  days: { date: string; amount: number }[];
+  total: number;
+}
+
+// GET /v1/customers/{id}/bonus-history — история списаний/начислений бонусов.
+export interface AdminBonusHistoryEntry {
+  id: string;
+  type: 'customer-bonus-history';
+  attributes: { amount: number; comment: string; createdAt: string | null };
+  relationships: {
+    worker?: { data: { type: 'users'; id: string } | null };
+    order?: { data: { type: 'orders'; id: string } | null };
   };
 }
 

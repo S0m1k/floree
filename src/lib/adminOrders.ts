@@ -21,6 +21,8 @@ export interface OrdersSearchParams {
   dueTo?: string;
   closedFrom?: string;
   closedTo?: string;
+  // Карточка клиента, вкладка «Заказы» — заказы одного клиента (по FK или телефону).
+  customer?: string;
   q?: string;
   page?: string;
 }
@@ -28,6 +30,7 @@ export interface OrdersSearchParams {
 const FILTER_KEYS: (keyof OrdersSearchParams)[] = [
   'status', 'store', 'source', 'florist', 'createdBy', 'closedBy',
   'createdFrom', 'createdTo', 'dueFrom', 'dueTo', 'closedFrom', 'closedTo',
+  'customer',
 ];
 
 export const PAGE_SIZE = 25;
