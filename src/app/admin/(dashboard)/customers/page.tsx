@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getCustomers, getCustomerSources, buildCustomersHref, PAGE_SIZE, CustomersSearchParams } from '@/lib/adminCustomers';
+import CustomerActionsMenu from '@/components/admin/CustomerActionsMenu';
 
 export const metadata = { title: 'Клиенты' };
 
@@ -25,7 +26,13 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
 
   return (
     <div>
-      <h1 className="admin-title">Клиенты</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+        <h1 className="admin-title" style={{ margin: 0 }}>Клиенты</h1>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" className="admin-btn" disabled title="Скоро">Экспорт клиентов</button>
+          <Link href="/admin/customers/create" className="admin-btn admin-btn--primary">Создать нового</Link>
+        </div>
+      </div>
 
       <form method="GET" action="/admin/customers" className="admin-search">
         {Object.entries(searchParams)
@@ -90,8 +97,7 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
                     <th>Заказов на сумму</th>
                     <th>Бонусы</th>
                     <th>Дата рождения</th>
-                    <th>Карта</th>
-                    <th>Комментарий</th>
+                    <th aria-label="Действия" />
                   </tr>
                 </thead>
                 <tbody>
@@ -99,14 +105,15 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
                     const a = c.attributes;
                     return (
                       <tr key={c.id}>
-                        <td>{a.title || '—'}</td>
+                        <td><Link href={`/admin/customers/${c.id}`}>{a.title || 'Без имени'}</Link></td>
                         <td>{a.phone}</td>
                         <td>{a.ordersQty > 0 ? fmtMoney(a.averageCheck) : '—'}</td>
                         <td>{a.ordersQty > 0 ? `${fmtMoney(a.ordersAmount)} (${a.ordersQty})` : '—'}</td>
                         <td>{a.currentPoints}</td>
                         <td>{fmtDate(a.birthday)}</td>
-                        <td>{a.bonusCard || '—'}</td>
-                        <td>{a.notes || '—'}</td>
+                        <td style={{ width: 48 }}>
+                          <CustomerActionsMenu editHref={`/admin/customers/${c.id}/edit`} showDelete={false} />
+                        </td>
                       </tr>
                     );
                   })}

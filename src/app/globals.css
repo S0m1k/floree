@@ -1018,3 +1018,102 @@ img { display: block; max-width: 100%; }
 .admin-status-control__item:hover { background: var(--admin-bg); }
 .admin-status-control__item.is-current { background: var(--admin-accent-2); }
 .admin-status-control__error { font-size: 12px; color: #B3261E; }
+
+/* ═══ Карточка клиента (/admin/customers/:id) ═══ */
+
+/* Кебаб-меню «⋮» (карточка клиента, строки списка) */
+.admin-kebab { position: relative; display: inline-flex; }
+.admin-kebab__trigger {
+  width: 32px; height: 32px; border: 1px solid var(--admin-border); border-radius: 6px;
+  background: var(--admin-surface); font-size: 18px; line-height: 1; cursor: pointer;
+  color: var(--admin-text-2);
+}
+.admin-kebab__trigger:hover { background: var(--admin-bg); }
+.admin-kebab__menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; margin: 0; padding: 6px;
+  min-width: 160px; list-style: none; background: var(--admin-surface);
+  border: 1px solid var(--admin-border); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 2px;
+}
+.admin-kebab__item {
+  display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left; font-size: 14px; color: var(--admin-text);
+}
+.admin-kebab__item:hover { background: var(--admin-bg); }
+.admin-kebab__item:disabled { color: var(--admin-text-3); cursor: not-allowed; }
+.admin-kebab__item:disabled:hover { background: none; }
+
+/* Общая информация: контакты слева + сетка статистики 2×3 справа */
+.admin-customer-info {
+  display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start;
+}
+.admin-contact-row { display: flex; align-items: center; gap: 8px; }
+.admin-contact-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; color: #fff;
+}
+.admin-contact-icon--wa { background: #25D366; }
+.admin-contact-icon--wa:hover { background: #1EBE5A; }
+.admin-contact-icon--tg { background: #229ED9; }
+.admin-contact-icon--tg:hover { background: #1C8FC7; }
+
+.admin-stat-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+}
+.admin-stat-tile {
+  background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px;
+  padding: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 120px;
+}
+.admin-stat-tile__title { font-size: 13px; color: var(--admin-text-2); }
+.admin-stat-tile__value { font-size: 34px; font-weight: 700; line-height: 1.1; }
+.admin-stat-tile__unit { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+.admin-stat-tile__value--green { color: var(--admin-accent); }
+.admin-stat-tile__value--red { color: #C0392B; }
+.admin-stat-tile__value--orange { color: var(--admin-orange); }
+.admin-stat-tile__value--blue { color: var(--admin-blue); }
+.admin-stat-tile__value--purple { color: #8E44AD; }
+.admin-stat-tile__footer { font-size: 12px; color: var(--admin-text-3); margin-top: auto; }
+
+/* Период-пикер (Траты, история бонусов) */
+.admin-period-picker { display: flex; align-items: flex-end; gap: 12px; }
+.admin-period-picker input[type="date"] {
+  border: 1px solid var(--admin-border); border-radius: 6px; padding: 8px 10px;
+  font-size: 14px; background: var(--admin-surface); color: var(--admin-text);
+}
+
+/* Бар-чарт «Траты клиента» — серверный рендер, без библиотек */
+.admin-bar-chart {
+  display: flex; align-items: flex-end; gap: 2px; height: 220px;
+  border-bottom: 1px solid var(--admin-border); padding-bottom: 2px;
+}
+.admin-bar-chart__col { flex: 1; height: 100%; display: flex; align-items: flex-end; min-width: 3px; }
+.admin-bar-chart__bar {
+  width: 100%; min-height: 1px; background: var(--admin-blue); border-radius: 2px 2px 0 0;
+}
+.admin-bar-chart__col:hover .admin-bar-chart__bar { background: #178BCB; }
+.admin-bar-chart__axis {
+  display: flex; justify-content: space-between; margin-top: 8px;
+  font-size: 12px; color: var(--admin-text-3);
+}
+
+/* Инлайн-редактор бонусного баланса (вкладка «Бонусы») */
+.admin-bonus-editor { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; }
+.admin-bonus-editor input {
+  width: 110px; border: 1px solid var(--admin-border); border-radius: 6px;
+  padding: 6px 8px; font-size: 14px;
+}
+.admin-bonus-editor input:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+.admin-bonus-editor__pencil {
+  border: none; background: none; cursor: pointer; color: var(--admin-blue); font-size: 14px;
+  padding: 2px 4px; border-radius: 4px;
+}
+.admin-bonus-editor__pencil:hover { background: var(--admin-blue-bg); }
+
+/* Форма создания/редактирования клиента */
+.admin-customer-form { display: flex; flex-direction: column; gap: 20px; max-width: 920px; }
+.admin-customer-form .admin-panel { padding-bottom: 10px; }
+.admin-customer-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+.admin-phone-row { display: flex; gap: 8px; }
+.admin-phone-row select { flex: 0 0 130px; }
+.admin-phone-row input { flex: 1; }
+.admin-clear-btn { flex: 0 0 36px; padding: 8px 0; font-size: 16px; line-height: 1; }
