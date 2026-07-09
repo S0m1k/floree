@@ -1018,3 +1018,70 @@ img { display: block; max-width: 100%; }
 .admin-status-control__item:hover { background: var(--admin-bg); }
 .admin-status-control__item.is-current { background: var(--admin-accent-2); }
 .admin-status-control__error { font-size: 12px; color: #B3261E; }
+
+/* Контроль сотрудников (admin-map §2.6) */
+.admin-worker-form { display: flex; flex-direction: column; gap: 20px; max-width: 1080px; }
+.admin-worker-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+@media (max-width: 900px) {
+  .admin-worker-form__grid { grid-template-columns: 1fr; }
+}
+.admin-worker-form .admin-panel { padding-bottom: 10px; }
+
+.admin-phone-row { display: flex; gap: 8px; }
+.admin-phone-row select { flex: 0 0 120px; }
+.admin-phone-row input { flex: 1; }
+
+.admin-form-subtitle { font-size: 14px; font-weight: 700; color: var(--admin-text); padding: 14px 16px 0; margin: 0; }
+.admin-form-note { font-size: 12px; color: var(--admin-text-3); padding: 2px 16px 0; margin: 0; }
+.admin-field-error { font-size: 12px; color: #B3261E; }
+.admin-chip__x { margin-left: 2px; font-weight: 700; }
+
+/* ⋮ row menu (workers table) */
+.admin-row-menu { position: relative; display: inline-flex; align-items: center; }
+.admin-row-menu__trigger { height: 28px; padding: 0 8px; }
+.admin-row-menu__list {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; margin: 0; padding: 6px;
+  list-style: none; background: var(--admin-surface); border: 1px solid var(--admin-border);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  display: flex; flex-direction: column; gap: 2px; min-width: 160px;
+}
+.admin-row-menu__item {
+  display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left; font-size: 13px; color: var(--admin-text);
+}
+.admin-row-menu__item:hover { background: var(--admin-bg); }
+.admin-row-menu__item:disabled { color: var(--admin-text-3); cursor: not-allowed; }
+.admin-row-menu__item:disabled:hover { background: none; }
+.admin-row-menu__error { font-size: 11px; color: #B3261E; margin-left: 6px; white-space: nowrap; }
+
+/* Staff status pill */
+.admin-staff-status {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.admin-staff-status--active { background: var(--admin-accent); color: #fff; }
+.admin-staff-status--inactive { background: var(--admin-field-bg); color: var(--admin-text-2); }
+
+.admin-rights-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+
+/* Рабочие смены */
+.admin-shift-party { display: flex; flex-direction: column; gap: 2px; }
+.admin-shift-party__time { font-size: 12px; color: var(--admin-text-3); }
+.admin-shift-lock { font-size: 18px; color: var(--admin-text-3); }
+
+/* Настройки доступов — аккордеон разрешений */
+.admin-accordion { max-width: 720px; }
+.admin-accordion__header {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 14px 16px; border: none; background: none; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: var(--admin-text); text-align: left;
+}
+.admin-accordion__caret { color: var(--admin-text-2); font-size: 12px; }
+.admin-accordion__body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 18px; }
+
+.admin-perm-group { display: flex; flex-direction: column; gap: 8px; }
+.admin-perm-group__title { font-size: 13px; font-weight: 600; color: var(--admin-text-2); margin: 0; }
+.admin-perm-hint { font-size: 12px; color: var(--admin-text-3); margin: 0; }
+
+.admin-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.admin-checkbox input { width: 16px; height: 16px; accent-color: var(--admin-accent); cursor: pointer; }

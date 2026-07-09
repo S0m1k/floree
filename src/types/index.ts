@@ -184,7 +184,70 @@ export interface SimpleDictEntry {
 export interface Worker {
   id: string;
   type: 'workers';
-  attributes: { name: string; login: string | null; status: string };
+  attributes: {
+    name: string;
+    login: string | null;
+    status: string;
+    // Extended staff-control fields (admin-map §2.6.2). Optional so older
+    // consumers (order filter selects) keep compiling unchanged.
+    surname?: string | null;
+    patronymic?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    accessRights?: string[];
+    storeIds?: string[];
+    hasPassword?: boolean;
+    hasPin?: boolean;
+    createdAt?: string | null;
+  };
+  relationships?: {
+    role?: { data: { type: 'roles'; id: string } | null };
+    store?: { data: { type: 'stores'; id: string } | null };
+    stores?: { data: { type: 'stores'; id: string }[] };
+  };
+}
+
+// Role permission flags for the POS/Florist apps (admin-map §2.6.3).
+export interface RolePermissions {
+  orderDiscount?: boolean;
+  orderMarkup?: boolean;
+  bouquetDiscount?: boolean;
+  bouquetMarkup?: boolean;
+  customItemPrice?: boolean;
+}
+
+export interface AdminRole {
+  id: string;
+  type: 'roles';
+  attributes: {
+    title: string;
+    permissions: RolePermissions | null;
+    isSystem: boolean;
+  };
+}
+
+export interface AdminShift {
+  id: string;
+  type: 'shifts';
+  attributes: {
+    deviceName: string | null;
+    openedAt: string | null;
+    closedAt: string | null;
+    openDiscrepancy: number;
+    closeDiscrepancy: number;
+  };
+  relationships: {
+    store?: { data: { type: 'stores'; id: string } | null };
+    openedBy?: { data: { type: 'workers'; id: string } | null };
+    closedBy?: { data: { type: 'workers'; id: string } | null };
+  };
+}
+
+export interface AdminDevice {
+  id: string;
+  type: 'devices';
+  attributes: { name: string | null; createdAt: string | null };
+  relationships: { worker?: { data: { type: 'workers'; id: string } | null } };
 }
 
 export interface AdminCustomer {
