@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Montserrat } from 'next/font/google';
+import { Cormorant_Garamond, Montserrat, Oswald } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -16,6 +16,17 @@ const sans = Montserrat({
   subsets: ['cyrillic', 'latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-sans',
+  display: 'swap',
+});
+
+// Display face — condensed uppercase, full Cyrillic.
+// Stand-in for "Bebas Neue Cyrillic" from the mockup (Google's Bebas Neue has no
+// Cyrillic). Swap to a self-hosted Bebas Neue Cyrillic .woff2 via @font-face on
+// --font-display if the licensed files become available.
+const display = Oswald({
+  subsets: ['cyrillic', 'latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-display',
   display: 'swap',
 });
 
@@ -76,7 +87,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={`${serif.variable} ${sans.variable}`}>
+    <html lang="ru" className={`${serif.variable} ${sans.variable} ${display.variable}`}>
       <head>
         <script
           type="application/ld+json"

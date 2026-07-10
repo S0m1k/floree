@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { SOCIALS } from '@/lib/socials';
 
 const SLIDES = [
   {
@@ -51,66 +52,88 @@ export default function HeroCarousel() {
 
   return (
     <section className="ed-hero">
-      <div className="ed-hero__stage">
-        {SLIDES.map((s, i) => (
-          <div key={i} className={`ed-hero__slide ${i === slide ? 'is-active' : ''}`}>
-            <div className="ed-hero__img ed-hero__img--desktop">
-              <Image
-                src={s.imgDesktop}
-                alt={s.alt}
-                fill
-                sizes="100vw"
-                priority={i === 0}
-                style={{ objectFit: 'cover' }}
-              />
-            </div>
-            <div className="ed-hero__img ed-hero__img--mobile">
-              <Image
-                src={s.imgMobile}
-                alt={s.alt}
-                fill
-                sizes="100vw"
-                priority={i === 0}
-                style={{ objectFit: 'cover' }}
-              />
-            </div>
-          </div>
-        ))}
-        <div className="ed-hero__veil" />
-      </div>
-
-      <div className="ed-hero__copy">
-        <div className="eyebrow">Цветочная студия · Санкт-Петербург</div>
-        <h1 className="ed-hero__title">
-          Букеты,<br />
-          <em>собранные руками</em><br />
-          и&nbsp;сердцем.
-        </h1>
-        <div className="ed-hero__meta">
-          <div className="ed-hero__counter mono">
-            {String(slide + 1).padStart(2, '0')} <span>/</span> {String(SLIDES.length).padStart(2, '0')}
-          </div>
-          <div className="ed-hero__caption">
-            <div className="serif" style={{ fontSize: 22, fontStyle: 'italic' }}>{SLIDES[slide].name}</div>
-            <div style={{ color: 'var(--ink-2)', marginTop: 4 }}>{SLIDES[slide].caption}</div>
-          </div>
-          <a href="/catalog" className="btn btn--filled" data-hover>
-            Смотреть каталог
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L8 2M13 7L8 12" stroke="currentColor"/></svg>
-          </a>
+      {/* Top action bar: order button (left) + socials (right) */}
+      <div className="ed-hero__actions">
+        <a href="/catalog" className="btn btn--filled ed-hero__order" data-hover>
+          Заказать букет
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 7H13M13 7L8 2M13 7L8 12" stroke="currentColor"/></svg>
+        </a>
+        <div className="ed-hero__socials">
+          {SOCIALS.map((s) => (
+            <a
+              key={s.label}
+              href={s.href}
+              className="fl-social"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={s.label}
+              data-hover
+            >
+              {s.icon}
+            </a>
+          ))}
         </div>
       </div>
 
-      <div className="ed-hero__dots">
-        {SLIDES.map((_, i) => (
-          <button
-            key={i}
-            className={`ed-hero__dot ${i === slide ? 'is-active' : ''}`}
-            onClick={() => setSlide(i)}
-            data-hover
-            aria-label={`Слайд ${i + 1}`}
-          />
-        ))}
+      {/* Framed hero photo */}
+      <div className="ed-hero__frame">
+        <div className="ed-hero__stage">
+          {SLIDES.map((s, i) => (
+            <div key={i} className={`ed-hero__slide ${i === slide ? 'is-active' : ''}`}>
+              <div className="ed-hero__img ed-hero__img--desktop">
+                <Image
+                  src={s.imgDesktop}
+                  alt={s.alt}
+                  fill
+                  sizes="(max-width: 800px) 100vw, 1600px"
+                  priority={i === 0}
+                  style={{ objectFit: 'cover' }}
+                />
+              </div>
+              <div className="ed-hero__img ed-hero__img--mobile">
+                <Image
+                  src={s.imgMobile}
+                  alt={s.alt}
+                  fill
+                  sizes="100vw"
+                  priority={i === 0}
+                  style={{ objectFit: 'cover' }}
+                />
+              </div>
+            </div>
+          ))}
+          <div className="ed-hero__veil" />
+        </div>
+
+        <div className="ed-hero__copy">
+          <div className="eyebrow">Цветочная студия · Санкт-Петербург</div>
+          <h1 className="ed-hero__title">
+            Букеты,<br />
+            <em>собранные руками</em><br />
+            и&nbsp;сердцем.
+          </h1>
+          <div className="ed-hero__meta">
+            <div className="ed-hero__counter mono">
+              {String(slide + 1).padStart(2, '0')} <span>/</span> {String(SLIDES.length).padStart(2, '0')}
+            </div>
+            <div className="ed-hero__caption">
+              <div className="serif" style={{ fontSize: 20, fontStyle: 'italic' }}>{SLIDES[slide].name}</div>
+              <div style={{ color: 'var(--ink-2)', marginTop: 4 }}>{SLIDES[slide].caption}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="ed-hero__dots">
+          {SLIDES.map((_, i) => (
+            <button
+              key={i}
+              className={`ed-hero__dot ${i === slide ? 'is-active' : ''}`}
+              onClick={() => setSlide(i)}
+              data-hover
+              aria-label={`Слайд ${i + 1}`}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );
