@@ -214,7 +214,9 @@ export interface AdminOrderTotals {
   toPay: number;
 }
 
-// GET /v1/bouquets — showcase bouquet for the «Добавить продукт» picker.
+// GET /v1/bouquets — showcase bouquet: the «Добавить продукт» picker
+// (order composition) and the /admin/showcase «Букеты в магазине» grid both
+// use this shape; the grid additionally reads `createdAt`.
 export interface AdminShowcaseBouquet {
   id: string;
   type: 'bouquets';
@@ -223,9 +225,30 @@ export interface AdminShowcaseBouquet {
     status: string;
     amount: number;
     saleAmount: number;
+    createdAt: string | null;
   };
   relationships?: {
     store?: { data: { type: 'stores'; id: string } | null };
+  };
+}
+
+// meta of GET /v1/bouquets — summary tabs on /admin/showcase.
+export interface AdminShowcaseMeta {
+  total: number;
+  count: number;
+  minPrice: number;
+  maxPrice: number;
+  totalSum: number;
+}
+
+// GET /v1/stores — full store resource (id/title/address) for the showcase
+// store selector; SimpleDictEntry elsewhere only carries the title.
+export interface AdminStore {
+  id: string;
+  type: 'stores';
+  attributes: {
+    title: string;
+    address: string | null;
   };
 }
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getInventoryItems, getMeasures, buildInventoryHref, InventorySearchParams, PAGE_SIZE } from '@/lib/adminInventory';
 import { getCategories } from '@/lib/adminCatalog';
 import WarehouseNav from '@/components/admin/WarehouseNav';
+import BouquetsNav from '@/components/admin/BouquetsNav';
 import { fmtMoney } from '@/lib/format';
 
 export const metadata = { title: 'Каталог товаров и услуг' };
@@ -24,6 +25,9 @@ export default async function AdminCatalogPage({ searchParams }: Props) {
 
   return (
     <div>
+      <BouquetsNav active="/admin/catalog" />
+      {/* Also reachable from «Учёт и финансы» (warehouse) — this catalog
+          screen is shared between both groups, so both tab-strips apply. */}
       <WarehouseNav active="/admin/catalog" />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>

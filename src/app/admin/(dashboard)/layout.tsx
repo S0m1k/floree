@@ -9,7 +9,7 @@ import AdminNavLink from '@/components/admin/AdminNavLink';
 const NAV_ITEMS = [
   { href: '/admin/retail-stores', icon: 'home', label: 'Аналитика' },
   { href: '/admin/orders', icon: 'event', label: 'Заказы' },
-  { href: '/admin/specifications', icon: 'local_florist', label: 'Букеты и каталог' },
+  { href: '/admin/showcase', icon: 'local_florist', label: 'Букеты и каталог' },
   { href: '/admin/warehouse', icon: 'currency_exchange', label: 'Учёт и финансы' },
   { href: '/admin/customers', icon: 'group', label: 'Клиенты и развитие' },
   { href: '/admin/staff', icon: 'manage_accounts', label: 'Контроль сотрудников' },
