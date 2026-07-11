@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { href: '/admin/warehouse', icon: 'currency_exchange', label: 'Учёт и финансы' },
   { href: '/admin/customers', icon: 'group', label: 'Клиенты и развитие' },
   { href: '/admin/staff', icon: 'manage_accounts', label: 'Контроль сотрудников' },
-  { href: '/admin/settings', icon: 'settings', label: 'Настройки' },
+  { href: '/admin/order-tags', icon: 'settings', label: 'Настройки' },
 ];
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
