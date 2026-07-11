@@ -1,4 +1,8 @@
-import { AdminCustomer, AdminOrder, AdminOrderPayment, AdminOrderStatusHistoryEntry, SimpleDictEntry, Worker } from '@/types';
+import {
+  AdminCustomer, AdminOrder, AdminOrderCompositionLine, AdminOrderPayment,
+  AdminOrderStatusHistoryEntry, AdminOrderTotals, AdminShowcaseBouquet,
+  SimpleDictEntry, Worker,
+} from '@/types';
 import { adminFetch } from './adminApi';
 
 // Re-exported from the client-safe module so existing importers of
@@ -78,6 +82,46 @@ export async function getOrderPayments(orderId: string): Promise<AdminOrderPayme
   if (!res.ok) return [];
   const json = await res.json();
   return json.data || [];
+}
+
+// GET /v1/orders/{id}/items — состав заказа + итоги + платежи (вкладка
+// «Продукты», admin-map §2.2.1). `readOnly` is true for legacy ETL/checkout
+// orders whose composition comes from the frozen bouquet_ids JSON.
+export interface OrderComposition {
+  lines: AdminOrderCompositionLine[];
+  totals: AdminOrderTotals | null;
+  payments: AdminOrderPayment[];
+  readOnly: boolean;
+}
+
+export async function getOrderComposition(orderId: string): Promise<OrderComposition> {
+  const empty: OrderComposition = { lines: [], totals: null, payments: [], readOnly: false };
+  const res = await adminFetch(`/api/v1/orders/${orderId}/items`);
+  if (!res.ok) return empty;
+  const json = await res.json();
+  return {
+    lines: json.data || [],
+    totals: json.meta?.totals ?? null,
+    payments: json.meta?.payments ?? [],
+    readOnly: Boolean(json.meta?.readOnly),
+  };
+}
+
+// Showcase bouquets of one store for the «Добавить продукт» picker. The
+// backend supports filter[store]; the "on window" filter happens here since
+// bouquet statuses come straight from the Posiflora ETL.
+export async function getShowcaseBouquets(storeId: string | null): Promise<AdminShowcaseBouquet[]> {
+  const qs = new URLSearchParams({ 'page[size]': '500' });
+  if (storeId) qs.set('filter[store]', storeId);
+  const res = await adminFetch(`/api/v1/bouquets?${qs.toString()}`);
+  if (!res.ok) return [];
+  const json = await res.json();
+  const bouquets: AdminShowcaseBouquet[] = json.data || [];
+  const onWindow = bouquets.filter((b) => b.attributes.status === 'window');
+  // ETL data may use a different status vocabulary — fall back to everything
+  // not sold/deleted rather than an empty picker.
+  if (onWindow.length > 0) return onWindow;
+  return bouquets.filter((b) => !['sold', 'deleted', 'off'].includes(b.attributes.status));
 }
 
 export async function getOrderStatusHistory(orderId: string): Promise<AdminOrderStatusHistoryEntry[]> {

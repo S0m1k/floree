@@ -1185,3 +1185,108 @@ img { display: block; max-width: 100%; }
 
 .admin-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
 .admin-checkbox input { width: 16px; height: 16px; accent-color: var(--admin-accent); cursor: pointer; }
+
+/* Карточка заказа — вкладка «Продукты» (admin-map §2.2.1) */
+.admin-order-comment {
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--admin-field-bg); border-left: 4px solid var(--admin-blue);
+  border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 14px;
+}
+.admin-order-comment__label {
+  font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--admin-text-3);
+}
+
+.admin-order-note { padding: 0 16px 14px; font-size: 12px; color: var(--admin-text-3); }
+
+/* Состав заказа — иерархия букет → компоненты */
+.admin-composition__bouquet td { background: var(--admin-bg); font-weight: 500; }
+.admin-composition__name { display: inline-flex; align-items: center; gap: 10px; }
+.admin-composition__name--nested { padding-left: 28px; }
+.admin-composition__thumb {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 6px; background: var(--admin-field-bg);
+  font-size: 16px;
+}
+.admin-composition__link { color: var(--admin-blue); cursor: default; }
+.admin-composition__multiplier { color: var(--admin-text-3); font-size: 12px; white-space: nowrap; }
+.admin-composition__old-sum { color: var(--admin-text-3); }
+.admin-composition__delete {
+  width: 26px; height: 26px; border: none; border-radius: 50%; background: none;
+  color: var(--admin-text-3); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.admin-composition__delete:hover { background: #FDECEA; color: #C0392B; }
+.admin-composition__delete:disabled { opacity: 0.5; cursor: default; }
+
+/* История платежей + итоговая панель — двухколоночная сетка */
+.admin-order-summary-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start;
+}
+@media (max-width: 1100px) {
+  .admin-order-summary-grid { grid-template-columns: 1fr; }
+}
+.admin-order-payments-total td { border-top: 2px solid var(--admin-border); }
+
+.admin-order-totals { padding: 16px; }
+.admin-order-totals__list {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; margin: 0;
+  font-size: 13px;
+}
+.admin-order-totals__list dt {
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--admin-text-2);
+  font-size: 11px; align-self: center;
+}
+.admin-order-totals__list dd { margin: 0; text-align: right; font-weight: 600; }
+.admin-order-totals__list dt.admin-order-totals__sub {
+  text-transform: none; letter-spacing: 0; padding-left: 14px;
+  color: var(--admin-text-3); font-size: 12px;
+}
+.admin-order-totals__list dd.admin-order-totals__sub {
+  color: var(--admin-text-3); font-weight: 400; font-size: 12px;
+}
+.admin-order-totals__to-pay {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--admin-border);
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--admin-text-2);
+}
+.admin-order-totals__to-pay span:last-child {
+  font-size: 24px; font-weight: 700; color: var(--admin-text); letter-spacing: 0;
+}
+
+/* Модалки вкладки «Продукты» (Добавить продукт / Добавить аванс) */
+.admin-modal-backdrop {
+  position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.4);
+  display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px;
+}
+.admin-modal {
+  background: var(--admin-surface); border-radius: 10px; width: 560px; max-width: 100%;
+  max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.admin-modal--small { width: 380px; }
+.admin-modal__head {
+  display: flex; align-items: center; justify-content: space-between; padding: 16px;
+}
+.admin-modal__title { font-size: 16px; font-weight: 700; margin: 0; }
+.admin-modal__close {
+  width: 30px; height: 30px; border: none; border-radius: 50%; background: none;
+  font-size: 20px; line-height: 1; color: var(--admin-text-2); cursor: pointer;
+}
+.admin-modal__close:hover { background: var(--admin-field-bg); }
+.admin-modal__body {
+  padding: 0 16px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+}
+
+.admin-picker-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.admin-picker-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 10px 12px; border: 1px solid var(--admin-border);
+  border-radius: 6px; background: var(--admin-surface); cursor: pointer;
+  font-size: 14px; text-align: left;
+}
+.admin-picker-row:hover { border-color: var(--admin-blue); background: var(--admin-blue-bg); }
+.admin-picker-row--selected { border-color: var(--admin-blue); background: var(--admin-blue-bg); }
+.admin-picker-row:disabled { opacity: 0.6; cursor: default; }
+.admin-picker-row__title { flex: 1; }
+.admin-picker-row__price { font-weight: 600; white-space: nowrap; }
