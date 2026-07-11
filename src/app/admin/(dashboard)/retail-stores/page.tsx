@@ -1,165 +1,127 @@
-import { getMoneyDashboard, DashboardSearchParams } from '@/lib/adminDashboard';
+import {
+  getMoneyDashboard, getCustomersDashboard, getBouquetsDashboard, getWarehouseDashboard,
+  DashboardSearchParams,
+} from '@/lib/adminDashboard';
+import MoneyTab from './_components/MoneyTab';
+import CustomersTab from './_components/CustomersTab';
+import BouquetsTab from './_components/BouquetsTab';
+import WarehouseTab from './_components/WarehouseTab';
 
 export const metadata = { title: 'Аналитика' };
 
-const fmtMoney = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
-const fmtDelta = (pct: number | null) => {
-  if (pct === null) return null;
-  const sign = pct >= 0 ? '+' : '';
-  return `${sign}${pct}% к прошлому периоду`;
-};
+const TABS = [
+  { key: 'money', label: 'Деньги' },
+  { key: 'customers', label: 'Клиенты' },
+  { key: 'bouquets', label: 'Букеты в магазине' },
+  { key: 'warehouse', label: 'Склад' },
+] as const;
+
+type TabKey = (typeof TABS)[number]['key'];
 
 interface Props {
-  searchParams: DashboardSearchParams;
+  searchParams: DashboardSearchParams & {
+    tab?: string; metric?: string; segment?: string; bonusView?: string; woSort?: string;
+  };
 }
 
-function MetricCard({ label, value, deltaPct }: { label: string; value: string; deltaPct?: number | null }) {
-  const delta = deltaPct !== undefined ? fmtDelta(deltaPct) : null;
-  return (
-    <div className="admin-metric-card">
-      <div className="admin-metric-card__label">{label}</div>
-      <div className="admin-metric-card__value">{value}</div>
-      {delta && (
-        <div className={`admin-metric-card__delta ${(deltaPct || 0) >= 0 ? 'admin-metric-card__delta--up' : 'admin-metric-card__delta--down'}`}>
-          {delta}
-        </div>
-      )}
-    </div>
-  );
+function toLocalDateString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function UnavailableCard({ label }: { label: string }) {
-  return (
-    <div className="admin-metric-card">
-      <div className="admin-metric-card__label">{label}</div>
-      <div className="admin-metric-card__value admin-metric-card__value--muted">Нет данных</div>
-    </div>
-  );
+function currentMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { from: toLocalDateString(from), to: toLocalDateString(now) };
 }
-
-const WEEKDAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 export default async function AdminDashboardPage({ searchParams }: Props) {
-  const data = await getMoneyDashboard(searchParams);
+  const tab: TabKey = (TABS.find((t) => t.key === searchParams.tab)?.key || 'money') as TabKey;
+  const defaults = currentMonthRange();
+  const from = searchParams.from || defaults.from;
+  const to = searchParams.to || defaults.to;
 
-  if (!data) {
-    return <div className="admin-empty">Не удалось загрузить аналитику.</div>;
-  }
+  const [money, customers, bouquets, warehouse] = await Promise.all([
+    tab === 'money' ? getMoneyDashboard(searchParams) : Promise.resolve(null),
+    tab === 'customers' ? getCustomersDashboard(searchParams) : Promise.resolve(null),
+    tab === 'bouquets' ? getBouquetsDashboard(searchParams) : Promise.resolve(null),
+    tab === 'warehouse' ? getWarehouseDashboard(searchParams) : Promise.resolve(null),
+  ]);
+
+  const active = money || customers || bouquets || warehouse;
+  const updatedAt = active ? new Date(active.updatedAt).toLocaleString('ru-RU') : '—';
 
   return (
     <div>
-      <div className="admin-dashboard-header">
-        <div>
-          <h1 className="admin-title" style={{ marginBottom: 4 }}>Floree</h1>
-          <div className="admin-dashboard-header__meta">
-            Данные обновлены: {new Date(data.updatedAt).toLocaleString('ru-RU')}
+      <div className="admin-dash-topbar">
+        <div className="admin-dash-topbar__left">
+          <h1 className="admin-title" style={{ margin: 0 }}>Floree</h1>
+          {/* Касса — оперативный остаток кассы не отслеживается ни в одной
+              таблице, честно показываем 0 (см. финальный отчёт). */}
+          <span className="admin-dash-topbar__till">В кассе <strong>0 ₽</strong></span>
+          <div className="admin-dash-topbar__links">
+            <span className="admin-dash-link admin-dash-link--disabled" title="Раздел ещё не реализован">Инструкция</span>
+            <span className="admin-dash-link admin-dash-link--disabled" title="Раздел ещё не реализован">Настройки точки продаж</span>
           </div>
         </div>
+        <div className="admin-dashboard-header__meta">Данные обновлены: {updatedAt}</div>
+      </div>
+
+      <div className="admin-dashboard-header" style={{ marginBottom: 8 }}>
+        <nav className="admin-subtabs">
+          {TABS.map((t) => (
+            <a
+              key={t.key}
+              href={`/admin/retail-stores?tab=${t.key}&from=${from}&to=${to}`}
+              className={`admin-subtab ${tab === t.key ? 'admin-subtab--active' : ''}`}
+            >
+              {t.label}
+            </a>
+          ))}
+        </nav>
         <form method="GET" action="/admin/retail-stores" className="admin-period-form">
-          <input type="date" name="from" defaultValue={data.period.from} />
+          <input type="hidden" name="tab" value={tab} />
+          <input type="date" name="from" defaultValue={from} />
           <span>—</span>
-          <input type="date" name="to" defaultValue={data.period.to} />
+          <input type="date" name="to" defaultValue={to} />
           <button type="submit" className="admin-btn admin-btn--primary">Применить</button>
         </form>
       </div>
 
-      <nav className="admin-subtabs">
-        <span className="admin-subtab admin-subtab--active">Деньги</span>
-        <span className="admin-subtab admin-subtab--disabled" title="Раздел ещё не реализован">Клиенты</span>
-        <span className="admin-subtab admin-subtab--disabled" title="Раздел ещё не реализован">Букеты в магазине</span>
-        <span className="admin-subtab admin-subtab--disabled" title="Раздел ещё не реализован">Склад</span>
-      </nav>
-
-      <div className="admin-metric-grid">
-        <MetricCard label="Выручка по отгрузке" value={fmtMoney(data.revenueByShipment.amount)} deltaPct={data.revenueByShipment.changePct} />
-        <MetricCard label="Выручка по оплате" value={fmtMoney(data.revenueByPayment.amount)} deltaPct={data.revenueByPayment.changePct} />
-        <UnavailableCard label="Валовая прибыль" />
-        <MetricCard label="Заказы" value={String(data.ordersCount)} />
-        <MetricCard label="Средний чек" value={fmtMoney(data.avgCheck)} />
-        <MetricCard label="Возвраты" value={String(data.returnsCount)} />
-        <MetricCard label="Возвраты в деньгах" value={fmtMoney(data.returnsAmount)} />
-        <UnavailableCard label="Напечатано чеков" />
-        <UnavailableCard label="Суммарная скидка" />
-        <UnavailableCard label="Маржинальность бизнеса" />
-      </div>
-
-      <p className="admin-section-title">Сотрудники</p>
-      <div className="admin-table-wrap">
-        {data.employees.length === 0 ? (
-          <div className="admin-empty">Нет заказов с назначенным флористом за период.</div>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr><th>Сотрудник</th><th>Средний чек</th><th>Продажи</th><th>Доля</th></tr>
-            </thead>
-            <tbody>
-              {data.employees.map((e) => (
-                <tr key={e.workerId || 'none'}>
-                  <td>{e.name}</td>
-                  <td>{fmtMoney(e.avgCheck)}</td>
-                  <td>{fmtMoney(e.sales)}</td>
-                  <td>{e.sharePct}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        <div>
-          <p className="admin-section-title">Способы оплаты</p>
-          <div className="admin-table-wrap">
-            {data.paymentMethods.length === 0 ? (
-              <div className="admin-empty">Платежей за период нет.</div>
-            ) : (
-              data.paymentMethods.map((m) => (
-                <div key={m.title} className="admin-list-row">
-                  <span>{m.title}</span>
-                  <span>{fmtMoney(m.amount)}<span className="admin-list-row__share">{m.sharePct}%</span></span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div>
-          <p className="admin-section-title">Источники сделки</p>
-          <div className="admin-table-wrap">
-            {data.dealSources.length === 0 ? (
-              <div className="admin-empty">Заказов за период нет.</div>
-            ) : (
-              data.dealSources.map((s) => (
-                <div key={s.title} className="admin-list-row">
-                  <span>{s.title}</span>
-                  <span>{fmtMoney(s.amount)}<span className="admin-list-row__share">{s.sharePct}%</span></span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      <p className="admin-section-title">Обязательства — грядущие заказы на неделю</p>
-      <div className="admin-table-wrap">
-        <div className="admin-calendar">
-          {data.upcomingWeek.map((d) => {
-            // Parse the date-only string as a local date, not UTC — new Date("YYYY-MM-DD")
-            // is parsed as UTC midnight per spec, which can land on the wrong local weekday.
-            const [y, m, day] = d.date.split('-').map(Number);
-            const date = new Date(y, m - 1, day);
-            return (
-              <div key={d.date} className="admin-calendar__day">
-                <div className="admin-calendar__day-label">{WEEKDAYS[date.getDay()]} {date.getDate()}</div>
-                <div className="admin-calendar__day-count">{d.ordersCount}</div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="admin-empty" style={{ padding: '0 16px 16px', textAlign: 'left' }}>
-          Авансы, накопленные бонусы, долг клиентов и бюджеты в грядущих заказах пока не отслеживаются.
-        </div>
-      </div>
+      {tab === 'money' && (
+        money ? (
+          <MoneyTab
+            data={money}
+            from={from}
+            to={to}
+            metric={(searchParams.metric as 'shipment' | 'payment' | 'margin') || 'shipment'}
+          />
+        ) : <div className="admin-empty">Не удалось загрузить аналитику.</div>
+      )}
+      {tab === 'customers' && (
+        customers ? (
+          <CustomersTab
+            data={customers}
+            from={from}
+            to={to}
+            segment={(searchParams.segment as 'regular' | 'new' | 'anon') || 'regular'}
+            bonusView={(searchParams.bonusView as 'accrued' | 'spent') || 'accrued'}
+          />
+        ) : <div className="admin-empty">Не удалось загрузить аналитику.</div>
+      )}
+      {tab === 'bouquets' && (
+        bouquets ? <BouquetsTab data={bouquets} /> : <div className="admin-empty">Не удалось загрузить аналитику.</div>
+      )}
+      {tab === 'warehouse' && (
+        warehouse ? (
+          <WarehouseTab
+            data={warehouse}
+            from={from}
+            to={to}
+            woSort={(searchParams.woSort as 'amount' | 'quantity') || 'amount'}
+          />
+        ) : <div className="admin-empty">Не удалось загрузить аналитику.</div>
+      )}
     </div>
   );
 }

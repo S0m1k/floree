@@ -477,14 +477,19 @@ export interface AdminWarehouseDocLine {
   };
 }
 
-export interface MoneyDashboard {
+export interface DashboardPeriod {
   period: { from: string; to: string };
   updatedAt: string;
+}
+
+export interface DaySeriesPoint { date: string; amount: number }
+
+export interface MoneyDashboard extends DashboardPeriod {
   revenueByShipment: { amount: number; changePct: number | null };
   revenueByPayment: { amount: number; changePct: number | null };
   grossProfit: null;
-  totalDiscount: null;
-  receiptsPrinted: null;
+  totalDiscount: number;
+  receiptsPrinted: number;
   marginPct: null;
   ordersCount: number;
   avgCheck: number;
@@ -494,4 +499,65 @@ export interface MoneyDashboard {
   paymentMethods: { title: string; amount: number; sharePct: number }[];
   dealSources: { title: string; amount: number; sharePct: number }[];
   upcomingWeek: { date: string; ordersCount: number }[];
+  dailySeries: { shipment: DaySeriesPoint[]; payment: DaySeriesPoint[]; margin: DaySeriesPoint[] };
+}
+
+export interface CustomersDashboard extends DashboardPeriod {
+  segments: {
+    onceOnly: { count: number };
+    noPurchases: { count: number };
+    churnRisk: { count: number };
+    activeRegular: { count: number };
+  };
+  newCustomers: { count: number; days: DaySeriesPoint[] };
+  ordersWithCustomerPct: number;
+  allTime: {
+    customersCount: number;
+    bonusesTotal: number;
+    bonusEfficiencyPct: number | null;
+    eventsTotal: number;
+    eventsCoveragePct: number;
+  };
+  buyerTypes: { type: 'regular' | 'new' | 'anon'; title: string; count: number; sales: number; avgCheck: number; sharePct: number }[];
+  salesBySegment: Record<'regular' | 'new' | 'anon', { total: number; days: DaySeriesPoint[] }>;
+  bonusSystem: {
+    accrued: { total: number; days: DaySeriesPoint[] };
+    spent: { total: number; days: DaySeriesPoint[] };
+    efficiencyPct: number | null;
+  };
+}
+
+export interface BouquetsDashboard extends DashboardPeriod {
+  revenue: number;
+  avgPrice: number;
+  marginPct: null;
+  bouquetsSold: number;
+  soldWithDelivery: number;
+  avgPerDay: number;
+  weekday: { label: string; count: number; isWeekend: boolean }[];
+  hourly: { hour: number; revenue: number }[];
+  priceRanking: { label: string; sold: number; revenue: number }[];
+  topProducts: { title: string; sold: number; revenue: number }[];
+}
+
+export interface WarehouseDashboard extends DashboardPeriod {
+  purchasesByCategory: { category: string; amount: number }[];
+  totalPurchases: number;
+  writeOffsByReason: { reason: string; amount: number; sharePct: number }[];
+  totalWriteOffs: number;
+  inventoryResult: { surplus: number; shortage: number; net: number };
+  writtenOffTop: {
+    byAmount: { title: string; quantity: number; amount: number; sharePct: number }[];
+    byQuantity: { title: string; quantity: number; amount: number; sharePct: number }[];
+    reasons: string[];
+  };
+  right: {
+    stockRetailValue: number;
+    writeOffPct: number;
+    stockFlowersCost: number;
+    stockOtherCost: number;
+    writeOffInvoicesCount: number;
+    packingInvoicesCount: number;
+    inventoryActsCount: number;
+  };
 }
