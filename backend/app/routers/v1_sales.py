@@ -562,10 +562,14 @@ def _dec(value) -> Decimal:
 
 
 async def _load_order_full(db: AsyncSession, order_id: str) -> Order | None:
+    # populate_existing: after a write in the same request the session already
+    # holds this Order with stale items/payments collections; a plain re-select
+    # would hand back the cached (non-expired) instance unchanged.
     stmt = (
         select(Order)
         .where(Order.id == order_id)
         .options(selectinload(Order.items), selectinload(Order.payments))
+        .execution_options(populate_existing=True)
     )
     return (await db.execute(stmt)).scalar_one_or_none()
 
