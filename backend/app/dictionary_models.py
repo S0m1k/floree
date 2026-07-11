@@ -99,3 +99,21 @@ class UnitOfMeasure(Base):
     title: Mapped[str] = mapped_column(String)
     short_name: Mapped[str | None] = mapped_column(String, nullable=True)  # шт, кг, м3
     measure_code: Mapped[int | None] = mapped_column(Integer, nullable=True)  # ОКЕИ-тип: 0,255…
+
+
+class PersonalDataTemplate(Base):
+    """Шаблон согласия на обработку ПДн (Posiflora «Форма заполнения политики»,
+    admin-map §2.7). Singleton — always exactly one row, keyed by a fixed id
+    so GET/PUT never have to guess which row to use.
+    """
+
+    __tablename__ = "personal_data_templates"
+
+    SINGLETON_ID = "singleton"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: PersonalDataTemplate.SINGLETON_ID)
+    ip_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    inn: Mapped[str | None] = mapped_column(String, nullable=True)
+    legal_address: Mapped[str | None] = mapped_column(String, nullable=True)
+    website: Mapped[str | None] = mapped_column(String, nullable=True)
+    email: Mapped[str | None] = mapped_column(String, nullable=True)

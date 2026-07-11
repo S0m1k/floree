@@ -438,15 +438,40 @@ def order_payment_resource(p) -> dict:
 # ---------- dictionaries ----------
 
 def dictionary_resource(obj, type_: str, extra: dict | None = None) -> dict:
-    """Generic reference dictionary (title/deleted/revision) → JSON:API."""
+    """Generic reference dictionary (title/deleted/revision) → JSON:API.
+
+    Two dictionaries carry extra columns beyond title: `customer-celebrations`
+    (a period) and `measures` (short name + ОКЕИ measure code). Emit them
+    whenever the row has the attribute, so both the plain list endpoint and
+    the write handlers (which reuse this serializer for the response) return
+    the same shape.
+    """
     a = {
         "title": obj.title,
         "deleted": bool(getattr(obj, "deleted", False)),
         "revision": 0,
     }
+    if hasattr(obj, "date_from") or hasattr(obj, "date_to"):
+        a["dateFrom"] = _iso(getattr(obj, "date_from", None))
+        a["dateTo"] = _iso(getattr(obj, "date_to", None))
+    if hasattr(obj, "short_name") or hasattr(obj, "measure_code"):
+        a["shortName"] = getattr(obj, "short_name", None)
+        a["measureCode"] = getattr(obj, "measure_code", None)
     if extra:
         a.update(extra)
     return resource(type_, obj.id, a, links={"self": f"/{type_}/{obj.id}"})
+
+
+def personal_data_resource(obj) -> dict:
+    """Singleton «Форма заполнения политики» template → JSON:API."""
+    a = {
+        "ipTitle": obj.ip_title,
+        "inn": obj.inn,
+        "legalAddress": obj.legal_address,
+        "website": obj.website,
+        "email": obj.email,
+    }
+    return resource("personal-data-template", obj.id, a)
 
 
 # ---------- vendors ----------
