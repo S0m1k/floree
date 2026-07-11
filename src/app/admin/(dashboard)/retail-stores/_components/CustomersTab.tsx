@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { CustomersDashboard } from '@/types';
 import { fmtMoney, fmtNum, DashTile, LineChart } from './shared';
 
@@ -124,14 +125,14 @@ export default function CustomersTab({
       <p className="admin-section-title">Продажи по сегментам</p>
       <div className="admin-radio-tiles">
         {(['regular', 'new', 'anon'] as Segment[]).map((key) => (
-          <a
+          <Link
             key={key}
             href={href(from, to, { segment: key, bonusView })}
             className={`admin-radio-tile ${segment === key ? 'admin-radio-tile--selected' : ''}`}
           >
             <div className="admin-radio-tile__value">{fmtMoney(data.salesBySegment[key].total)}</div>
             <div className="admin-radio-tile__label">{SEGMENT_LABELS[key]}</div>
-          </a>
+          </Link>
         ))}
       </div>
       <section className="admin-panel">
@@ -143,14 +144,14 @@ export default function CustomersTab({
       <p className="admin-section-title">Бонусная система</p>
       <div className="admin-radio-tiles">
         {(['accrued', 'spent'] as BonusView[]).map((key) => (
-          <a
+          <Link
             key={key}
             href={href(from, to, { segment, bonusView: key })}
             className={`admin-radio-tile ${bonusView === key ? 'admin-radio-tile--selected' : ''}`}
           >
             <div className="admin-radio-tile__value">{fmtNum(data.bonusSystem[key].total)}</div>
             <div className="admin-radio-tile__label">Бонусов {BONUS_LABELS[key]}</div>
-          </a>
+          </Link>
         ))}
       </div>
       <div className="admin-dash-columns">

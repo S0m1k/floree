@@ -76,6 +76,8 @@ async def test_money_dashboard_revenue_discount_and_receipts(client, worker_toke
     ts = datetime(2024, 3, 15, 10, 0, 0)
     o1 = await _seed_order(total_amount=1000, discount_total=100, created_at=ts, closed_at=ts)
     o2 = await _seed_order(total_amount=2000, discount_total=0, created_at=ts, closed_at=ts)
+    # Cancelled orders never shipped — must not leak into revenue/count/discount.
+    await _seed_order(total_amount=9999, discount_total=500, created_at=ts, status="cancelled")
     async with TestingSessionLocal() as db:
         db.add_all([
             Payment(order_id=o1, tbank_order_id="m-1", amount=1000, status="CONFIRMED", created_at=ts),

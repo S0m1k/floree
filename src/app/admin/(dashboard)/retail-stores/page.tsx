@@ -1,6 +1,7 @@
+import Link from 'next/link';
 import {
   getMoneyDashboard, getCustomersDashboard, getBouquetsDashboard, getWarehouseDashboard,
-  DashboardSearchParams,
+  currentMonthRange, DashboardSearchParams,
 } from '@/lib/adminDashboard';
 import MoneyTab from './_components/MoneyTab';
 import CustomersTab from './_components/CustomersTab';
@@ -22,17 +23,6 @@ interface Props {
   searchParams: DashboardSearchParams & {
     tab?: string; metric?: string; segment?: string; bonusView?: string; woSort?: string;
   };
-}
-
-function toLocalDateString(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function currentMonthRange(): { from: string; to: string } {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  return { from: toLocalDateString(from), to: toLocalDateString(now) };
 }
 
 export default async function AdminDashboardPage({ searchParams }: Props) {
@@ -70,13 +60,13 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
       <div className="admin-dashboard-header" style={{ marginBottom: 8 }}>
         <nav className="admin-subtabs">
           {TABS.map((t) => (
-            <a
+            <Link
               key={t.key}
               href={`/admin/retail-stores?tab=${t.key}&from=${from}&to=${to}`}
               className={`admin-subtab ${tab === t.key ? 'admin-subtab--active' : ''}`}
             >
               {t.label}
-            </a>
+            </Link>
           ))}
         </nav>
         <form method="GET" action="/admin/retail-stores" className="admin-period-form">

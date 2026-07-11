@@ -18,30 +18,6 @@ export const fmtDateLong = (iso: string) => {
 
 // -------- KPI-карточки --------
 
-export function MetricCard({ label, value, deltaPct }: { label: string; value: string; deltaPct?: number | null }) {
-  const delta = deltaPct !== undefined ? fmtDelta(deltaPct) : null;
-  return (
-    <div className="admin-metric-card">
-      <div className="admin-metric-card__label">{label}</div>
-      <div className="admin-metric-card__value">{value}</div>
-      {delta && (
-        <div className={`admin-metric-card__delta ${(deltaPct || 0) >= 0 ? 'admin-metric-card__delta--up' : 'admin-metric-card__delta--down'}`}>
-          {delta}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function UnavailableCard({ label }: { label: string }) {
-  return (
-    <div className="admin-metric-card">
-      <div className="admin-metric-card__label">{label}</div>
-      <div className="admin-metric-card__value admin-metric-card__value--muted">Нет данных</div>
-    </div>
-  );
-}
-
 /**
  * KPI-карточка с ролью radio-кнопки: клик переключает `param` в URL, что
  * заставляет сервер перерендерить страницу с этой метрикой выбранной (та же
@@ -189,25 +165,3 @@ export function WeekdayChart({ data }: { data: { label: string; count: number; i
   );
 }
 
-// -------- Period picker (переиспользуем admin-period-picker) --------
-
-export function PeriodPicker({
-  action, from, to, extraHidden = {},
-}: {
-  action: string; from: string; to: string; extraHidden?: Record<string, string | undefined>;
-}) {
-  return (
-    <form method="GET" action={action} className="admin-period-picker">
-      {Object.entries(extraHidden).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
-      <div className="admin-field" style={{ padding: 0 }}>
-        <label htmlFor="from">С</label>
-        <input type="date" id="from" name="from" defaultValue={from} />
-      </div>
-      <div className="admin-field" style={{ padding: 0 }}>
-        <label htmlFor="to">По</label>
-        <input type="date" id="to" name="to" defaultValue={to} />
-      </div>
-      <button type="submit" className="admin-btn admin-btn--primary">Показать</button>
-    </form>
-  );
-}

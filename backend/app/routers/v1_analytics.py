@@ -9,7 +9,7 @@ till/cash-register balance, flower-vs-other stock split) are returned as
 """
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select, func
@@ -52,8 +52,14 @@ router = APIRouter(
 def _period_meta(period_from: date, period_to: date) -> dict:
     return {
         "period": {"from": period_from.isoformat(), "to": period_to.isoformat()},
-        "updatedAt": datetime.utcnow().isoformat(),
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _utcnow_naive() -> datetime:
+    """Naive UTC now — DB datetimes are stored naive, so comparisons must be
+    naive too. Replaces the deprecated datetime.utcnow()."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 # ═══════════════════════════════ Деньги ═══════════════════════════════
@@ -64,11 +70,15 @@ async def money_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     today = date.today()
     period_from, period_to, prev_from, prev_to = period_bounds(qs, today.replace(day=1), today)
     store_id = qs.get("store")
-    dt_from, dt_to = dt_bounds(period_from, period_to)
 
     def _orders_query(d_from: date, d_to: date):
         f, t = dt_bounds(d_from, d_to)
-        stmt = select(Order).where(Order.created_at >= f, Order.created_at <= t)
+        # Cancelled orders never shipped, so they don't belong in «по отгрузке»
+        # revenue/counts. Returns stay in the set: they DID ship (their money
+        # shows in revenue) and the «Возвраты» tiles report them separately.
+        stmt = select(Order).where(
+            Order.created_at >= f, Order.created_at <= t, Order.status != "cancelled"
+        )
         if store_id:
             stmt = stmt.where(Order.store_id == store_id)
         return stmt
@@ -160,7 +170,15 @@ async def money_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
         payment_methods.append({"title": "Онлайн-оплата (Т-Банк)", "amount": revenue_payment, "sharePct": 100.0})
 
     # Грядущие заказы на неделю — next 7 calendar days from today, by due_time.
-    due_stmt = select(Order.due_time).where(Order.due_time.is_not(None))
+    # due_time is a free-form ISO string, so the window is bounded in SQL by
+    # lexicographic range (ISO strings sort chronologically) instead of pulling
+    # the whole table; day-bucketing stays in Python.
+    week_end = (today + timedelta(days=7)).isoformat()
+    due_stmt = select(Order.due_time).where(
+        Order.due_time.is_not(None),
+        Order.due_time >= today.isoformat(),
+        Order.due_time < week_end,
+    )
     if store_id:
         due_stmt = due_stmt.where(Order.store_id == store_id)
     all_due = [r[0] for r in (await db.execute(due_stmt)).all()]
@@ -216,7 +234,7 @@ async def customers_dashboard(request: Request, db: AsyncSession = Depends(get_d
     period_from, period_to, prev_from, prev_to = period_bounds(qs, today.replace(day=1), today)
     store_id = qs.get("store")
     dt_from, dt_to = dt_bounds(period_from, period_to)
-    now = datetime.utcnow()
+    now = _utcnow_naive()
     twelve_months_ago = now - timedelta(days=365)
 
     # All-time per-customer order stats (segmentation is a CRM property of the
@@ -281,7 +299,10 @@ async def customers_dashboard(request: Request, db: AsyncSession = Depends(get_d
     events_coverage_pct = round(events_customers / total_customers * 100, 1) if total_customers else 0
 
     # Заказы периода — классификация по типу клиента для таблицы «Покупатели».
-    period_orders_stmt = select(Order).where(Order.created_at >= dt_from, Order.created_at <= dt_to)
+    # Cancelled orders never shipped — excluded from sales (see money_dashboard).
+    period_orders_stmt = select(Order).where(
+        Order.created_at >= dt_from, Order.created_at <= dt_to, Order.status != "cancelled"
+    )
     if store_id:
         period_orders_stmt = period_orders_stmt.where(Order.store_id == store_id)
     period_orders = (await db.execute(period_orders_stmt)).scalars().all()
@@ -362,9 +383,14 @@ async def bouquets_dashboard(request: Request, db: AsyncSession = Depends(get_db
     store_id = qs.get("store")
     dt_from, dt_to = dt_bounds(period_from, period_to)
 
+    # Cancelled orders never shipped — excluded from sales (see money_dashboard).
     order_stmt = (
         select(Order)
-        .where(Order.created_at >= dt_from, Order.created_at <= dt_to)
+        .where(
+            Order.created_at >= dt_from,
+            Order.created_at <= dt_to,
+            Order.status != "cancelled",
+        )
         .options(selectinload(Order.items))
     )
     if store_id:

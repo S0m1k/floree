@@ -10,12 +10,12 @@ export interface DashboardSearchParams {
 
 // Local-date formatting (not toISOString, which converts to UTC and can
 // shift the date by a day depending on the server's timezone offset).
-function toLocalDateString(d: Date): string {
+export function toLocalDateString(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function currentMonthRange(): { from: string; to: string } {
+export function currentMonthRange(): { from: string; to: string } {
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
   return { from: toLocalDateString(from), to: toLocalDateString(now) };

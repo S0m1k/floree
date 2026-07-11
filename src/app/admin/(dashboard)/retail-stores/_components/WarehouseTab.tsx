@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { WarehouseDashboard } from '@/types';
 import { fmtMoney, fmtNum, DashTile } from './shared';
 
@@ -67,24 +68,24 @@ export default function WarehouseTab({
 
         <p className="admin-section-title">Списанные товары</p>
         <div className="admin-radio-tiles" style={{ marginBottom: 8 }}>
-          <a
+          <Link
             href={href(from, to, { woSort: 'amount' })}
             className={`admin-radio-tile ${woSort === 'amount' ? 'admin-radio-tile--selected' : ''}`}
             style={{ flex: '0 0 160px', textAlign: 'center' }}
           >
             <div className="admin-radio-tile__label">По сумме</div>
-          </a>
-          <a
+          </Link>
+          <Link
             href={href(from, to, { woSort: 'quantity' })}
             className={`admin-radio-tile ${woSort === 'quantity' ? 'admin-radio-tile--selected' : ''}`}
             style={{ flex: '0 0 160px', textAlign: 'center' }}
           >
             <div className="admin-radio-tile__label">По количеству</div>
-          </a>
+          </Link>
+          {/* Причины списаний в текущих данных не детализируются построчно —
+              селект всегда disabled с единственным пунктом «Все причины». */}
           <select className="admin-select-disabled" disabled defaultValue="">
-            <option value="">
-              {data.writtenOffTop.reasons.length === 0 ? 'Все причины' : 'Все причины'}
-            </option>
+            <option value="">Все причины</option>
           </select>
         </div>
         <div className="admin-table-wrap">
