@@ -3,6 +3,7 @@ import {
   getSpecifications, getCategories, specImageUrl, buildSpecificationsHref,
   PAGE_SIZE, SpecificationsSearchParams,
 } from '@/lib/adminCatalog';
+import BouquetsNav from '@/components/admin/BouquetsNav';
 
 export const metadata = { title: 'Рецепты' };
 
@@ -23,6 +24,8 @@ export default async function AdminSpecificationsPage({ searchParams }: Props) {
 
   return (
     <div>
+      <BouquetsNav active="/admin/specifications" />
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 className="admin-title">Рецепты</h1>
         <Link href="/admin/categories" className="admin-btn" style={{ height: 36, marginBottom: 16 }}>Категории</Link>

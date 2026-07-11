@@ -905,6 +905,70 @@ img { display: block; max-width: 100%; }
 .admin-recipe-card__price { font-size: 15px; font-weight: 700; }
 .admin-recipe-card__variants { font-size: 12px; color: var(--admin-text-2); margin-top: 2px; }
 
+/* Showcase (Букеты и каталог → Букеты в магазине, /admin/showcase) */
+.admin-showcase-header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.admin-showcase-store { position: relative; }
+.admin-showcase-store::after {
+  content: '▾'; position: absolute; right: -18px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; color: var(--admin-text-2); pointer-events: none;
+}
+.admin-showcase-store__select {
+  appearance: none; border: none; background: transparent; padding: 0 22px 0 0;
+  font-size: 24px; font-weight: 700; color: var(--admin-text); cursor: pointer;
+}
+.admin-showcase-store__select:focus { outline: none; }
+.admin-showcase-header__address { font-size: 13px; color: var(--admin-text-2); }
+
+.admin-showcase-summary { display: flex; align-items: stretch; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.admin-showcase-tab {
+  background: var(--admin-surface); border: 1px solid var(--admin-border); border-bottom: 3px solid transparent;
+  border-radius: 8px 8px 0 0; padding: 12px 20px; min-width: 220px;
+}
+.admin-showcase-tab--active { border-bottom-color: var(--admin-blue); }
+.admin-showcase-tab--disabled { color: var(--admin-text-3); cursor: default; }
+.admin-showcase-tab__title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.admin-showcase-tab--disabled .admin-showcase-tab__title { color: var(--admin-text-3); font-weight: 500; }
+.admin-showcase-tab__sub { font-size: 12px; color: var(--admin-text-2); }
+.admin-showcase-print-all { margin-left: auto; align-self: center; }
+
+.admin-showcase-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.admin-showcase-sort { display: flex; align-items: center; gap: 6px; }
+.admin-showcase-sort__label { font-size: 13px; color: var(--admin-text-2); margin-right: 4px; }
+.admin-showcase-sort__btn {
+  font-size: 13px; padding: 6px 12px; border-radius: 6px; color: var(--admin-text-2);
+  text-decoration: none; background: var(--admin-field-bg);
+}
+.admin-showcase-sort__btn--active { background: var(--admin-blue); color: #fff; font-weight: 500; }
+
+.admin-showcase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+@media (min-width: 1400px) {
+  .admin-showcase-grid { grid-template-columns: repeat(5, 1fr); }
+}
+.admin-showcase-card { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; overflow: hidden; }
+.admin-showcase-card__photo {
+  position: relative; aspect-ratio: 4 / 3; background: var(--admin-bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.admin-showcase-card__placeholder { font-size: 40px; color: var(--admin-text-3); }
+.admin-showcase-card__badge {
+  position: absolute; bottom: 8px; padding: 3px 9px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; color: #fff;
+}
+.admin-showcase-card__badge--price { left: 8px; background: var(--admin-blue); }
+.admin-showcase-card__badge--expiry { right: 8px; background: #B3261E; }
+.admin-showcase-card__body { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.admin-showcase-card__title { font-size: 14px; font-weight: 700; }
+.admin-showcase-card__meta { font-size: 12px; color: var(--admin-text-2); }
+.admin-showcase-card__number { font-size: 12px; color: var(--admin-text-3); margin-bottom: 4px; }
+.admin-showcase-card__disassemble-wrap { display: flex; flex-direction: column; gap: 2px; }
+.admin-showcase-card__disassemble {
+  border: none; background: none; padding: 0; text-align: left; cursor: pointer;
+  font-size: 13px; color: #B3261E; text-decoration: underline;
+}
+.admin-showcase-card__disassemble:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-showcase-card__error { font-size: 11px; color: #B3261E; }
+.admin-showcase-card__print { margin-top: 6px; height: 32px; padding: 0 12px; font-size: 12px; width: 100%; }
+
 /* Login (/admin/login) — centered card, no sidebar */
 .admin-login {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;

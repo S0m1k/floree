@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getCategories } from '@/lib/adminCatalog';
+import BouquetsNav from '@/components/admin/BouquetsNav';
 import { AdminCategory } from '@/types';
 
 export const metadata = { title: 'Категории' };
@@ -38,6 +39,8 @@ export default async function AdminCategoriesPage() {
 
   return (
     <div>
+      <BouquetsNav active="/admin/categories" />
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 className="admin-title">Категории</h1>
         <Link href="/admin/specifications" className="admin-btn" style={{ height: 36, marginBottom: 16 }}>← Рецепты</Link>
