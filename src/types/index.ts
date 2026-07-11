@@ -165,6 +165,67 @@ export interface AdminOrderPayment {
     amount: number;
     posted: boolean;
     terminalTransactionId: string | null;
+    // Manual advance metadata (order card «Продукты», admin-map §2.2.1).
+    // Optional so older consumers keep compiling.
+    paymentType?: 'payment' | 'advance';
+    method?: 'cash' | 'card' | 'sbp' | 'transfer' | null;
+    createdAt?: string | null;
+    fiscalized?: boolean;
+    prepayment?: boolean;
+  };
+}
+
+// GET /v1/orders/{id}/items — one «Состав заказа» line. A `bouquet` row may own
+// component rows nested via the parent relationship.
+export interface AdminOrderCompositionLine {
+  id: string;
+  type: 'order-items';
+  attributes: {
+    kind: 'bouquet' | 'item' | 'delivery' | 'custom';
+    title: string;
+    unitPrice: number;
+    quantity: number;
+    measure: string;
+    markup: number;
+    discount: number;
+    originalSum: number;
+    sum: number;
+    createdAt: string | null;
+  };
+  relationships: {
+    parent?: { data: { type: 'order-items'; id: string } | null };
+    bouquet?: { data: { type: 'bouquets'; id: string } | null };
+    inventoryItem?: { data: { type: 'inventory-items'; id: string } | null };
+  };
+}
+
+// meta.totals of GET /v1/orders/{id}/items — итоговая панель (admin-map §2.2.1).
+export interface AdminOrderTotals {
+  productsCount: number;
+  bouquetsCount: number;
+  itemsTotal: number;
+  discount: number;
+  discountBreakdown: { flowers: number; bouquets: number; order: number };
+  markup: number;
+  markupBreakdown: { flowers: number; bouquets: number; order: number };
+  bonusPaid: number;
+  advances: number;
+  grandTotal: number;
+  toPay: number;
+}
+
+// GET /v1/bouquets — showcase bouquet for the «Добавить продукт» picker.
+export interface AdminShowcaseBouquet {
+  id: string;
+  type: 'bouquets';
+  attributes: {
+    title: string;
+    status: string;
+    amount: number;
+    saleAmount: number;
+  };
+  relationships?: {
+    store?: { data: { type: 'stores'; id: string } | null };
   };
 }
 

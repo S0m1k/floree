@@ -1,21 +1,16 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  getOrder, getOrderPayments, getOrderStatusHistory, getStores, getWorkers,
+  TERMINAL_STATUSES, getOrder, getOrderComposition, getOrderStatusHistory,
+  getShowcaseBouquets, getStores, getWorkers,
 } from '@/lib/adminOrders';
+import { getAllInventoryItemsMap } from '@/lib/adminInventory';
+import { fmtDateTime } from '@/lib/format';
 import OrderStatusBadge from '@/components/admin/OrderStatusBadge';
 import OrderStatusControl from '@/components/admin/OrderStatusControl';
+import OrderProductsTab from '@/components/admin/OrderProductsTab';
 
 export const metadata = { title: 'Заказ' };
-
-const fmtMoney = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
-
-const fmtDateTime = (iso: string | null) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
 
 interface Props {
   params: { id: string };
@@ -26,17 +21,27 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
   const order = await getOrder(params.id);
   if (!order) notFound();
 
-  const [payments, statusHistory, stores, workers] = await Promise.all([
-    getOrderPayments(order.id),
+  const a = order.attributes;
+  const tab = searchParams.tab === 'products' ? 'products' : 'info';
+  const storeId = order.relationships?.store?.data?.id ?? null;
+
+  const [statusHistory, stores, workers] = await Promise.all([
     getOrderStatusHistory(order.id),
     getStores(),
     getWorkers(),
   ]);
 
-  const a = order.attributes;
-  const tab = searchParams.tab === 'products' ? 'products' : 'info';
+  // The «Продукты» tab data (composition + pickers) is only fetched when shown.
+  const [composition, bouquets, inventoryById] =
+    tab === 'products'
+      ? await Promise.all([
+          getOrderComposition(order.id),
+          getShowcaseBouquets(storeId),
+          getAllInventoryItemsMap(),
+        ])
+      : [null, [], {}];
+  const inventoryItems = Object.values(inventoryById);
 
-  const storeId = order.relationships?.store?.data?.id;
   const store = storeId ? stores.find((s) => s.id === storeId) : null;
   const floristId = order.relationships?.florist?.data?.id;
   const florist = floristId ? workers.find((w) => w.id === floristId) : null;
@@ -45,10 +50,19 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <Link href="/admin/orders" className="admin-btn" style={{ flex: '0 0 auto' }}>← Назад</Link>
         <h1 className="admin-title" style={{ margin: 0 }}>Заказ № {a.docNo || order.id.slice(0, 8)}</h1>
         <OrderStatusControl orderId={order.id} status={a.status} />
+        <button
+          type="button"
+          className="admin-btn admin-btn--primary"
+          style={{ marginLeft: 'auto' }}
+          disabled
+          title="Скоро"
+        >
+          Скачать
+        </button>
       </div>
 
       <nav className="admin-tabs">
@@ -123,78 +137,17 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
           </section>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <section className="admin-panel">
-            <p className="admin-panel__title">Комментарий к заказу</p>
-            <div style={{ padding: '10px 16px 16px' }}>{a.description || 'Нет комментария'}</div>
-          </section>
-
-          <section className="admin-panel">
-            <p className="admin-panel__title">Состав заказа</p>
-            {a.items.length === 0 ? (
-              <div className="admin-empty">
-                Состав недоступен — заказ импортирован из Posiflora без данных о позициях.
-              </div>
-            ) : (
-              <div className="admin-table-wrap" style={{ border: 'none', margin: '10px 16px 16px', width: 'auto' }}>
-                <table className="admin-table">
-                  <thead>
-                    <tr><th>Наименование</th><th>Цена</th><th>Количество</th><th>Сумма</th></tr>
-                  </thead>
-                  <tbody>
-                    {a.items.map((item, i) => (
-                      <tr key={`${item.recipe_id}-${i}`}>
-                        <td>{item.title}</td>
-                        <td>{fmtMoney(item.price)}</td>
-                        <td>{item.qty}</td>
-                        <td>{fmtMoney(item.price * item.qty)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="admin-panel">
-            <p className="admin-panel__title">История платежей</p>
-            {payments.length === 0 ? (
-              <div className="admin-empty">Платежей пока нет.</div>
-            ) : (
-              <div className="admin-table-wrap" style={{ border: 'none', margin: '10px 16px 16px', width: 'auto' }}>
-                <table className="admin-table">
-                  <thead>
-                    <tr><th>Способ оплаты</th><th>Дата</th><th>Сумма</th></tr>
-                  </thead>
-                  <tbody>
-                    {payments.map((p) => (
-                      <tr key={p.id}>
-                        <td>{p.attributes.posted ? 'Подтверждён' : 'Ожидает'}</td>
-                        <td>{fmtDateTime(p.attributes.date)}</td>
-                        <td>{fmtMoney(p.attributes.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <div className="admin-aggregates">
-            <div className="admin-aggregate">
-              <span className="admin-aggregate__label">Итого</span>
-              <span className="admin-aggregate__value">{fmtMoney(a.totalAmount)}</span>
-            </div>
-            <div className="admin-aggregate">
-              <span className="admin-aggregate__label">Оплачено</span>
-              <span className="admin-aggregate__value">{fmtMoney(a.paymentsAmount)}</span>
-            </div>
-            <div className="admin-aggregate">
-              <span className="admin-aggregate__label">Статус оплаты</span>
-              <span className="admin-aggregate__value">{a.paymentStatus === 'paid' ? 'Заказ оплачен' : 'Не оплачен'}</span>
-            </div>
-          </div>
-        </div>
+        <OrderProductsTab
+          orderId={order.id}
+          comment={a.description || ''}
+          lines={composition?.lines ?? []}
+          totals={composition?.totals ?? null}
+          payments={composition?.payments ?? []}
+          readOnly={composition?.readOnly ?? false}
+          terminal={TERMINAL_STATUSES.includes(a.status)}
+          bouquets={bouquets}
+          items={inventoryItems}
+        />
       )}
     </div>
   );

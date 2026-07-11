@@ -406,12 +406,59 @@ def order_status_history_resource(h) -> dict:
     return resource("order-status-history", h.id, a, rels)
 
 
+# ---------- order items (Продукты → Состав заказа) ----------
+
+def _num(value) -> float:
+    """Decimal/None → float for JSON:API money/qty attributes."""
+    from decimal import Decimal
+    if value is None:
+        return 0.0
+    return float(value) if isinstance(value, (Decimal, int, float)) else 0.0
+
+
+def order_item_resource(item) -> dict:
+    """One «Состав заказа» line (bouquet parent, its components, or a good).
+
+    `originalSum` is unit_price × quantity before per-line discount/markup;
+    `sum` folds them in. When they differ the admin UI shows the original struck
+    through next to the bold final — 1:1 with Posiflora (admin-map §2.2.1).
+    """
+    unit = _num(item.unit_price)
+    qty = _num(item.quantity)
+    markup = _num(item.markup)
+    discount = _num(item.discount)
+    original = round(unit * qty, 2)
+    total = round(original - discount + markup, 2)
+    a = {
+        "kind": item.kind,
+        "title": item.title,
+        "unitPrice": unit,
+        "quantity": qty,
+        "measure": item.measure,
+        "markup": markup,
+        "discount": discount,
+        "originalSum": original,
+        "sum": total,
+        "createdAt": _iso(item.created_at),
+    }
+    rels = {
+        "parent": rel_one("order-items", item.parent_id),
+        "order": rel_one("orders", item.order_id),
+        "bouquet": rel_one("bouquets", item.bouquet_id),
+        "inventoryItem": rel_one("inventory-items", item.inventory_item_id),
+    }
+    return resource("order-items", item.id, a, rels)
+
+
 # ---------- order-payments ----------
 
 def order_payment_resource(p) -> dict:
     confirmed = p.status in ("CONFIRMED", "paid")
+    is_advance = getattr(p, "kind", "payment") == "advance"
     a = {
-        "paymentType": "payment",
+        "paymentType": getattr(p, "kind", None) or "payment",
+        # Manual advance method (cash/card/sbp/transfer) or null for T-Bank.
+        "method": getattr(p, "method", None),
         "date": _date(p.created_at),
         "amount": p.amount,
         "bonusAmount": 0,
@@ -420,8 +467,9 @@ def order_payment_resource(p) -> dict:
         "posted": confirmed,
         "postedAt": _iso(p.updated_at) if confirmed else None,
         "terminalTransactionId": p.tbank_payment_id,
+        # «Фискализация аванса» column — no fiscal integration yet, always false.
         "fiscalized": False,
-        "prepayment": False,
+        "prepayment": is_advance,
         "fiscalizedAt": None,
         "paymentLink": p.payment_url,
     }
@@ -429,7 +477,7 @@ def order_payment_resource(p) -> dict:
         "method": rel_one("payment-methods", None),
         "shift": rel_one("shifts", None),
         "order": rel_one("orders", p.order_id),
-        "createdBy": rel_one("workers", None),
+        "createdBy": rel_one("workers", getattr(p, "created_by_id", None)),
         "postedBy": rel_one("workers", None),
     }
     return resource("order-payments", p.id, a, rels)
