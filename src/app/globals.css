@@ -1320,4 +1320,107 @@ img { display: block; max-width: 100%; }
 .admin-picker-row--selected { border-color: var(--admin-blue); background: var(--admin-blue-bg); }
 .admin-picker-row:disabled { opacity: 0.6; cursor: default; }
 .admin-picker-row__title { flex: 1; }
+
+/* ═══════════════════════════════════════════
+   Дашборд «Аналитика» (/admin/retail-stores) — 4 вкладки
+   ═══════════════════════════════════════════ */
+
+/* Общая шапка: Floree + касса + инструкция/настройки + «обновлено» */
+.admin-dash-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 12px;
+}
+.admin-dash-topbar__left { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.admin-dash-topbar__till { font-size: 14px; color: var(--admin-text-2); }
+.admin-dash-topbar__till strong { color: var(--admin-text); font-weight: 700; }
+.admin-dash-topbar__links { display: flex; gap: 16px; }
+.admin-dash-link { font-size: 13px; color: var(--admin-blue); text-decoration: none; }
+.admin-dash-link:hover { text-decoration: underline; }
+.admin-dash-link--disabled { color: var(--admin-text-3); cursor: not-allowed; pointer-events: none; }
+
+/* Радио-выбираемая KPI-карточка (Деньги: три метрики над графиком) */
+.admin-metric-card--radio { cursor: pointer; text-decoration: none; display: block; border: 1px solid var(--admin-border); transition: none; }
+.admin-metric-card--radio:hover { border-color: var(--admin-blue); }
+.admin-metric-card--selected {
+  background: var(--admin-blue); border-color: var(--admin-blue);
+}
+.admin-metric-card--selected .admin-metric-card__label,
+.admin-metric-card--selected .admin-metric-card__value { color: #fff; }
+.admin-metric-card--selected .admin-metric-card__delta--up { color: #D9FBEF; }
+.admin-metric-card--selected .admin-metric-card__delta--down { color: #FFD9D2; }
+.admin-metric-card__radio-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--admin-border); margin-right: 8px; vertical-align: middle;
+}
+.admin-metric-card--selected .admin-metric-card__radio-dot { border-color: #fff; background: #fff; }
+
+/* Цветные плитки дашборда (зелёная/оранжевая/белая) — money+customers+bouquets+warehouse */
+.admin-dash-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.admin-dash-tile {
+  border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--admin-surface); border: 1px solid var(--admin-border);
+}
+.admin-dash-tile--green { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.admin-dash-tile--orange { background: var(--admin-orange); border-color: var(--admin-orange); color: var(--admin-text); }
+.admin-dash-tile__title { font-size: 12px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-dash-tile__row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.admin-dash-tile__value { font-size: 20px; font-weight: 700; }
+.admin-dash-tile__delta { font-size: 11px; opacity: 0.9; }
+.admin-dash-tile__delta--down { color: #B3261E; }
+.admin-dash-tile--green .admin-dash-tile__delta--down,
+.admin-dash-tile--orange .admin-dash-tile__delta--down { color: #7A1E17; }
+
+/* Line-чарт по дням (SVG, серверный рендер) */
+.admin-line-chart-wrap { padding: 16px; }
+.admin-line-chart { width: 100%; height: 220px; display: block; overflow: visible; }
+.admin-line-chart__area { fill: var(--admin-blue-bg); opacity: 0.6; }
+.admin-line-chart__line { fill: none; stroke: var(--admin-blue); stroke-width: 2; }
+.admin-line-chart__dot { fill: var(--admin-blue); }
+.admin-line-chart__axis { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--admin-text-3); }
+.admin-line-chart__empty { padding: 48px 0; text-align: center; color: var(--admin-text-3); font-size: 14px; }
+
+/* Бар-чарт по дням недели (Пн–Вс), Сб/Вс — красные */
+.admin-weekday-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding: 20px 16px 0; }
+.admin-weekday-chart__col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; }
+.admin-weekday-chart__count { font-size: 12px; font-weight: 700; color: var(--admin-text-2); }
+.admin-weekday-chart__bar { width: 60%; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--admin-blue); }
+.admin-weekday-chart__bar--weekend { background: #C0392B; }
+.admin-weekday-chart__label { font-size: 12px; color: var(--admin-text-3); padding: 8px 16px 16px; display: flex; }
+.admin-weekday-chart__label span { flex: 1; text-align: center; }
+
+/* Сегментация клиентов — 4 карточки */
+.admin-segment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.admin-segment-card { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.admin-segment-card__title { font-size: 13px; font-weight: 600; color: var(--admin-text-2); display: flex; align-items: center; gap: 6px; }
+.admin-segment-card__hint { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: var(--admin-field-bg); color: var(--admin-text-3); font-size: 10px; cursor: help; }
+.admin-segment-card__value { font-size: 26px; font-weight: 700; color: var(--admin-blue); }
+.admin-segment-card__desc { font-size: 12px; color: var(--admin-text-3); flex: 1; }
+.admin-segment-card__btn {
+  border: none; border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600;
+  background: var(--admin-accent); color: #fff; cursor: not-allowed; opacity: 0.55;
+}
+.admin-segment-card__btn--zero { background: var(--admin-field-bg); color: var(--admin-text-3); }
+
+/* Radio-чипы для переключения сегмента/направления графика (Клиенты, Склад) */
+.admin-radio-tiles { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.admin-radio-tile {
+  flex: 1; min-width: 180px; text-decoration: none; display: block;
+  background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px;
+  padding: 12px 16px;
+}
+.admin-radio-tile:hover { border-color: var(--admin-blue); }
+.admin-radio-tile--selected { background: var(--admin-blue); border-color: var(--admin-blue); }
+.admin-radio-tile--selected .admin-radio-tile__value,
+.admin-radio-tile--selected .admin-radio-tile__label { color: #fff; }
+.admin-radio-tile__value { font-size: 20px; font-weight: 700; color: var(--admin-text); }
+.admin-radio-tile__label { font-size: 12px; color: var(--admin-text-3); }
+
+.admin-dash-columns { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .admin-dash-columns { grid-template-columns: 1fr; } }
+.admin-dash-side { display: flex; flex-direction: column; gap: 12px; }
+
+.admin-select-disabled {
+  border: 1px solid var(--admin-border); border-radius: 6px; padding: 8px 10px;
+  font-size: 13px; background: var(--admin-field-bg); color: var(--admin-text-3);
+}
 .admin-picker-row__price { font-weight: 600; white-space: nowrap; }
