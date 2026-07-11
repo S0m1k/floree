@@ -178,14 +178,81 @@ async def get_customer(customer_id: str, db: AsyncSession = Depends(get_db)):
     return document(customer_resource(row, stats.get(row.id)))
 
 
-@router.get("/bouquets")
-async def list_bouquets(request: Request, db: AsyncSession = Depends(get_db)):
-    qs = request.query_params
-    where = None
+# The physical-showcase status (Posiflora `window`) is the only one a bouquet
+# can be disassembled from; a sold bouquet is a completed sale (409), and any
+# other status (already disassembled, freshly created, …) is likewise final
+# from this endpoint's point of view.
+BOUQUET_WINDOW_STATUS = "window"
+BOUQUET_DISASSEMBLED_STATUS = "disassembled"
+
+_BOUQUET_SORT_COLUMNS = {
+    "amount": Bouquet.sale_amount.asc(),
+    "-amount": Bouquet.sale_amount.desc(),
+    "title": Bouquet.title.asc(),
+    "-title": Bouquet.title.desc(),
+    "createdAt": Bouquet.created_at.asc(),
+    "-createdAt": Bouquet.created_at.desc(),
+}
+
+
+def _bouquet_filters(qs) -> list:
+    clauses = []
     store = qs.get("filter[store]")
     if store:
-        where = Bouquet.store_id == store
-    return await _list(db, Bouquet, bouquet_resource, request, where)
+        clauses.append(Bouquet.store_id == store)
+    status = qs.get("filter[status]")
+    if status:
+        clauses.append(Bouquet.status == status)
+    q = qs.get("q")
+    if q:
+        like = f"%{q}%"
+        clauses.append(or_(Bouquet.title.ilike(like), Bouquet.id.ilike(like)))
+    return clauses
+
+
+@router.get("/bouquets")
+async def list_bouquets(request: Request, db: AsyncSession = Depends(get_db)):
+    """Showcase bouquets (admin-map §2.3.1 «Букеты в магазине»).
+
+    `meta` carries the aggregates the summary tabs need — `count`/`minPrice`/
+    `maxPrice`/`totalSum` are computed over every bouquet matching the current
+    filters (before pagination), not just the current page.
+    """
+    qs = request.query_params
+    number, size = _page(qs)
+    clauses = _bouquet_filters(qs)
+
+    base = select(Bouquet)
+    for clause in clauses:
+        base = base.where(clause)
+
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+
+    sort = qs.get("sort", "-createdAt")
+    order_by = _BOUQUET_SORT_COLUMNS.get(sort, Bouquet.created_at.desc())
+    rows = (
+        await db.execute(base.order_by(order_by).offset((number - 1) * size).limit(size))
+    ).scalars().all()
+    data = [bouquet_resource(r) for r in rows]
+
+    agg_stmt = select(
+        func.count(),
+        func.min(Bouquet.sale_amount),
+        func.max(Bouquet.sale_amount),
+        func.coalesce(func.sum(Bouquet.sale_amount), 0),
+    ).select_from(Bouquet)
+    for clause in clauses:
+        agg_stmt = agg_stmt.where(clause)
+    count, min_price, max_price, total_sum = (await db.execute(agg_stmt)).one()
+
+    return document(data, meta={
+        "page": {"number": number, "size": size},
+        "total": total,
+        "count": count,
+        "minPrice": float(min_price) if min_price is not None else 0.0,
+        "maxPrice": float(max_price) if max_price is not None else 0.0,
+        "totalSum": float(total_sum),
+    })
 
 
 @router.get("/bouquets/{bouquet_id}")
@@ -194,6 +261,39 @@ async def get_bouquet(bouquet_id: str, db: AsyncSession = Depends(get_db)):
     if row is None:
         raise HTTPException(status_code=404, detail="Bouquet not found")
     return document(bouquet_resource(row))
+
+
+@router.patch("/bouquets/{bouquet_id}")
+async def update_bouquet_v1(bouquet_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """«Разобрать букет» (admin-map §2.3.1) — the only mutation this endpoint
+    supports right now. Only a bouquet currently on the showcase (`window`)
+    can be disassembled; a sold bouquet is a completed sale and any other
+    status is likewise a 409 (nothing else transitions through here).
+    """
+    body = await request.json()
+    attrs = ((body or {}).get("data") or {}).get("attributes") or {}
+    new_status = attrs.get("status")
+    if new_status != BOUQUET_DISASSEMBLED_STATUS:
+        raise HTTPException(
+            status_code=400, detail=f"status must be '{BOUQUET_DISASSEMBLED_STATUS}'"
+        )
+
+    bouquet = (
+        await db.execute(select(Bouquet).where(Bouquet.id == bouquet_id))
+    ).scalar_one_or_none()
+    if bouquet is None:
+        raise HTTPException(status_code=404, detail="Bouquet not found")
+
+    if bouquet.status != BOUQUET_WINDOW_STATUS:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Bouquet is in status '{bouquet.status}' and cannot be disassembled",
+        )
+
+    bouquet.status = BOUQUET_DISASSEMBLED_STATUS
+    await db.commit()
+    await db.refresh(bouquet)
+    return document(bouquet_resource(bouquet))
 
 
 def _order_filters(qs, *, include_status: bool):
