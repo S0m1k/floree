@@ -49,7 +49,7 @@ def upgrade() -> None:
         sa.Column("discount", Money, nullable=False, server_default="0"),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
     )
-    op.create_index("ix_order_items_order_id", "order_items", ["order_id"])
+    # ix_order_items_order_id is created by index=True on the order_id column.
 
     op.add_column("orders", sa.Column("markup_total", Money, nullable=False, server_default="0"))
     op.add_column("orders", sa.Column("discount_total", Money, nullable=False, server_default="0"))
@@ -57,14 +57,23 @@ def upgrade() -> None:
 
     op.add_column("payments", sa.Column("method", sa.String(), nullable=True))
     op.add_column("payments", sa.Column("kind", sa.String(), nullable=False, server_default="payment"))
-    op.add_column(
-        "payments",
-        sa.Column("created_by_id", sa.String(), sa.ForeignKey("workers.id"), nullable=True),
-    )
+    # batch_alter_table: SQLite can't ALTER-add a column with an inline FK
+    # (same copy-and-move pattern as 0006_order_crm_fields).
+    with op.batch_alter_table("payments") as b:
+        b.add_column(
+            sa.Column(
+                "created_by_id",
+                sa.String(),
+                sa.ForeignKey("workers.id", name="fk_payments_created_by_id"),
+                nullable=True,
+            )
+        )
 
 
 def downgrade() -> None:
-    op.drop_column("payments", "created_by_id")
+    # batch mode: SQLite can't drop an FK-bearing column via plain ALTER.
+    with op.batch_alter_table("payments") as b:
+        b.drop_column("created_by_id")
     op.drop_column("payments", "kind")
     op.drop_column("payments", "method")
 
@@ -72,5 +81,4 @@ def downgrade() -> None:
     op.drop_column("orders", "discount_total")
     op.drop_column("orders", "markup_total")
 
-    op.drop_index("ix_order_items_order_id", table_name="order_items")
-    op.drop_table("order_items")
+    op.drop_table("order_items")  # drops ix_order_items_order_id with it
