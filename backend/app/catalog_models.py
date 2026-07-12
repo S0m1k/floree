@@ -119,6 +119,13 @@ class Specification(Base):
     logo_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("images.id"), nullable=True
     )
+    # Admin «Карточка рецепта» author select (admin-map §2.3.2).
+    author_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("workers.id"), nullable=True
+    )
+    # JSON list of recipe-tag ids («ВЫБРАТЬ ТЕГИ» multiselect) — not a
+    # Posiflora API field, our own extension (same pattern as Worker.access_rights).
+    tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
@@ -129,6 +136,29 @@ class Specification(Base):
     variants: Mapped[list["SpecificationWithVariants"]] = relationship(
         "SpecificationWithVariants", back_populates="specification"
     )
+    gallery: Mapped[list["SpecificationImage"]] = relationship(
+        "SpecificationImage", order_by="SpecificationImage.position"
+    )
+
+
+class SpecificationImage(Base):
+    """Фото в галерее рецепта (admin «Карточка рецепта», admin-map §2.3.2).
+
+    Added via a URL (file upload is out of scope for now — see admin-map.md
+    notes). `Specification.logo_id` points at whichever row is the «Основное
+    фото»; this table just orders the rest of the gallery/thumbnails.
+    """
+
+    __tablename__ = "specification_images"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    specification_id: Mapped[str] = mapped_column(
+        String, ForeignKey("specifications.id"), index=True
+    )
+    image_id: Mapped[str] = mapped_column(String, ForeignKey("images.id"))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+    image: Mapped["Image"] = relationship("Image")
 
 
 class SpecificationVariant(Base):
@@ -170,6 +200,11 @@ class SpecificationWithVariants(Base):
     prices: Mapped[list["SpecificationVariantPrice"]] = relationship(
         "SpecificationVariantPrice", back_populates="spec_with_variants"
     )
+    compositions: Mapped[list["SpecificationComposition"]] = relationship(
+        "SpecificationComposition",
+        back_populates="spec_with_variants",
+        order_by="SpecificationComposition.position",
+    )
 
 
 class SpecificationVariantPrice(Base):
@@ -177,6 +212,11 @@ class SpecificationVariantPrice(Base):
 
     `price_value` is the authoritative sale price — the single source of truth
     the order flow recomputes against (anti price-tamper).
+
+    A row with `store_id` NULL is the variant's general/default price. A row
+    with `store_id` set is a per-point override (admin «Активность на точках»,
+    admin-map §2.3.2); `price_value` NULL there means «по цене состава» — the
+    read path falls back to the variant's composition total for that store.
     """
 
     __tablename__ = "specification_variant_prices"
@@ -185,11 +225,38 @@ class SpecificationVariantPrice(Base):
     spec_with_variants_id: Mapped[str] = mapped_column(
         String, ForeignKey("specification_with_variants.id")
     )
-    price_value: Mapped[int] = mapped_column(Integer, default=0)  # rubles
+    price_value: Mapped[int | None] = mapped_column(Integer, nullable=True)  # rubles
     status: Mapped[str] = mapped_column(String, default="on")  # on | off
+    store_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("stores.id"), nullable=True
+    )
 
     spec_with_variants: Mapped["SpecificationWithVariants"] = relationship(
         "SpecificationWithVariants", back_populates="prices"
+    )
+    store: Mapped["Store | None"] = relationship("Store")
+
+
+class SpecificationComposition(Base):
+    """Строка состава варианта рецепта (admin «Состав варианта рецепта» modal,
+    admin-map §2.3.2). Not a Posiflora API entity — our own extension so the
+    admin can price a bouquet variant from its flower/goods composition
+    (Item.max_price is the read-only «Розн. цена» column; quantity × price is
+    summed into the variant's compositionTotal).
+    """
+
+    __tablename__ = "specification_compositions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    spec_with_variants_id: Mapped[str] = mapped_column(
+        String, ForeignKey("specification_with_variants.id"), index=True
+    )
+    item_id: Mapped[str] = mapped_column(String, ForeignKey("items.id"))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=0)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+    spec_with_variants: Mapped["SpecificationWithVariants"] = relationship(
+        "SpecificationWithVariants", back_populates="compositions"
     )
 
 
