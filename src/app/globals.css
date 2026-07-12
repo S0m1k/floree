@@ -711,26 +711,89 @@ img { display: block; max-width: 100%; }
   font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* Reserves the resting-width column in the flex flow. Only grows when the
+   sidebar is pinned — hover-only expansion overlays on top instead of
+   shifting `.admin-main`, matching live Posiflora. */
+.admin-sidebar-spacer { flex-shrink: 0; transition: width 0.2s ease; }
+
 .admin-sidebar {
-  flex-shrink: 0; width: 64px; background: var(--admin-sidebar-bg);
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 12px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  position: fixed; top: 0; left: 0; z-index: 40; width: 64px; height: 100vh;
+  background: var(--admin-sidebar-bg);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 0; overflow-y: auto; overflow-x: hidden;
+  transition: width 0.2s ease, box-shadow 0.2s ease;
 }
-.admin-sidebar__logo {
+.admin-sidebar--expanded { width: 280px; box-shadow: 4px 0 24px rgba(0,0,0,0.25); }
+
+.admin-sidebar__top { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; margin-bottom: 8px; flex-shrink: 0; }
+.admin-sidebar__logo { display: flex; align-items: center; gap: 10px; text-decoration: none; overflow: hidden; }
+.admin-sidebar__logo-mark {
   width: 36px; height: 36px; border-radius: 50%; background: var(--admin-accent);
   color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 16px; text-decoration: none; margin-bottom: 12px; flex-shrink: 0;
+  font-weight: 700; font-size: 16px; flex-shrink: 0;
 }
+.admin-sidebar__logo-text { color: #fff; font-weight: 700; font-size: 16px; letter-spacing: 0.02em; white-space: nowrap; }
+.admin-sidebar__burger {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent;
+  color: rgba(255,255,255,0.7); cursor: pointer;
+}
+.admin-sidebar__burger:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+.admin-sidebar__ctas { display: flex; flex-direction: column; gap: 8px; padding: 0 12px; margin-bottom: 12px; flex-shrink: 0; }
+.admin-sidebar__cta {
+  width: 100%; border: none; border-radius: 8px; padding: 10px 12px; text-align: left;
+  font-size: 13px; font-weight: 500; font-family: inherit; cursor: not-allowed;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-sidebar__cta--primary { background: var(--admin-accent); color: #fff; }
+.admin-sidebar__cta--accent { background: var(--admin-orange); color: var(--admin-text); }
+
+.admin-sidebar__nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+.admin-sidebar__bottom { margin-top: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+
 .admin-nav-link {
   width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
   color: rgba(255,255,255,0.7); text-decoration: none; flex-shrink: 0;
 }
 .admin-nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
 .admin-nav-link--active { background: rgba(255,255,255,0.12); color: #fff; }
-.admin-nav-link--logout { margin-top: auto; }
+.admin-nav-link--expanded { width: 100%; height: 40px; justify-content: flex-start; gap: 12px; padding: 0 10px; }
+.admin-nav-link--disabled { color: rgba(255,255,255,0.3); cursor: not-allowed; }
+.admin-nav-link--disabled:hover { background: none; color: rgba(255,255,255,0.3); }
 .admin-nav-link__icon {
-  font-size: 22px; line-height: 1;
+  font-size: 22px; line-height: 1; flex-shrink: 0;
   font-variation-settings: 'opsz' 20, 'wght' 400, 'FILL' 0, 'GRAD' 0;
+}
+.admin-nav-link__label { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Accordion group (Букеты и каталог, Учёт и финансы, …) — collapsed it's an
+   icon button identical to .admin-nav-link; expanded it grows a label +
+   chevron header with an indented submenu underneath. */
+.admin-nav-group { display: flex; flex-direction: column; }
+.admin-nav-group__btn {
+  width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.7); background: none; border: none; cursor: pointer; flex-shrink: 0; font-family: inherit;
+}
+.admin-nav-group__btn:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.admin-nav-group__btn--expanded { width: 100%; justify-content: flex-start; gap: 12px; padding: 0 10px; }
+.admin-nav-group--active > .admin-nav-group__btn { background: rgba(255,255,255,0.12); color: #fff; }
+.admin-nav-group__chevron { margin-left: auto; font-size: 18px; transition: transform 0.15s ease; flex-shrink: 0; }
+.admin-nav-group--open > .admin-nav-group__btn .admin-nav-group__chevron { transform: rotate(90deg); }
+
+.admin-nav-group__children { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 6px 40px; }
+.admin-nav-subitem {
+  display: block; padding: 7px 10px; border-radius: 6px; font-size: 13px;
+  color: rgba(255,255,255,0.6); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-nav-subitem:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.admin-nav-subitem--active { background: rgba(255,255,255,0.12); color: #fff; font-weight: 500; }
+.admin-nav-subitem--disabled { color: rgba(255,255,255,0.28); cursor: not-allowed; }
+.admin-nav-subitem--disabled:hover { background: none; }
+.admin-nav-subitem__badge {
+  margin-left: 6px; display: inline-block; padding: 1px 6px; border-radius: 8px;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em;
+  background: var(--admin-blue); color: #fff; vertical-align: middle;
 }
 
 .admin-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
