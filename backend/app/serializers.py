@@ -80,30 +80,69 @@ def variant_resource(v) -> dict:
     return resource("specification-variants", v.id, a, {"tags": rel_many("tags", [])})
 
 
-def variant_price_resource(p) -> dict:
+def variant_price_resource(p, composition_total: float = 0.0) -> dict:
+    """A general (store_id NULL) price or a per-store override.
+
+    `priceValue` NULL on a store-scoped row means «по цене состава» — the
+    effective sale price falls back to `compositionTotal` (admin-map §2.3.2).
+    """
+    is_default_price = p.store_id is not None and p.price_value is None
+    effective = p.price_value if p.price_value is not None else composition_total
     a = {
         "priceValue": p.price_value,
+        "effectivePrice": effective,
+        "isDefaultPrice": is_default_price,
         "fixPrice": False,
-        "compositionPrice": p.price_value,
+        "compositionPrice": composition_total,
         "status": p.status,
     }
     rels = {
         "specVariants": rel_one("specification-with-variants", p.spec_with_variants_id),
-        "store": rel_one("stores", None),
+        "store": rel_one("stores", p.store_id),
     }
     return resource("specification-variant-prices", p.id, a, rels)
 
 
-def swv_resource(swv, inc: Included) -> dict:
+def specification_composition_resource(comp, item) -> dict:
+    """One «Состав варианта рецепта» line (admin-map §2.3.2). Priced live from
+    the item's retail (max) price — nothing here is a frozen snapshot."""
+    qty = float(comp.quantity or 0)
+    retail_price = float(item.max_price) if item is not None else 0.0
+    a = {
+        "quantity": qty,
+        "retailPrice": retail_price,
+        "sum": round(qty * retail_price, 2),
+        "position": comp.position,
+    }
+    rels = {
+        "specVariants": rel_one("specification-with-variants", comp.spec_with_variants_id),
+        "item": rel_one("inventory-items", comp.item_id),
+    }
+    return resource("specification-compositions", comp.id, a, rels)
+
+
+def swv_resource(swv, inc: Included, items_by_id: dict | None = None) -> dict:
+    items_by_id = items_by_id or {}
+
+    composition_total = 0.0
+    comp_ids: list[str] = []
+    for comp in swv.compositions:
+        item = items_by_id.get(comp.item_id)
+        inc.add(specification_composition_resource(comp, item))
+        comp_ids.append(comp.id)
+        composition_total += float(comp.quantity or 0) * (float(item.max_price) if item else 0.0)
+    composition_total = round(composition_total, 2)
+
     a = {
         "status": swv.status,
         "isDefault": bool(swv.is_default),
+        "compositionTotal": composition_total,
         "width": None,
         "height": None,
     }
     price_ids = []
     for p in swv.prices:
-        inc.add(variant_price_resource(p))
+        inc.add(variant_price_resource(p, composition_total))
         price_ids.append(p.id)
     if swv.variant is not None:
         inc.add(variant_resource(swv.variant))
@@ -112,13 +151,17 @@ def swv_resource(swv, inc: Included) -> dict:
         "logo": rel_one("images", None),
         "tags": rel_many("tags", []),
         "specVariantPrices": rel_many("specification-variant-prices", price_ids),
+        "composition": rel_many("specification-compositions", comp_ids),
     }
     return resource("specification-with-variants", swv.id, a, rels)
 
 
 # ---------- specifications (recipes) ----------
 
-def specification_resource(spec, inc: Included, with_variants: bool = False) -> dict:
+def specification_resource(
+    spec, inc: Included, with_variants: bool = False, items_by_id: dict | None = None
+) -> dict:
+    tag_ids = _json_list(spec.tags_json)
     a = {
         "title": spec.title,
         "status": spec.status,
@@ -134,7 +177,11 @@ def specification_resource(spec, inc: Included, with_variants: bool = False) -> 
     }
 
     image_ids: list[str] = []
-    if spec.logo is not None:
+    for g in spec.gallery:
+        if g.image is not None:
+            inc.add(image_resource(g.image))
+            image_ids.append(g.image_id)
+    if spec.logo is not None and spec.logo_id not in image_ids:
         inc.add(image_resource(spec.logo))
         image_ids.append(spec.logo_id)
 
@@ -143,12 +190,14 @@ def specification_resource(spec, inc: Included, with_variants: bool = False) -> 
         "images": rel_many("images", image_ids),
         "logo": rel_one("images", spec.logo_id),
         "createdBy": rel_one("workers", None),
+        "author": rel_one("workers", spec.author_id),
+        "recipeTags": rel_many("recipe-tags", tag_ids),
     }
 
     if with_variants:
         swv_ids: list[str] = []
         for swv in spec.variants:
-            inc.add(swv_resource(swv, inc))
+            inc.add(swv_resource(swv, inc, items_by_id))
             swv_ids.append(swv.id)
         rels["specVariants"] = rel_many("specification-with-variants", swv_ids)
 
@@ -638,6 +687,7 @@ def item_resource(item) -> dict:
         "description": None,
         "itemType": item.item_type,
         "globalId": item.global_id,
+        "barcode": item.barcode,
         "updatedAt": _iso(item.updated_at),
         "added": None,
         "postfix": None,

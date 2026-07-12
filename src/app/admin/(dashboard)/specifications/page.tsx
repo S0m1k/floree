@@ -26,12 +26,33 @@ export default async function AdminSpecificationsPage({ searchParams }: Props) {
     <div>
       <BouquetsNav active="/admin/specifications" />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h1 className="admin-title">Рецепты</h1>
-        <Link href="/admin/categories" className="admin-btn" style={{ height: 36, marginBottom: 16 }}>Категории</Link>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <Link href="/admin/categories" className="admin-btn" style={{ height: 36 }}>Категории</Link>
+          <Link href="/admin/specifications/create" className="admin-btn admin-btn--primary" style={{ height: 36 }}>
+            Новый рецепт
+          </Link>
+        </div>
       </div>
 
+      <nav className="admin-tabs">
+        <Link
+          href={buildSpecificationsHref(searchParams, { archive: undefined, page: undefined })}
+          className={`admin-tab ${searchParams.archive !== 'true' ? 'admin-tab--active' : ''}`}
+        >
+          Рецепты
+        </Link>
+        <Link
+          href={buildSpecificationsHref(searchParams, { archive: 'true', page: undefined })}
+          className={`admin-tab ${searchParams.archive === 'true' ? 'admin-tab--active' : ''}`}
+        >
+          Архив рецептов
+        </Link>
+      </nav>
+
       <form method="GET" action="/admin/specifications" className="admin-search" style={{ alignItems: 'center' }}>
+        {searchParams.archive === 'true' && <input type="hidden" name="archive" value="true" />}
         <select name="category" defaultValue={searchParams.category || ''} className="admin-inline-select">
           <option value="">Все категории</option>
           {categories.filter((c) => !c.attributes.deleted).map((c) => (
@@ -59,10 +80,7 @@ export default async function AdminSpecificationsPage({ searchParams }: Props) {
                 ? fmtMoney(a.minPrice)
                 : `${fmtMoney(a.minPrice)} – ${fmtMoney(a.maxPrice)}`;
               return (
-                // No detail route yet — admin-map.md marks the recipe detail
-                // card as TODO even in the real Posiflora, so this isn't a
-                // link (nothing to open).
-                <div key={spec.id} className="admin-recipe-card">
+                <Link key={spec.id} href={`/admin/specifications/${spec.id}`} className="admin-recipe-card">
                   <div className="admin-recipe-card__photo">
                     {imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- external Posiflora CDN images, not under next/image domains
@@ -79,7 +97,7 @@ export default async function AdminSpecificationsPage({ searchParams }: Props) {
                     <div className="admin-recipe-card__price">{priceRange}</div>
                     <div className="admin-recipe-card__variants">{a.variantsCount} вариант(ов)</div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
