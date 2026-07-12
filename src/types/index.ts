@@ -413,6 +413,81 @@ export interface AdminSpecification {
   };
 }
 
+// GET/POST/PATCH /v1/specifications/{id} — full recipe card
+// (/admin/specifications/{id}, admin-map §2.3.2).
+export interface AdminSpecificationDetail {
+  id: string;
+  type: 'specifications';
+  attributes: {
+    title: string;
+    status: string;
+    description: string;
+    public: boolean;
+    minPrice: number;
+    maxPrice: number;
+    videoUrl: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+  };
+  relationships: {
+    category?: { data: { type: 'categories'; id: string } | null };
+    logo?: { data: { type: 'images'; id: string } | null };
+    images?: { data: { type: 'images'; id: string }[] };
+    author?: { data: { type: 'workers'; id: string } | null };
+    recipeTags?: { data: { type: 'recipe-tags'; id: string }[] };
+    specVariants?: { data: { type: 'specification-with-variants'; id: string }[] };
+  };
+}
+
+// One quantity variant («19 штук») — a specification-with-variants (SWV) row.
+export interface AdminSpecificationVariant {
+  id: string;
+  type: 'specification-with-variants';
+  attributes: {
+    status: string;
+    isDefault: boolean;
+    compositionTotal: number;
+  };
+  relationships: {
+    variant?: { data: { type: 'specification-variants'; id: string } | null };
+    specVariantPrices?: { data: { type: 'specification-variant-prices'; id: string }[] };
+    composition?: { data: { type: 'specification-compositions'; id: string }[] };
+  };
+}
+
+// The variant's display label (its title, e.g. "19 штук").
+export interface AdminSpecificationVariantLabel {
+  id: string;
+  type: 'specification-variants';
+  attributes: { title: string };
+}
+
+export interface AdminSpecificationVariantPrice {
+  id: string;
+  type: 'specification-variant-prices';
+  attributes: {
+    priceValue: number | null;
+    effectivePrice: number;
+    isDefaultPrice: boolean;
+    compositionPrice: number;
+    status: string;
+  };
+  relationships: {
+    specVariants: { data: { type: 'specification-with-variants'; id: string } | null };
+    store: { data: { type: 'stores'; id: string } | null };
+  };
+}
+
+export interface AdminSpecificationComposition {
+  id: string;
+  type: 'specification-compositions';
+  attributes: { quantity: number; retailPrice: number; sum: number; position: number };
+  relationships: {
+    specVariants: { data: { type: 'specification-with-variants'; id: string } | null };
+    item: { data: { type: 'inventory-items'; id: string } | null };
+  };
+}
+
 // ---------- Учёт и финансы (склад, каталог товаров, поставщики) ----------
 
 export interface AdminMeasure {
@@ -427,6 +502,8 @@ export interface AdminInventoryItem {
   attributes: {
     title: string;
     itemType: 'item' | 'service';
+    globalId?: string | null;
+    barcode?: string | null;
     priceMin: number;
     priceMax: number;
     public: boolean;

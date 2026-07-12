@@ -1488,3 +1488,68 @@ img { display: block; max-width: 100%; }
   font-size: 13px; background: var(--admin-field-bg); color: var(--admin-text-3);
 }
 .admin-picker-row__price { font-weight: 600; white-space: nowrap; }
+
+/* ═══════════════════════════════════════════
+   Карточка рецепта (/admin/specifications/[id])
+   ═══════════════════════════════════════════ */
+
+.admin-btn--danger { background: transparent; border-color: #F5C2C2; color: #B3261E; }
+.admin-btn--danger:hover { background: #FDECEC; }
+
+.admin-recipe-card-columns { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .admin-recipe-card-columns { grid-template-columns: 1fr; } }
+
+/* Галерея фото */
+.admin-recipe-gallery__main {
+  position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden;
+  background: var(--admin-field-bg); display: flex; align-items: center; justify-content: center;
+}
+.admin-recipe-gallery__main img { width: 100%; height: 100%; object-fit: cover; }
+.admin-recipe-gallery__main-check {
+  position: absolute; left: 8px; bottom: 8px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 12px;
+}
+.admin-recipe-gallery__thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.admin-recipe-gallery__thumb {
+  position: relative; width: 64px; height: 64px; border-radius: 6px; overflow: hidden;
+  background: var(--admin-field-bg); border: 1px solid var(--admin-border);
+}
+.admin-recipe-gallery__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.admin-recipe-gallery__thumb-actions {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: rgba(0, 0, 0, 0.35); opacity: 0; transition: opacity var(--admin-transition, 150ms);
+}
+.admin-recipe-gallery__thumb:hover .admin-recipe-gallery__thumb-actions { opacity: 1; }
+.admin-recipe-gallery__thumb-actions button {
+  width: 22px; height: 22px; border: none; border-radius: 50%; background: #fff; cursor: pointer; font-size: 12px;
+}
+
+/* Блок варианта */
+.admin-recipe-variant__head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px;
+  border-bottom: 1px solid var(--admin-border);
+}
+.admin-recipe-variant__title-input {
+  flex: 1; min-width: 160px; font-size: 15px; font-weight: 600; border: 1px solid transparent;
+  border-radius: 6px; padding: 6px 8px; background: transparent;
+}
+.admin-recipe-variant__title-input:hover,
+.admin-recipe-variant__title-input:focus { border-color: var(--admin-border); background: var(--admin-surface); }
+.admin-recipe-variant__comp-row { font-size: 13px; padding: 4px 0; }
+
+/* «Активность на точках» */
+.admin-store-price-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.admin-store-price-card {
+  position: relative; min-width: 180px; border: 1px solid var(--admin-border); border-radius: 8px;
+  padding: 10px 32px 10px 12px; background: var(--admin-surface);
+}
+.admin-store-price-card__title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.admin-store-price-card__composition { font-size: 11px; color: #B3261E; margin-bottom: 6px; }
+.admin-store-price-card__sale { display: flex; flex-direction: column; gap: 2px; }
+.admin-store-price-card__price {
+  border: none; background: none; padding: 0; text-align: left; cursor: pointer;
+  font-size: 16px; font-weight: 700; color: var(--admin-blue);
+}
+.admin-store-price-card__sale input { max-width: 100px; }
+.admin-store-price-card__label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--admin-text-3); }
+.admin-store-price-card .admin-composition__delete { position: absolute; top: 6px; right: 6px; }
