@@ -9,36 +9,26 @@ const SLIDES = [
     imgDesktop: '/hero/desktop-1.jpg',
     imgMobile: '/hero/mobile-1.jpg',
     alt: 'Авторский букет Floree — цветочная студия Санкт-Петербург',
-    name: 'N° 01 — Azur',
-    caption: 'Пионы Coral Charm и голубой дельфиниум',
   },
   {
     imgDesktop: '/hero/desktop-2.jpg',
     imgMobile: '/hero/mobile-2.jpg',
     alt: 'Авторский букет Floree — свежие цветы с доставкой по СПб',
-    name: 'N° 02 — Verde',
-    caption: 'Коралловые пионы, гвоздика и молюцелла',
   },
   {
     imgDesktop: '/hero/desktop-3.jpg',
     imgMobile: '/hero/mobile-3.jpg',
     alt: 'Флористическая студия Floree — Полтавский проезд, 2',
-    name: 'N° 03 — Brume',
-    caption: 'Весенняя коллекция — нежные пастельные тона',
   },
   {
     imgDesktop: '/hero/desktop-4.jpg',
     imgMobile: '/hero/mobile-4.jpg',
     alt: 'Букет из свежих цветов — Floree Санкт-Петербург',
-    name: 'N° 04 — Lilas',
-    caption: 'Полевые цветы и акцентная зелень',
   },
   {
     imgDesktop: '/hero/desktop-5.jpg',
     imgMobile: '/hero/mobile-5.jpg',
     alt: 'Авторская флористика Floree — заказ онлайн',
-    name: 'N° 05 — Blanc',
-    caption: 'Белые розы и нежный эвкалипт',
   },
 ];
 
@@ -102,25 +92,6 @@ export default function HeroCarousel() {
               </div>
             </div>
           ))}
-          <div className="ed-hero__veil" />
-        </div>
-
-        <div className="ed-hero__copy">
-          <div className="eyebrow">Цветочная студия · Санкт-Петербург</div>
-          <h1 className="ed-hero__title">
-            Букеты,<br />
-            <em>собранные руками</em><br />
-            и&nbsp;сердцем.
-          </h1>
-          <div className="ed-hero__meta">
-            <div className="ed-hero__counter mono">
-              {String(slide + 1).padStart(2, '0')} <span>/</span> {String(SLIDES.length).padStart(2, '0')}
-            </div>
-            <div className="ed-hero__caption">
-              <div className="serif" style={{ fontSize: 20, fontStyle: 'italic' }}>{SLIDES[slide].name}</div>
-              <div style={{ color: 'var(--ink-2)', marginTop: 4 }}>{SLIDES[slide].caption}</div>
-            </div>
-          </div>
         </div>
 
         <div className="ed-hero__dots">

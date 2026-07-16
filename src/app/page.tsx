@@ -58,6 +58,10 @@ export default async function HomePage() {
 
   return (
     <div style={{ background: 'var(--paper)', color: 'var(--ink)' }}>
+      {/* Hero photo carries no text by design — keep the page's h1 for search engines and screen readers. */}
+      <h1 className="sr-only">
+        Floree — цветочная студия в Санкт-Петербурге. Авторские букеты с доставкой.
+      </h1>
       {/* HERO — фото + панель (заказ / соцсети) */}
       <HeroCarousel />
 
