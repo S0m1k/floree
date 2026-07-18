@@ -27,7 +27,7 @@ from app.models import (
     PAYMENT_METHODS,
     SETTLED_PAYMENT_STATUSES,
 )
-from app.dictionary_models import OrderTag, DiscountReason
+from app.dictionary_models import OrderTag, DiscountReason, CustomerPreference
 from app.staff_models import Worker
 from app.jsonapi import document
 from app.serializers import (
@@ -135,8 +135,26 @@ async def _customer_order_stats(db: AsyncSession, customers: list) -> dict[str, 
     }
 
 
+def _parse_amount(raw: str | None, field: str) -> float | None:
+    if raw in (None, ""):
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{field} must be a number")
+
+
 @router.get("/customers")
 async def list_customers(request: Request, db: AsyncSession = Depends(get_db)):
+    """List clients for the admin «Клиенты» screen (admin-map §2.5.1).
+
+    Most filters translate straight to a WHERE clause. The purchase-amount
+    range (`filter[amountFrom]`/`filter[amountTo]`) is the exception — it
+    filters on the per-customer order aggregate, which is only known after
+    `_customer_order_stats` runs, so that branch evaluates every matching
+    customer's stats up front and paginates in Python instead of in SQL. Fine
+    at this scale (hundreds of customers, not millions).
+    """
     qs = request.query_params
     number, size = _page(qs)
     base = select(Customer)
@@ -150,6 +168,9 @@ async def list_customers(request: Request, db: AsyncSession = Depends(get_db)):
     gender = qs.get("filter[gender]")
     if gender:
         base = base.where(Customer.gender == gender)
+    customer_type = qs.get("filter[customerType]")
+    if customer_type:
+        base = base.where(Customer.customer_type == customer_type)
     registered_from = qs.get("filter[registeredFrom]")
     if registered_from:
         base = base.where(Customer.created_at >= datetime.fromisoformat(registered_from))
@@ -161,13 +182,51 @@ async def list_customers(request: Request, db: AsyncSession = Depends(get_db)):
         like = f"%{q}%"
         base = base.where(or_(Customer.name.ilike(like), Customer.phone.ilike(like)))
 
-    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
-    rows = (
-        await db.execute(base.order_by(Customer.created_at.desc()).offset((number - 1) * size).limit(size))
-    ).scalars().all()
+    # `preferences` is a free-text field on Customer (no M2M to the
+    # customer-preferences dictionary exists), so the filter resolves the
+    # dictionary id to its title and matches customers whose free-text
+    # preferences contain it. An unknown id matches nothing.
+    preference_id = qs.get("filter[preferences]")
+    if preference_id:
+        pref = (
+            await db.execute(
+                select(CustomerPreference).where(CustomerPreference.id == preference_id)
+            )
+        ).scalar_one_or_none()
+        if pref is None:
+            base = base.where(Customer.id.is_(None))
+        else:
+            base = base.where(Customer.preferences.ilike(f"%{pref.title}%"))
 
-    stats_by_id = await _customer_order_stats(db, list(rows))
-    data = [customer_resource(r, stats_by_id.get(r.id)) for r in rows]
+    amount_from = _parse_amount(qs.get("filter[amountFrom]"), "filter[amountFrom]")
+    amount_to = _parse_amount(qs.get("filter[amountTo]"), "filter[amountTo]")
+
+    if amount_from is None and amount_to is None:
+        total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+        rows = (
+            await db.execute(base.order_by(Customer.created_at.desc()).offset((number - 1) * size).limit(size))
+        ).scalars().all()
+        stats_by_id = await _customer_order_stats(db, list(rows))
+        data = [customer_resource(r, stats_by_id.get(r.id)) for r in rows]
+        return document(data, meta={"page": {"number": number, "size": size}, "total": total})
+
+    all_rows = (
+        await db.execute(base.order_by(Customer.created_at.desc()))
+    ).scalars().all()
+    stats_by_id = await _customer_order_stats(db, list(all_rows))
+
+    def _in_range(row) -> bool:
+        amount = stats_by_id.get(row.id, {}).get("ordersAmount", 0)
+        if amount_from is not None and amount < amount_from:
+            return False
+        if amount_to is not None and amount > amount_to:
+            return False
+        return True
+
+    filtered = [r for r in all_rows if _in_range(r)]
+    total = len(filtered)
+    page_rows = filtered[(number - 1) * size: (number - 1) * size + size]
+    data = [customer_resource(r, stats_by_id.get(r.id)) for r in page_rows]
     return document(data, meta={"page": {"number": number, "size": size}, "total": total})
 
 

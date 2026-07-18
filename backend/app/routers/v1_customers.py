@@ -9,7 +9,7 @@ by phone — legacy ETL rows predate the FK.
 import re
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -244,6 +244,27 @@ async def _load_customer(db: AsyncSession, customer_id: str) -> Customer:
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
     return customer
+
+
+@router.delete("/customers/{customer_id}", status_code=204)
+async def delete_customer(customer_id: str, db: AsyncSession = Depends(get_db)):
+    """Delete a customer (admin «Клиенты» row menu). Refused with 409 if the
+    customer has any orders — matched the same way as everywhere else in this
+    module, by FK or (legacy ETL rows) by phone."""
+    customer = await _load_customer(db, customer_id)
+    has_orders = (
+        await db.execute(
+            select(Order.id).where(_customer_orders_clause(customer)).limit(1)
+        )
+    ).scalar_one_or_none()
+    if has_orders is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Нельзя удалить клиента: с ним связаны заказы",
+        )
+    await db.delete(customer)
+    await db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/customers/{customer_id}/stats")

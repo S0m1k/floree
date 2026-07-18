@@ -1,35 +1,39 @@
 import Link from 'next/link';
-import { getCustomers, getCustomerSources, buildCustomersHref, PAGE_SIZE, CustomersSearchParams } from '@/lib/adminCustomers';
-import CustomerActionsMenu from '@/components/admin/CustomerActionsMenu';
+import {
+  getCustomers, getCustomerSources, getCustomerPreferences, CustomersSearchParams,
+} from '@/lib/adminCustomers';
+import CustomersTable from '@/components/admin/CustomersTable';
 
 export const metadata = { title: 'Клиенты' };
-
-const fmtMoney = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
-const fmtDate = (iso: string | null) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('ru-RU');
-};
 
 interface Props {
   searchParams: CustomersSearchParams;
 }
 
+// Query string for the CSV export link — the same filters the list itself is
+// showing, so «Экспорт клиентов» always matches the current selection.
+function exportHref(searchParams: CustomersSearchParams): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value && key !== 'page') qs.set(key, value);
+  }
+  const query = qs.toString();
+  return `/admin/api/customers/export${query ? `?${query}` : ''}`;
+}
+
 export default async function AdminCustomersPage({ searchParams }: Props) {
-  const [{ customers, total }, sources] = await Promise.all([
+  const [{ customers, total }, sources, preferences] = await Promise.all([
     getCustomers(searchParams),
     getCustomerSources(),
+    getCustomerPreferences(),
   ]);
-
-  const page = Math.max(1, parseInt(searchParams.page || '1', 10) || 1);
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
         <h1 className="admin-title" style={{ margin: 0 }}>Клиенты</h1>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button type="button" className="admin-btn" disabled title="Скоро">Экспорт клиентов</button>
+          <a href={exportHref(searchParams)} className="admin-btn">Экспорт клиентов</a>
           <Link href="/admin/customers/create" className="admin-btn admin-btn--primary">Создать нового</Link>
         </div>
       </div>
@@ -53,12 +57,11 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
           </div>
 
           <div className="admin-field">
-            <label htmlFor="source">Откуда узнал о нас</label>
-            <select id="source" name="source" defaultValue={searchParams.source || ''}>
-              <option value="">Все источники</option>
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>{s.attributes.title}</option>
-              ))}
+            <label htmlFor="customerType">Тип клиента</label>
+            <select id="customerType" name="customerType" defaultValue={searchParams.customerType || ''}>
+              <option value="">Все</option>
+              <option value="person">Физическое лицо</option>
+              <option value="company">Юридическое лицо</option>
             </select>
           </div>
 
@@ -72,6 +75,37 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
           </div>
 
           <div className="admin-field">
+            <label htmlFor="preferences">Предпочтения</label>
+            <select id="preferences" name="preferences" defaultValue={searchParams.preferences || ''}>
+              <option value="">Все</option>
+              {preferences.map((p) => (
+                <option key={p.id} value={p.id}>{p.attributes.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-field">
+            <label htmlFor="source">Откуда узнал о нас</label>
+            <select id="source" name="source" defaultValue={searchParams.source || ''}>
+              <option value="">Все источники</option>
+              {sources.map((s) => (
+                <option key={s.id} value={s.id}>{s.attributes.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-field">
+            <label htmlFor="amountFrom">Покупки, ₽</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="number" min={0} id="amountFrom" name="amountFrom" placeholder="от"
+                defaultValue={searchParams.amountFrom || ''}
+              />
+              <input type="number" min={0} name="amountTo" placeholder="до" defaultValue={searchParams.amountTo || ''} />
+            </div>
+          </div>
+
+          <div className="admin-field">
             <label htmlFor="registeredFrom">Дата регистрации</label>
             <div style={{ display: 'flex', gap: 6 }}>
               <input type="date" id="registeredFrom" name="registeredFrom" defaultValue={searchParams.registeredFrom || ''} />
@@ -82,63 +116,7 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
         </form>
 
         <div>
-          {customers.length === 0 ? (
-            <div className="admin-table-wrap">
-              <div className="admin-empty">Клиенты не найдены — попробуйте изменить фильтры.</div>
-            </div>
-          ) : (
-            <div className="admin-table-wrap">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Имя</th>
-                    <th>Телефон</th>
-                    <th>Средний чек</th>
-                    <th>Заказов на сумму</th>
-                    <th>Бонусы</th>
-                    <th>Дата рождения</th>
-                    <th aria-label="Действия" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {customers.map((c) => {
-                    const a = c.attributes;
-                    return (
-                      <tr key={c.id}>
-                        <td><Link href={`/admin/customers/${c.id}`}>{a.title || 'Без имени'}</Link></td>
-                        <td>{a.phone}</td>
-                        <td>{a.ordersQty > 0 ? fmtMoney(a.averageCheck) : '—'}</td>
-                        <td>{a.ordersQty > 0 ? `${fmtMoney(a.ordersAmount)} (${a.ordersQty})` : '—'}</td>
-                        <td>{a.currentPoints}</td>
-                        <td>{fmtDate(a.birthday)}</td>
-                        <td style={{ width: 48 }}>
-                          <CustomerActionsMenu editHref={`/admin/customers/${c.id}/edit`} showDelete={false} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <div className="admin-pagination">
-                <span>Найдено клиентов: {total}</span>
-                <div className="admin-pagination__pages">
-                  {Array.from({ length: pageCount }, (_, i) => i + 1)
-                    .filter((p) => p === 1 || p === pageCount || Math.abs(p - page) <= 2)
-                    .map((p, idx, arr) => (
-                      <span key={p} style={{ display: 'flex', alignItems: 'center' }}>
-                        {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ padding: '0 2px' }}>…</span>}
-                        {p === page ? (
-                          <span className="admin-pagination__current">{p}</span>
-                        ) : (
-                          <Link href={buildCustomersHref(searchParams, { page: String(p) })}>{p}</Link>
-                        )}
-                      </span>
-                    ))}
-                </div>
-              </div>
-            </div>
-          )}
+          <CustomersTable customers={customers} total={total} current={searchParams} />
         </div>
       </div>
     </div>

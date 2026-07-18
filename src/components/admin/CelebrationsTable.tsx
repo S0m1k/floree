@@ -21,6 +21,12 @@ function formatPeriod(a: DictEntry['attributes']): string {
 
 // «Праздничные события» (admin-map §2.7): «Создать» opens an inline form
 // (Название + Период: two dates); table `Название | Период | ⋮ (Удалить)`.
+interface EditDraft {
+  title: string;
+  dateFrom: string;
+  dateTo: string;
+}
+
 export default function CelebrationsTable({ entries }: { entries: DictEntry[] }) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -30,6 +36,8 @@ export default function CelebrationsTable({ entries }: { entries: DictEntry[] })
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<EditDraft>({ title: '', dateFrom: '', dateTo: '' });
 
   const resetForm = () => {
     setTitle('');
@@ -62,6 +70,51 @@ export default function CelebrationsTable({ entries }: { entries: DictEntry[] })
         throw new Error(detail || 'Не удалось создать событие');
       }
       resetForm();
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Что-то пошло не так');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = (entry: DictEntry) => {
+    setMenuFor(null);
+    setEditingId(entry.id);
+    setEditDraft({
+      title: entry.attributes.title,
+      dateFrom: entry.attributes.dateFrom || '',
+      dateTo: entry.attributes.dateTo || '',
+    });
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    const trimmed = editDraft.title.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            type: 'customer-celebrations',
+            attributes: {
+              title: trimmed,
+              dateFrom: editDraft.dateFrom || null,
+              dateTo: editDraft.dateTo || null,
+            },
+          },
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = typeof json.detail === 'string' ? json.detail : '';
+        if (detail.includes('already exists')) throw new Error('Такое событие уже есть');
+        throw new Error(detail || 'Не удалось сохранить');
+      }
+      setEditingId(null);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Что-то пошло не так');
@@ -158,40 +211,98 @@ export default function CelebrationsTable({ entries }: { entries: DictEntry[] })
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{entry.attributes.title}</td>
-                  <td>{formatPeriod(entry.attributes)}</td>
-                  <td>
-                    <div className="admin-row-menu">
-                      <button
-                        type="button"
-                        className="admin-btn admin-row-menu__trigger"
-                        onClick={() => setMenuFor(menuFor === entry.id ? null : entry.id)}
-                        disabled={busy}
-                        aria-haspopup="menu"
-                        aria-expanded={menuFor === entry.id}
-                      >
-                        ⋮
-                      </button>
-                      {menuFor === entry.id && (
-                        <ul className="admin-row-menu__list" role="menu">
-                          <li role="menuitem">
-                            <button
-                              type="button"
-                              className="admin-row-menu__item"
-                              onClick={() => handleDelete(entry.id)}
-                              disabled={busy}
-                            >
-                              Удалить
-                            </button>
-                          </li>
-                        </ul>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {entries.map((entry) => {
+                if (editingId === entry.id) {
+                  return (
+                    <tr key={entry.id}>
+                      <td>
+                        <input
+                          value={editDraft.title}
+                          maxLength={TITLE_MAX}
+                          aria-label="Название"
+                          className="admin-dict-inline-input"
+                          onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            type="date"
+                            aria-label="Период с"
+                            value={editDraft.dateFrom}
+                            onChange={(e) => setEditDraft({ ...editDraft, dateFrom: e.target.value })}
+                          />
+                          <input
+                            type="date"
+                            aria-label="Период по"
+                            value={editDraft.dateTo}
+                            onChange={(e) => setEditDraft({ ...editDraft, dateTo: e.target.value })}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div className="admin-dict-inline-actions">
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn--primary"
+                            onClick={() => handleSaveEdit(entry.id)}
+                            disabled={busy || !editDraft.title.trim()}
+                          >
+                            Сохранить
+                          </button>
+                          <button type="button" className="admin-btn" onClick={() => setEditingId(null)} disabled={busy}>
+                            Отмена
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
+                  <tr key={entry.id}>
+                    <td>{entry.attributes.title}</td>
+                    <td>{formatPeriod(entry.attributes)}</td>
+                    <td>
+                      <div className="admin-row-menu">
+                        <button
+                          type="button"
+                          className="admin-btn admin-row-menu__trigger"
+                          onClick={() => setMenuFor(menuFor === entry.id ? null : entry.id)}
+                          disabled={busy}
+                          aria-haspopup="menu"
+                          aria-expanded={menuFor === entry.id}
+                        >
+                          ⋮
+                        </button>
+                        {menuFor === entry.id && (
+                          <ul className="admin-row-menu__list" role="menu">
+                            <li role="menuitem">
+                              <button
+                                type="button"
+                                className="admin-row-menu__item"
+                                onClick={() => startEdit(entry)}
+                                disabled={busy}
+                              >
+                                Редактировать
+                              </button>
+                            </li>
+                            <li role="menuitem">
+                              <button
+                                type="button"
+                                className="admin-row-menu__item"
+                                onClick={() => handleDelete(entry.id)}
+                                disabled={busy}
+                              >
+                                Удалить
+                              </button>
+                            </li>
+                          </ul>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

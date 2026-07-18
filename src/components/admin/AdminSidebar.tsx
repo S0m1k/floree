@@ -25,7 +25,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { href: '/admin/showcase', label: 'Букеты в магазине' },
       { label: 'Онлайн-витрина', disabled: true },
-      { label: 'Аналитика', disabled: true },
+      { href: '/admin/showcase/analytics', label: 'Аналитика' },
       { href: '/admin/catalog', label: 'Каталог товаров и услуг' },
       { href: '/admin/categories', label: 'Категории' },
       { href: '/admin/specifications', label: 'Рецепты' },
@@ -36,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
     kind: 'group', id: 'warehouse', icon: 'currency_exchange', label: 'Учёт и финансы',
     children: [
       { href: '/admin/warehouse', label: 'Обзор склада' },
+      { href: '/admin/warehouse/analytics', label: 'Аналитика' },
       { href: '/admin/catalog', label: 'Каталог' },
       { href: '/admin/vendors', label: 'Поставщики' },
       { href: '/admin/packing-invoices', label: 'Приходные накладные' },
@@ -50,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
     kind: 'group', id: 'customers', icon: 'group', label: 'Клиенты и развитие',
     children: [
       { href: '/admin/customers', label: 'Список клиентов' },
-      { label: 'Аналитика', disabled: true },
+      { href: '/admin/customers/analytic', label: 'Аналитика' },
       { label: 'Импорт клиентов', disabled: true },
       { label: 'Система лояльности', disabled: true },
     ],

@@ -4,6 +4,66 @@ import { DaySeriesPoint } from '@/types';
 export const fmtMoney = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
 export const fmtNum = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
 
+// -------- Шапка дашборда (admin-map §2.1) --------
+//
+// 4 вкладки дашборда живут на отдельных маршрутах (не ?tab=) так, чтобы
+// прямые ссылки из подменю сайдбара («Клиенты → Аналитика» и т.п.) работали.
+// Каждая тонкая страница-обёртка (/admin/customers/analytic,
+// /admin/showcase/analytics, /admin/warehouse/analytics, и /admin/retail-stores
+// само для «Деньги») рендерит этот же заголовок с собственным `active`.
+export const DASHBOARD_TABS = [
+  { key: 'money', label: 'Деньги', href: '/admin/retail-stores' },
+  { key: 'customers', label: 'Клиенты', href: '/admin/customers/analytic' },
+  { key: 'bouquets', label: 'Букеты в магазине', href: '/admin/showcase/analytics' },
+  { key: 'warehouse', label: 'Склад', href: '/admin/warehouse/analytics' },
+] as const;
+
+export type DashboardTabKey = (typeof DASHBOARD_TABS)[number]['key'];
+
+export function DashboardHeader({
+  active, from, to, updatedAt, periodFormAction,
+}: {
+  active: DashboardTabKey; from: string; to: string; updatedAt: string; periodFormAction: string;
+}) {
+  return (
+    <>
+      <div className="admin-dash-topbar">
+        <div className="admin-dash-topbar__left">
+          <h1 className="admin-title" style={{ margin: 0 }}>Floree</h1>
+          {/* Касса — оперативный остаток кассы не отслеживается ни в одной
+              таблице, честно показываем 0 (см. финальный отчёт). */}
+          <span className="admin-dash-topbar__till">В кассе <strong>0 ₽</strong></span>
+          <div className="admin-dash-topbar__links">
+            <span className="admin-dash-link admin-dash-link--disabled" title="Раздел ещё не реализован">Инструкция</span>
+            <span className="admin-dash-link admin-dash-link--disabled" title="Раздел ещё не реализован">Настройки точки продаж</span>
+          </div>
+        </div>
+        <div className="admin-dashboard-header__meta">Данные обновлены: {updatedAt}</div>
+      </div>
+
+      <div className="admin-dashboard-header" style={{ marginBottom: 8 }}>
+        <nav className="admin-subtabs">
+          {DASHBOARD_TABS.map((t) => (
+            <Link
+              key={t.key}
+              href={`${t.href}?from=${from}&to=${to}`}
+              className={`admin-subtab ${active === t.key ? 'admin-subtab--active' : ''}`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+        <form method="GET" action={periodFormAction} className="admin-period-form">
+          <input type="date" name="from" defaultValue={from} />
+          <span>—</span>
+          <input type="date" name="to" defaultValue={to} />
+          <button type="submit" className="admin-btn admin-btn--primary">Применить</button>
+        </form>
+      </div>
+    </>
+  );
+}
+
 export const fmtDelta = (pct: number | null) => {
   if (pct === null) return null;
   const sign = pct >= 0 ? '+' : '';

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AdminOrder, SimpleDictEntry, Worker } from '@/types';
 import { OrdersSearchParams, PAGE_SIZE, buildOrdersHref } from '@/lib/adminOrders';
 import OrderStatusBadge from './OrderStatusBadge';
+import OrderRowMenu from './OrderRowMenu';
 
 const fmtDateTime = (iso: string | null) => {
   if (!iso) return '—';
@@ -43,6 +44,7 @@ export default function OrdersTable({ orders, total, current, workersById, tagsB
             <th>Дата/время создания</th>
             <th>Автор заказа</th>
             <th>Дата/время завершения</th>
+            <th aria-label="Действия" />
           </tr>
         </thead>
         <tbody>
@@ -75,6 +77,9 @@ export default function OrdersTable({ orders, total, current, workersById, tagsB
                 <td>{fmtDateTime(a.createdAt)}</td>
                 <td>{author || '—'}</td>
                 <td>{fmtDateTime(a.closedAt)}</td>
+                <td style={{ width: 48 }}>
+                  <OrderRowMenu orderId={o.id} status={a.status} />
+                </td>
               </tr>
             );
           })}

@@ -4,7 +4,7 @@ import { fmtMoney, RadioMetricCard, DashTile, LineChart } from './shared';
 type Metric = 'shipment' | 'payment' | 'margin';
 
 function buildHref(from: string, to: string, metric: Metric): string {
-  const qs = new URLSearchParams({ tab: 'money', from, to, metric });
+  const qs = new URLSearchParams({ from, to, metric });
   return `/admin/retail-stores?${qs.toString()}`;
 }
 
