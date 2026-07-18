@@ -16,6 +16,7 @@ from datetime import datetime
 import pytest_asyncio
 
 from app.catalog_models import Customer
+from app.dictionary_models import CustomerPreference
 from app.models import Order
 from tests.conftest import TestingSessionLocal
 
@@ -336,3 +337,152 @@ async def test_orders_filter_by_customer(client, worker_token):
     assert resp.status_code == 200, resp.text
     ids = {o["id"] for o in resp.json()["data"]}
     assert ids == {linked, legacy}
+
+
+# ---------- GET /v1/customers filters (admin-map §2.5.1 filter panel) ----------
+
+
+async def test_list_customers_filters_by_customer_type(client, worker_token):
+    person = await client.post(
+        "/api/v1/customers", json=_body(customerType="person", phone="+79991110001"),
+        headers=_auth(worker_token),
+    )
+    company = await client.post(
+        "/api/v1/customers",
+        json=_body(title="ООО Ромашка", customerType="company", phone="+79991110002"),
+        headers=_auth(worker_token),
+    )
+    person_id = person.json()["data"]["id"]
+    company_id = company.json()["data"]["id"]
+
+    resp = await client.get(
+        "/api/v1/customers?filter[customerType]=company", headers=_auth(worker_token)
+    )
+    ids = {c["id"] for c in resp.json()["data"]}
+    assert company_id in ids
+    assert person_id not in ids
+
+
+async def test_list_customers_filters_by_preferences(client, worker_token):
+    async with TestingSessionLocal() as db:
+        pref = CustomerPreference(title="Пионы")
+        db.add(pref)
+        await db.commit()
+        await db.refresh(pref)
+
+    matching = await client.post(
+        "/api/v1/customers",
+        json=_body(preferences="Любит Пионы и тюльпаны", phone="+79992220001"),
+        headers=_auth(worker_token),
+    )
+    other = await client.post(
+        "/api/v1/customers",
+        json=_body(title="Другой", preferences="Розы", phone="+79992220002"),
+        headers=_auth(worker_token),
+    )
+    matching_id = matching.json()["data"]["id"]
+    other_id = other.json()["data"]["id"]
+
+    resp = await client.get(
+        f"/api/v1/customers?filter[preferences]={pref.id}", headers=_auth(worker_token)
+    )
+    assert resp.status_code == 200, resp.text
+    ids = {c["id"] for c in resp.json()["data"]}
+    assert matching_id in ids
+    assert other_id not in ids
+
+
+async def test_list_customers_filters_by_unknown_preference_is_empty(client, worker_token):
+    await client.post("/api/v1/customers", json=_body(phone="+79992220003"), headers=_auth(worker_token))
+    resp = await client.get(
+        "/api/v1/customers?filter[preferences]=does-not-exist", headers=_auth(worker_token)
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"] == []
+
+
+async def test_list_customers_filters_by_purchase_amount_range(client, worker_token):
+    big_spender = await client.post(
+        "/api/v1/customers", json=_body(phone="+79993330001"), headers=_auth(worker_token)
+    )
+    small_spender = await client.post(
+        "/api/v1/customers", json=_body(title="Малый чек", phone="+79993330002"),
+        headers=_auth(worker_token),
+    )
+    big_id = big_spender.json()["data"]["id"]
+    small_id = small_spender.json()["data"]["id"]
+    await _seed_order(customer_id=big_id, phone="+70000000001", total_amount=10000)
+    await _seed_order(customer_id=small_id, phone="+70000000002", total_amount=500)
+
+    resp = await client.get(
+        "/api/v1/customers?filter[amountFrom]=5000", headers=_auth(worker_token)
+    )
+    assert resp.status_code == 200, resp.text
+    ids = {c["id"] for c in resp.json()["data"]}
+    assert big_id in ids
+    assert small_id not in ids
+
+    resp2 = await client.get(
+        "/api/v1/customers?filter[amountTo]=1000", headers=_auth(worker_token)
+    )
+    ids2 = {c["id"] for c in resp2.json()["data"]}
+    assert small_id in ids2
+    assert big_id not in ids2
+
+
+async def test_list_customers_bad_amount_filter_is_400(client, worker_token):
+    resp = await client.get(
+        "/api/v1/customers?filter[amountFrom]=not-a-number", headers=_auth(worker_token)
+    )
+    assert resp.status_code == 400
+
+
+# ---------- DELETE /v1/customers/{id} ----------
+
+
+async def test_delete_customer_requires_auth(client):
+    resp = await client.delete("/api/v1/customers/whatever")
+    assert resp.status_code == 401
+
+
+async def test_delete_unknown_customer_is_404(client, worker_token):
+    resp = await client.delete(
+        "/api/v1/customers/does-not-exist", headers=_auth(worker_token)
+    )
+    assert resp.status_code == 404
+
+
+async def test_delete_customer_without_orders_succeeds(client, worker_token):
+    created = await client.post("/api/v1/customers", json=_body(), headers=_auth(worker_token))
+    cid = created.json()["data"]["id"]
+
+    resp = await client.delete(f"/api/v1/customers/{cid}", headers=_auth(worker_token))
+    assert resp.status_code == 204
+
+    check = await client.get(f"/api/v1/customers/{cid}", headers=_auth(worker_token))
+    assert check.status_code == 404
+
+
+async def test_delete_customer_with_orders_is_409(client, worker_token):
+    created = await client.post("/api/v1/customers", json=_body(), headers=_auth(worker_token))
+    cid = created.json()["data"]["id"]
+    await _seed_order(customer_id=cid, phone="+70000000009", total_amount=100)
+
+    resp = await client.delete(f"/api/v1/customers/{cid}", headers=_auth(worker_token))
+    assert resp.status_code == 409
+    assert "заказ" in resp.json()["detail"].lower()
+
+    # Still there.
+    check = await client.get(f"/api/v1/customers/{cid}", headers=_auth(worker_token))
+    assert check.status_code == 200
+
+
+async def test_delete_customer_with_legacy_phone_matched_order_is_409(client, worker_token):
+    """Orders with no customer_id FK (legacy ETL rows) still block deletion —
+    they're matched to the customer by phone, same as the stats/list endpoints."""
+    created = await client.post("/api/v1/customers", json=_body(), headers=_auth(worker_token))
+    cid = created.json()["data"]["id"]
+    await _seed_order(phone="+79991234567", total_amount=100)  # no customer_id FK
+
+    resp = await client.delete(f"/api/v1/customers/{cid}", headers=_auth(worker_token))
+    assert resp.status_code == 409
