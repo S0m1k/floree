@@ -1375,6 +1375,13 @@ img { display: block; max-width: 100%; }
 }
 .admin-composition__delete:hover { background: #FDECEA; color: #C0392B; }
 .admin-composition__delete:disabled { opacity: 0.5; cursor: default; }
+.admin-composition__row-actions { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+.admin-composition__action {
+  width: 26px; height: 26px; border: none; border-radius: 50%; background: none;
+  color: var(--admin-text-3); font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.admin-composition__action:hover { background: var(--admin-blue-bg); color: var(--admin-blue); }
+.admin-composition__action:disabled { opacity: 0.5; cursor: default; }
 
 /* История платежей + итоговая панель — двухколоночная сетка */
 .admin-order-summary-grid {
@@ -1411,6 +1418,14 @@ img { display: block; max-width: 100%; }
 .admin-order-totals__to-pay span:last-child {
   font-size: 24px; font-weight: 700; color: var(--admin-text); letter-spacing: 0;
 }
+/* СКИДКА / НАДБАВКА / ОПЛАТА БОНУСАМИ rows open the edit modal on click. */
+.admin-order-totals__list dt.admin-order-totals__clickable,
+.admin-order-totals__list dd.admin-order-totals__clickable {
+  cursor: pointer; background: none; border: none; padding: 0; font: inherit;
+  text-align: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit;
+}
+.admin-order-totals__list dt.admin-order-totals__clickable:hover,
+.admin-order-totals__list dd.admin-order-totals__clickable:hover { color: var(--admin-blue); }
 
 /* Модалки вкладки «Продукты» (Добавить продукт / Добавить аванс) */
 .admin-modal-backdrop {

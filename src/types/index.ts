@@ -152,6 +152,7 @@ export interface AdminOrder {
   relationships: {
     store?: { data: { type: 'stores'; id: string } | null };
     source?: { data: { type: 'order-sources'; id: string } | null };
+    customer?: { data: { type: 'customers'; id: string } | null };
     florist?: { data: { type: 'users'; id: string } | null };
     createdBy?: { data: { type: 'users'; id: string } | null };
     closedBy?: { data: { type: 'users'; id: string } | null };
@@ -206,12 +207,19 @@ export interface AdminOrderCompositionLine {
     discount: number;
     originalSum: number;
     sum: number;
+    // How the line's discount/markup was entered (PUT /orders/{id}/discount,
+    // target=item) — percent is display-only, `discount`/`markup` above stay
+    // authoritative. Absent on legacy (read-only) composition rows.
+    discountPercent?: number | null;
+    markupPercent?: number | null;
     createdAt: string | null;
   };
   relationships: {
     parent?: { data: { type: 'order-items'; id: string } | null };
     bouquet?: { data: { type: 'bouquets'; id: string } | null };
     inventoryItem?: { data: { type: 'inventory-items'; id: string } | null };
+    discountReason?: { data: { type: 'discount-reasons'; id: string } | null };
+    markupReason?: { data: { type: 'discount-reasons'; id: string } | null };
   };
 }
 
@@ -224,6 +232,12 @@ export interface AdminOrderTotals {
   discountBreakdown: { flowers: number; bouquets: number; order: number };
   markup: number;
   markupBreakdown: { flowers: number; bouquets: number; order: number };
+  // Order-level discount/markup detail, so the СКИДКА/НАДБАВКА modals can
+  // redisplay the current value (PUT /orders/{id}/discount, target=order).
+  orderDiscountReasonId: string | null;
+  orderDiscountPercent: number | null;
+  orderMarkupReasonId: string | null;
+  orderMarkupPercent: number | null;
   bonusPaid: number;
   advances: number;
   grandTotal: number;

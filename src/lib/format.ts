@@ -4,6 +4,11 @@
 export const fmtMoney = (n: number): string =>
   `${new Intl.NumberFormat('ru-RU').format(Math.round(n))} ₽`;
 
+// Quantity/points formatter — up to 3 fractional digits, no unit suffix.
+// Used for «Продуктов» counts and «Оплата бонусами» amounts.
+export const fmtQty = (n: number): string =>
+  new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(n);
+
 export const fmtDate = (iso: string | null): string => {
   if (!iso) return '—';
   const d = new Date(iso);

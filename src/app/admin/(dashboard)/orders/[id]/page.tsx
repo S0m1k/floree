@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   TERMINAL_STATUSES, getOrder, getOrderComposition, getOrderStatusHistory, getOrderTags,
-  getShowcaseBouquets, getStores, getWorkers,
+  getShowcaseBouquets, getStores, getWorkers, getDiscountReasons,
 } from '@/lib/adminOrders';
 import { getAllInventoryItemsMap } from '@/lib/adminInventory';
+import { getCustomer } from '@/lib/adminCustomers';
 import { fmtDateTime } from '@/lib/format';
 import OrderStatusBadge from '@/components/admin/OrderStatusBadge';
 import OrderStatusControl from '@/components/admin/OrderStatusControl';
@@ -28,6 +29,7 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
   const tab = searchParams.tab === 'products' ? 'products' : 'info';
   const storeId = order.relationships?.store?.data?.id ?? null;
   const tagIds = order.relationships?.tags?.data?.map((t) => t.id) ?? [];
+  const customerId = order.relationships?.customer?.data?.id ?? null;
 
   const [statusHistory, stores, allTags, workers] = await Promise.all([
     getOrderStatusHistory(order.id),
@@ -36,15 +38,18 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
     getWorkers(),
   ]);
 
-  // The «Продукты» tab data (composition + pickers) is only fetched when shown.
-  const [composition, bouquets, inventoryById] =
+  // The «Продукты» tab data (composition + pickers + скидка/надбавка/бонусы
+  // context) is only fetched when shown.
+  const [composition, bouquets, inventoryById, discountReasons, customer] =
     tab === 'products'
       ? await Promise.all([
           getOrderComposition(order.id),
           getShowcaseBouquets(storeId),
           getAllInventoryItemsMap(),
+          getDiscountReasons(),
+          customerId ? getCustomer(customerId) : Promise.resolve(null),
         ])
-      : [null, [], {}];
+      : [null, [], {}, [], null];
   const inventoryItems = Object.values(inventoryById);
 
   const store = storeId ? stores.find((s) => s.id === storeId) : null;
@@ -162,6 +167,8 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
           terminal={TERMINAL_STATUSES.includes(a.status)}
           bouquets={bouquets}
           items={inventoryItems}
+          discountReasons={discountReasons}
+          customer={customer}
         />
       )}
     </div>

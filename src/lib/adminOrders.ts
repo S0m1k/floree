@@ -159,6 +159,13 @@ export async function getOrderTags(): Promise<SimpleDictEntry[]> {
   return getDict('order-tags');
 }
 
+// «Причины скидок и надбавок» — the shared discount-reasons dictionary used
+// by PUT /v1/orders/{id}/discount for both kind=discount and kind=markup
+// (admin-map §2.7, /admin/discount-reasons).
+export async function getDiscountReasons(): Promise<SimpleDictEntry[]> {
+  return getDict('discount-reasons');
+}
+
 // Flat customer list for the create-order «Клиент» select (admin-map §2.2.2).
 export async function getCustomersForSelect(): Promise<AdminCustomer[]> {
   try {
