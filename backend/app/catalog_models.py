@@ -302,7 +302,38 @@ class Customer(Base):
     customer_type: Mapped[str | None] = mapped_column(String, nullable=True)
     card_number: Mapped[str | None] = mapped_column(String, nullable=True)
     preferences: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Система лояльности (admin-map §2.5.4-2.5.6): current bonus/discount
+    # tier. Changed via PATCH /v1/customers/{id} (relationships.bonusGroup/
+    # discountGroup) or automatically by POST /v1/bonus-groups/recalculate.
+    bonus_group_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("bonus_groups.id", ondelete="SET NULL"), nullable=True
+    )
+    discount_group_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("discount_groups.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class CustomerBonusGroupHistory(Base):
+    """История изменения бонусных групп клиента (карточка клиента, вкладка
+    «Бонусы»). Written by PATCH /v1/customers/{id} (worker from the JWT,
+    is_automatic=False) and by POST /v1/bonus-groups/recalculate (worker_id
+    NULL, is_automatic=True — shown as «автоматически» in the admin table).
+    """
+
+    __tablename__ = "customer_bonus_group_history"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"), index=True)
+    old_group_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("bonus_groups.id", ondelete="SET NULL"), nullable=True
+    )
+    new_group_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("bonus_groups.id", ondelete="SET NULL"), nullable=True
+    )
+    worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    is_automatic: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class CustomerBonusHistory(Base):

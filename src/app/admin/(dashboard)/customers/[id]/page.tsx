@@ -3,10 +3,12 @@ import { notFound } from 'next/navigation';
 import {
   getCustomer, getCustomerStats, getCustomerSpend, getCustomerBonusHistory,
 } from '@/lib/adminCustomers';
+import { getBonusGroups, getCustomerBonusGroupHistory } from '@/lib/adminLoyalty';
 import { getOrders, getWorkers } from '@/lib/adminOrders';
-import { AdminCustomer, AdminCustomerStats, Worker } from '@/types';
+import { AdminBonusGroup, AdminCustomer, AdminCustomerStats, Worker } from '@/types';
 import CustomerActionsMenu from '@/components/admin/CustomerActionsMenu';
 import BonusBalanceEditor from '@/components/admin/BonusBalanceEditor';
+import BonusGroupSelector from '@/components/admin/BonusGroupSelector';
 import OrderStatusBadge from '@/components/admin/OrderStatusBadge';
 
 export const metadata = { title: 'Клиент' };
@@ -91,7 +93,13 @@ function isoDate(d: Date): string {
 
 // ---------- Вкладка «Общая информация» ----------
 
-function InfoTab({ customer, stats }: { customer: AdminCustomer; stats: AdminCustomerStats | null }) {
+function InfoTab({
+  customer, stats, bonusGroupTitle,
+}: {
+  customer: AdminCustomer;
+  stats: AdminCustomerStats | null;
+  bonusGroupTitle: string | null;
+}) {
   const a = customer.attributes;
   const phoneDigits = a.phone.replace(/\D/g, '');
   const clientSince = stats?.firstOrderAt || a.createdAt;
@@ -190,7 +198,7 @@ function InfoTab({ customer, stats }: { customer: AdminCustomer; stats: AdminCus
         <div className="admin-stat-tile">
           <div className="admin-stat-tile__title">Бонусы</div>
           <div className="admin-stat-tile__value admin-stat-tile__value--blue">{a.currentPoints}</div>
-          <div className="admin-stat-tile__footer">Бонусная группа: —</div>
+          <div className="admin-stat-tile__footer">Бонусная группа: {bonusGroupTitle || '—'}</div>
         </div>
       </div>
     </div>
@@ -329,14 +337,21 @@ async function OrdersTab({ customerId, page }: { customerId: string; page?: stri
 // ---------- Вкладка «Бонусы» ----------
 
 async function BonusesTab({
-  customer, from, to, workersById,
+  customer, from, to, workersById, groups, groupsById,
 }: {
   customer: AdminCustomer;
   from?: string;
   to?: string;
   workersById: Record<string, Worker>;
+  groups: AdminBonusGroup[];
+  groupsById: Record<string, AdminBonusGroup>;
 }) {
-  const history = await getCustomerBonusHistory(customer.id, from, to);
+  const [history, groupHistory] = await Promise.all([
+    getCustomerBonusHistory(customer.id, from, to),
+    getCustomerBonusGroupHistory(customer.id),
+  ]);
+  const currentGroupId = customer.relationships?.bonusGroup?.data?.id || null;
+  const groupTitle = (id: string | null | undefined) => (id ? groupsById[id]?.attributes.title || '—' : '—');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -344,7 +359,7 @@ async function BonusesTab({
         <p className="admin-panel__title">Лояльность</p>
         <div className="admin-field">
           <label>Бонусная группа</label>
-          <span>—</span>
+          <BonusGroupSelector customerId={customer.id} groups={groups} currentGroupId={currentGroupId} />
         </div>
         <div className="admin-field" style={{ paddingBottom: 16 }}>
           <label>Бонусы</label>
@@ -360,7 +375,22 @@ async function BonusesTab({
               <tr><th>Дата</th><th>Автор изменений</th><th>Старая бонусная группа</th><th>Новая бонусная группа</th></tr>
             </thead>
             <tbody>
-              <tr><td colSpan={4} className="admin-empty" style={{ padding: 24 }}>Изменений бонусных групп пока нет.</td></tr>
+              {groupHistory.length === 0 ? (
+                <tr><td colSpan={4} className="admin-empty" style={{ padding: 24 }}>Изменений бонусных групп пока нет.</td></tr>
+              ) : (
+                groupHistory.map((h) => {
+                  const workerId = h.relationships?.worker?.data?.id;
+                  const worker = workerId ? workersById[workerId] : null;
+                  return (
+                    <tr key={h.id}>
+                      <td>{fmtDateTime(h.attributes.changedAt)}</td>
+                      <td>{h.attributes.isAutomatic ? 'автоматически' : worker?.attributes.name || '—'}</td>
+                      <td>{groupTitle(h.relationships?.oldGroup?.data?.id)}</td>
+                      <td>{groupTitle(h.relationships?.newGroup?.data?.id)}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -425,10 +455,20 @@ export default async function AdminCustomerDetailPage({ params, searchParams }: 
   const spendFrom = searchParams.from || isoDate(monthStart);
   const spendTo = searchParams.to || isoDate(today);
 
-  // stats нужны только на «Общей информации», workers — на «Бонусах».
+  // stats/workers нужны только на «Общей информации»/«Бонусах»; bonus-group
+  // titles нужны на обеих (плитка «Бонусы» + вкладка «Бонусы»), это дешёвый
+  // справочник, поэтому просто грузим его всегда.
   const stats = tab === 'info' ? await getCustomerStats(customer.id) : null;
   const workers = tab === 'bonuses' ? await getWorkers() : [];
   const workersById: Record<string, Worker> = Object.fromEntries(workers.map((w) => [w.id, w]));
+  const bonusGroups = await getBonusGroups();
+  const bonusGroupsById: Record<string, AdminBonusGroup> = Object.fromEntries(
+    bonusGroups.map((g) => [g.id, g]),
+  );
+  const currentBonusGroupId = customer.relationships?.bonusGroup?.data?.id || null;
+  const bonusGroupTitle = currentBonusGroupId
+    ? bonusGroupsById[currentBonusGroupId]?.attributes.title || null
+    : null;
 
   return (
     <div>
@@ -457,11 +497,18 @@ export default async function AdminCustomerDetailPage({ params, searchParams }: 
         ))}
       </nav>
 
-      {tab === 'info' && <InfoTab customer={customer} stats={stats} />}
+      {tab === 'info' && <InfoTab customer={customer} stats={stats} bonusGroupTitle={bonusGroupTitle} />}
       {tab === 'spend' && <SpendTab customerId={customer.id} from={spendFrom} to={spendTo} />}
       {tab === 'orders' && <OrdersTab customerId={customer.id} page={searchParams.page} />}
       {tab === 'bonuses' && (
-        <BonusesTab customer={customer} from={searchParams.from} to={searchParams.to} workersById={workersById} />
+        <BonusesTab
+          customer={customer}
+          from={searchParams.from}
+          to={searchParams.to}
+          workersById={workersById}
+          groups={bonusGroups}
+          groupsById={bonusGroupsById}
+        />
       )}
       {(tab === 'discounts' || tab === 'florist-calendar' || tab === 'events-calendar') && (
         <div className="admin-table-wrap">

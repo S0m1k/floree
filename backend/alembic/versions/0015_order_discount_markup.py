@@ -24,7 +24,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0015_order_discount_markup"
-down_revision = "0013_order_delivery_comment"
+down_revision = "0014_customer_loyalty_groups"
 branch_labels = None
 depends_on = None
 

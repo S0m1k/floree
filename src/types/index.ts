@@ -388,6 +388,62 @@ export interface AdminCustomer {
   };
   relationships?: {
     source?: { data: { type: 'order-sources'; id: string } | null };
+    bonusGroup?: { data: { type: 'bonus-groups'; id: string } | null };
+    discountGroups?: { data: { type: 'discount-groups'; id: string }[] };
+  };
+}
+
+// Клиенты и развитие → Система лояльности (admin-map §2.5.4-2.5.6).
+
+export interface AdminBonusGroup {
+  id: string;
+  type: 'bonus-groups';
+  attributes: {
+    title: string;
+    accrualPercent: number;
+    maxPercent: number;
+    entryThreshold: number;
+    isPublic: boolean;
+    status: 'active' | 'archived';
+  };
+}
+
+export interface AdminDiscountGroup {
+  id: string;
+  type: 'discount-groups';
+  attributes: {
+    title: string;
+    discountPercent: number;
+    entryThreshold: number;
+    isPublic: boolean;
+    status: 'active' | 'archived';
+  };
+}
+
+export interface AdminBonusCard {
+  id: string;
+  type: 'bonus-cards';
+  attributes: {
+    title: string;
+    shopName: string | null;
+    status: 'active' | 'archived';
+    createdAt: string | null;
+  };
+  relationships?: {
+    logo?: { data: { type: 'images'; id: string } | null };
+  };
+}
+
+// GET /v1/customers/{id}/bonus-group-history — «История изменения бонусных
+// групп» (карточка клиента, вкладка «Бонусы»).
+export interface AdminBonusGroupHistoryEntry {
+  id: string;
+  type: 'customer-bonus-group-history';
+  attributes: { changedAt: string | null; isAutomatic: boolean };
+  relationships: {
+    oldGroup?: { data: { type: 'bonus-groups'; id: string } | null };
+    newGroup?: { data: { type: 'bonus-groups'; id: string } | null };
+    worker?: { data: { type: 'users'; id: string } | null };
   };
 }
 

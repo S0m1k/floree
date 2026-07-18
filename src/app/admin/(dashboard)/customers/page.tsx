@@ -2,7 +2,10 @@ import Link from 'next/link';
 import {
   getCustomers, getCustomerSources, getCustomerPreferences, CustomersSearchParams,
 } from '@/lib/adminCustomers';
+// Строки таблицы (вместе с меню ⋮ и массовым выбором) живут в CustomersTable;
+// CustomersNav — суб-навигация блока «Клиенты и развитие».
 import CustomersTable from '@/components/admin/CustomersTable';
+import CustomersNav from '@/components/admin/CustomersNav';
 
 export const metadata = { title: 'Клиенты' };
 
@@ -30,6 +33,7 @@ export default async function AdminCustomersPage({ searchParams }: Props) {
 
   return (
     <div>
+      <CustomersNav active="/admin/customers" />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
         <h1 className="admin-title" style={{ margin: 0 }}>Клиенты</h1>
         <div style={{ display: 'flex', gap: 10 }}>

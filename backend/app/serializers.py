@@ -271,8 +271,10 @@ def customer_resource(cust, stats: dict | None = None) -> dict:
     }
     rels = {
         "person": rel_one("persons", None),
-        "discountGroups": rel_many("discount-groups", []),
-        "bonusGroup": rel_one("bonus-groups", None),
+        "discountGroups": rel_many(
+            "discount-groups", [cust.discount_group_id] if cust.discount_group_id else []
+        ),
+        "bonusGroup": rel_one("bonus-groups", cust.bonus_group_id),
         # «Откуда узнал о нас» — the admin customer form's source select.
         "source": rel_one("order-sources", cust.source_id),
         "customerSources": rel_many("customer-sources", []),
@@ -300,6 +302,60 @@ def customer_bonus_history_resource(h) -> dict:
         "worker": rel_one("users", h.worker_id),
     }
     return resource("customer-bonus-history", h.id, a, rels)
+
+
+# ---------- loyalty (bonus groups / discount groups / bonus cards) ----------
+# admin-map §2.5.4-2.5.6 — Клиенты и развитие → Система лояльности.
+
+def bonus_group_resource(g) -> dict:
+    a = {
+        "title": g.title,
+        "accrualPercent": g.accrual_percent,
+        "maxPercent": g.max_percent,
+        "entryThreshold": g.entry_threshold,
+        "isPublic": g.is_public,
+        "status": g.status,
+    }
+    return resource("bonus-groups", g.id, a, links={"self": f"/bonus-groups/{g.id}"})
+
+
+def discount_group_resource(g) -> dict:
+    a = {
+        "title": g.title,
+        "discountPercent": g.discount_percent,
+        "entryThreshold": g.entry_threshold,
+        "isPublic": g.is_public,
+        "status": g.status,
+    }
+    return resource("discount-groups", g.id, a, links={"self": f"/discount-groups/{g.id}"})
+
+
+def bonus_card_resource(c) -> dict:
+    a = {
+        "title": c.title,
+        "shopName": c.shop_name,
+        "status": c.status,
+        "createdAt": _iso(c.created_at),
+    }
+    rels = {"logo": rel_one("images", c.logo_id)}
+    return resource("bonus-cards", c.id, a, rels, links={"self": f"/bonus-cards/{c.id}"})
+
+
+def customer_bonus_group_history_resource(h) -> dict:
+    """«История изменения бонусных групп» (карточка клиента, вкладка
+    «Бонусы»). worker is null when the change was automatic (written by
+    POST /v1/bonus-groups/recalculate) — the admin UI shows «автоматически».
+    """
+    a = {
+        "changedAt": _iso(h.changed_at),
+        "isAutomatic": h.is_automatic,
+    }
+    rels = {
+        "oldGroup": rel_one("bonus-groups", h.old_group_id),
+        "newGroup": rel_one("bonus-groups", h.new_group_id),
+        "worker": rel_one("users", h.worker_id),
+    }
+    return resource("customer-bonus-group-history", h.id, a, rels)
 
 
 # ---------- bouquets ----------
