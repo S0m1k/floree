@@ -6,6 +6,8 @@ dropped on the floor (customer, author, real timestamps), and the docNo ->
 order_number best-effort extraction.
 """
 
+from decimal import Decimal
+
 import pytest
 
 from app.etl import transforms as T
@@ -247,3 +249,185 @@ def test_index_included_users():
         "u1": {"login": "a", "status": "on"},
         "u2": {"login": None, "status": "off"},
     }
+
+
+# ---------- build_order_item_rows (order composition) ----------
+# Fixtures shaped like live GET /v1/orders/{id}?include=lines `order-lines`
+# resources (floreii.posiflora.com/api, store 04797ede-f160-408a-b54e-96b4cd7282c3).
+
+def _order_line(
+    line_id: str,
+    qty=1,
+    price=100,
+    amount=None,
+    total_amount=None,
+    item_id="item-1",
+    bouquet_id=None,
+    measure_id="measure-1",
+) -> dict:
+    amount = amount if amount is not None else qty * price
+    total_amount = total_amount if total_amount is not None else amount
+    rels = {
+        "item": {"data": {"type": "inventory-items", "id": item_id} if item_id else None},
+        "bouquet": {"data": {"type": "bouquets", "id": bouquet_id} if bouquet_id else None},
+        "measure": {"data": {"type": "measures", "id": measure_id} if measure_id else None},
+    }
+    return {
+        "type": "order-lines",
+        "id": line_id,
+        "attributes": {
+            "qty": qty,
+            "price": price,
+            "amount": amount,
+            "totalAmount": total_amount,
+            "totalAmountWithDiscount": amount,  # deliberately unreliable/unused
+            "manualSetting": False,
+        },
+        "relationships": rels,
+    }
+
+
+ITEM_TITLES = {"item-1": "Роза 60см", "item-2": "Лента упаковочная"}
+BOUQUET_TITLES = {"bq-1": "Нежность"}
+MEASURE_TITLES = {"measure-1": "Штука"}
+
+
+def test_flat_item_line_no_bouquet_relationship():
+    lines = [_order_line("line-1", qty=3, price=200, item_id="item-1")]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, BOUQUET_TITLES, MEASURE_TITLES)
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["id"] == "line-1"
+    assert row["order_id"] == "order-1"
+    assert row["parent_id"] is None
+    assert row["kind"] == "item"
+    assert row["bouquet_id"] is None
+    assert row["inventory_item_id"] == "item-1"
+    assert row["title"] == "Роза 60см"
+    assert row["unit_price"] == Decimal("200")
+    assert row["quantity"] == Decimal("3")
+    assert row["measure"] == "Штука"
+    assert row["discount"] == Decimal("0")
+
+
+def test_line_discount_is_amount_minus_total_amount():
+    # amount=3600 (qty*price), totalAmount=3060 after a 15% order discount.
+    lines = [_order_line("line-1", qty=2, price=1800, amount=3600, total_amount=3060)]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, {}, MEASURE_TITLES)
+
+    assert rows[0]["unit_price"] == Decimal("1800")
+    assert rows[0]["discount"] == Decimal("540")  # 3600 - 3060
+
+
+def test_line_markup_when_total_amount_exceeds_amount():
+    """Live case: a `manualSetting: true` line where the cashier keyed a total
+    above price*qty (price=330, qty=1, amount=330, totalAmount=1600) — must
+    surface as a markup, not silently vanish as a clamped-to-zero discount
+    (which previously under-counted the order by the full 1270 difference)."""
+    lines = [_order_line("line-1", qty=1, price=330, amount=330, total_amount=1600)]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, {}, MEASURE_TITLES)
+    assert rows[0]["discount"] == Decimal("0")
+    assert rows[0]["markup"] == Decimal("1270")
+    assert rows[0]["unit_price"] * rows[0]["quantity"] - rows[0]["discount"] + rows[0]["markup"] == Decimal("1600")
+
+
+def test_line_discount_and_markup_never_both_nonzero():
+    # A one-cent rounding wobble the other direction — still just one field.
+    lines = [_order_line("line-1", qty=1, price=100, amount=100, total_amount=100.5)]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, {}, MEASURE_TITLES)
+    assert rows[0]["discount"] == Decimal("0")
+    assert rows[0]["markup"] == Decimal("0.5")
+
+
+def test_unknown_item_id_falls_back_to_generic_title():
+    lines = [_order_line("line-1", item_id="item-unknown")]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, {}, MEASURE_TITLES)
+    assert rows[0]["title"] == "Товар"
+    # inventory_item_id is still the raw Posiflora id — FK safety (dropping
+    # ids unknown to our own catalog) is the ETL importer's job, not the
+    # pure transform's.
+    assert rows[0]["inventory_item_id"] == "item-unknown"
+
+
+def test_unknown_measure_falls_back_to_default_measure():
+    lines = [_order_line("line-1", measure_id="measure-unknown")]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, {}, {})
+    assert rows[0]["measure"] == "Штука"
+
+
+def test_bouquet_lines_grouped_under_one_synthetic_parent_row():
+    """Several lines sharing a `bouquet` relationship are the flower/material
+    breakdown of one physical bouquet (live-verified — see
+    transforms.build_order_item_rows docstring): they become nested `item`
+    component rows under one synthetic top-level `bouquet` row, not five
+    separate top-level rows."""
+    lines = [
+        _order_line("line-1", qty=4, price=370, amount=1480, total_amount=1329.69,
+                    item_id="item-1", bouquet_id="bq-1"),
+        _order_line("line-2", qty=1, price=850, amount=850, total_amount=763.67,
+                    item_id="item-2", bouquet_id="bq-1"),
+    ]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, BOUQUET_TITLES, MEASURE_TITLES)
+
+    by_kind = {"bouquet": [], "item": []}
+    for r in rows:
+        by_kind[r["kind"]].append(r)
+
+    assert len(by_kind["bouquet"]) == 1
+    parent = by_kind["bouquet"][0]
+    assert parent["id"] == "bq-1"  # the Posiflora bouquet's own id — stable across re-imports
+    assert parent["order_id"] == "order-1"
+    assert parent["parent_id"] is None
+    assert parent["bouquet_id"] == "bq-1"
+    assert parent["title"] == "Букет - Нежность"
+    assert parent["quantity"] == Decimal("1")
+    # unit_price is the sum of the components' pre-discount amount (qty*price)...
+    assert parent["unit_price"] == Decimal("4") * Decimal("370") + Decimal("1") * Decimal("850")
+    # ...and discount is the sum of their (amount - totalAmount), so the parent
+    # row alone contributes the bouquet's true post-discount total once.
+    expected_discount = (Decimal("1480") - Decimal("1329.69")) + (Decimal("850") - Decimal("763.67"))
+    assert parent["discount"] == expected_discount
+
+    assert len(by_kind["item"]) == 2
+    for comp in by_kind["item"]:
+        assert comp["parent_id"] == "bq-1"
+        assert comp["bouquet_id"] is None
+        # Components are informational only — their own discount/markup are 0
+        # so _compute_totals doesn't double-count what the parent row carries.
+        assert comp["discount"] == Decimal("0")
+        assert comp["markup"] == Decimal("0")
+    comp_by_id = {c["id"]: c for c in by_kind["item"]}
+    assert comp_by_id["line-1"]["inventory_item_id"] == "item-1"
+    assert comp_by_id["line-1"]["unit_price"] == Decimal("370")
+    assert comp_by_id["line-1"]["quantity"] == Decimal("4")
+    assert comp_by_id["line-2"]["inventory_item_id"] == "item-2"
+
+
+def test_bouquet_parent_row_precedes_its_components_in_return_order():
+    """Callers insert in list order and rely on the parent existing before its
+    children's parent_id FK is written (see import_order_lines)."""
+    lines = [_order_line("line-1", bouquet_id="bq-1")]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, BOUQUET_TITLES, MEASURE_TITLES)
+    assert rows[0]["kind"] == "bouquet"
+    assert rows[1]["kind"] == "item"
+    assert rows[1]["parent_id"] == rows[0]["id"]
+
+
+def test_unknown_bouquet_id_falls_back_to_generic_title():
+    lines = [_order_line("line-1", bouquet_id="bq-unknown")]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, {}, MEASURE_TITLES)
+    parent = next(r for r in rows if r["kind"] == "bouquet")
+    assert parent["title"] == "Букет"
+
+
+def test_mixed_order_flat_items_and_a_bouquet():
+    """An order can contain both standalone goods and a bouquet — flat rows
+    and the bouquet group coexist without cross-contamination."""
+    lines = [
+        _order_line("line-flat", qty=1, price=150, item_id="item-2"),
+        _order_line("line-bq-1", qty=2, price=300, item_id="item-1", bouquet_id="bq-1"),
+    ]
+    rows = T.build_order_item_rows("order-1", lines, ITEM_TITLES, BOUQUET_TITLES, MEASURE_TITLES)
+    kinds = sorted((r["kind"], r["parent_id"] or "") for r in rows)
+    assert kinds == [("bouquet", ""), ("item", ""), ("item", "bq-1")]

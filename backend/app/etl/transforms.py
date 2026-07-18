@@ -11,6 +11,8 @@ import re
 from datetime import datetime, date
 from decimal import Decimal
 
+from app.models import DEFAULT_MEASURE
+
 logger = logging.getLogger(__name__)
 
 
@@ -519,3 +521,151 @@ def map_movement_act(raw: dict) -> dict:
         "cost": _money(a.get("amount")), "items_count": a.get("linesCount") or 0,
         "status": a.get("status", "draft"),
     }
+
+
+# ---------- order composition (order-lines -> order_items) ----------
+# Posiflora exposes an order's composition only on the detail endpoint
+# (`GET /v1/orders/{id}?include=lines`, `included` type `order-lines`) — the
+# list endpoint carries none of it. Each `order-lines` resource is a flat
+# per-nomenclature-item row (`qty`, `price`, `amount` = qty*price,
+# `totalAmount` = the line's actual contribution to the order after any
+# order/bouquet-level discount is folded in). Verified live against 30 orders
+# (2026-07-18, store 04797ede-f160-408a-b54e-96b4cd7282c3):
+# `sum(line.totalAmount for line in order) == order.totalAmount` held for
+# every one of them (`totalAmountWithDiscount` did NOT — it is unreliable,
+# sometimes equal to `amount`, sometimes to `totalAmount`, with no consistent
+# rule found — so it is deliberately never used here).
+#
+# Hierarchy: a line optionally carries a `bouquet` relationship. When several
+# lines share the same bouquet id, they are the flower/material breakdown of
+# ONE physical bouquet (Posiflora never emits a separate "whole bouquet"
+# line) — confirmed live: every multi-line bouquet group summed its
+# `totalAmount` to exactly the bouquet's own contribution to the order total.
+# Those lines become nested `item` component rows (parent_id) under one
+# synthetic top-level `bouquet` row, mirroring the OrderItem schema's
+# parent/component design (app/models.py OrderItem docstring) and the live
+# "add bouquet to order" convention (`title = f"Букет - {bouquet.title}"`,
+# `quantity = 1` — routers/v1_sales.py add_order_item). Lines with no
+# `bouquet` relationship import flat as top-level `item` rows.
+#
+# IDs are Posiflora's own and stable across re-imports, so a plain `merge` is
+# idempotent with no synthetic-id bookkeeping needed:
+#   - flat/component `item` rows keep the order-line's own id.
+#   - the synthetic `bouquet` row uses the Posiflora *bouquet*'s own id (a
+#     bouquet belongs to exactly one order, so this can never collide).
+#
+# Discount/markup: `amount - totalAmount` when positive is a discount;
+# negative (totalAmount > amount) is a markup — live-verified on a
+# `manualSetting: true` line (price=330, qty=1, amount=330, totalAmount=1600):
+# the cashier keyed a manual total above the catalog price*qty, and dropping
+# that (clamping to a 0 discount instead of surfacing it as a markup) silently
+# undercounted the order by the full difference. Both are derived from the
+# same two fields, so exactly one of the pair is ever non-zero per line.
+# The synthetic bouquet row's own discount/markup/unit_price are the sum of
+# its components' so the bouquet contributes its true total exactly once to
+# _compute_totals' items_total (component rows are informational detail only
+# — see _compute_totals docstring, routers/v1_sales.py — and are NOT given
+# their own discount/markup, which would double-count it).
+
+
+def _line_amounts(a: dict) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    price = _money(a.get("price"))
+    qty = _qty(a.get("qty"))
+    amount = _money(a.get("amount"))
+    total_amount = _money(a.get("totalAmount"))
+    diff = amount - total_amount
+    discount = diff if diff > 0 else Decimal("0")
+    markup = -diff if diff < 0 else Decimal("0")
+    return price, qty, discount, markup
+
+
+def build_order_item_rows(
+    order_id: str,
+    lines: list[dict],
+    item_titles: dict[str, str] | None = None,
+    bouquet_titles: dict[str, str] | None = None,
+    measure_titles: dict[str, str] | None = None,
+) -> list[dict]:
+    """Posiflora order-lines for one order -> OrderItem row kwargs (id included).
+
+    `item_titles`/`bouquet_titles`/`measure_titles` are {posiflora_id: title}
+    snapshots from our already-imported catalog (items/bouquets/measures import
+    before this step — see posiflora_import.run) used to freeze a human title
+    on each row; an unknown id falls back to a generic label rather than
+    crashing (the FK itself is dropped by the caller if the id isn't known
+    locally, same convention as every other ETL importer here).
+
+    Returns bouquet parent rows first, then flat/component item rows — callers
+    that care about FK insert order (parent_id -> order_items.id) should flush
+    after inserting the bouquet rows before inserting the rest.
+    """
+    item_titles = item_titles or {}
+    bouquet_titles = bouquet_titles or {}
+    measure_titles = measure_titles or {}
+
+    flat_rows: list[dict] = []
+    bouquet_groups: dict[str, list[dict]] = {}
+
+    for raw in lines:
+        a = _attrs(raw)
+        item_id = _rel_id(raw, "item")
+        bouquet_id = _rel_id(raw, "bouquet")
+        measure_id = _rel_id(raw, "measure")
+        price, qty, discount, markup = _line_amounts(a)
+
+        row = {
+            "id": raw["id"],
+            "order_id": order_id,
+            "kind": "item",
+            "bouquet_id": None,
+            "inventory_item_id": item_id,
+            "title": item_titles.get(item_id) or "Товар",
+            "unit_price": price,
+            "quantity": qty,
+            "measure": measure_titles.get(measure_id) or DEFAULT_MEASURE,
+        }
+        if bouquet_id:
+            # Component row: informational only, no discount/markup of its
+            # own — the parent bouquet row below carries the aggregated
+            # amounts so _compute_totals doesn't double-count them.
+            row["parent_id"] = bouquet_id
+            row["discount"] = Decimal("0")
+            row["markup"] = Decimal("0")
+            bouquet_groups.setdefault(bouquet_id, []).append(
+                {**row, "_own_discount": discount, "_own_markup": markup}
+            )
+        else:
+            row["parent_id"] = None
+            row["discount"] = discount
+            row["markup"] = markup
+            flat_rows.append(row)
+
+    bouquet_rows: list[dict] = []
+    component_rows: list[dict] = []
+    for bouquet_id, components in bouquet_groups.items():
+        agg_price = sum(
+            (c["unit_price"] * c["quantity"] for c in components), Decimal("0")
+        )
+        agg_discount = sum((c["_own_discount"] for c in components), Decimal("0"))
+        agg_markup = sum((c["_own_markup"] for c in components), Decimal("0"))
+        title = bouquet_titles.get(bouquet_id)
+        bouquet_rows.append({
+            "id": bouquet_id,
+            "order_id": order_id,
+            "parent_id": None,
+            "kind": "bouquet",
+            "bouquet_id": bouquet_id,
+            "inventory_item_id": None,
+            "title": f"Букет - {title}" if title else "Букет",
+            "unit_price": agg_price,
+            "quantity": Decimal("1"),
+            "measure": DEFAULT_MEASURE,
+            "markup": agg_markup,
+            "discount": agg_discount,
+        })
+        for c in components:
+            c.pop("_own_discount", None)
+            c.pop("_own_markup", None)
+            component_rows.append(c)
+
+    return bouquet_rows + flat_rows + component_rows

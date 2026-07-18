@@ -10,10 +10,11 @@ Run on the server (needs Posiflora creds + DATABASE_URL):
 """
 
 import asyncio
+import os
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 
 from app.database import AsyncSessionLocal
 from app.services.posiflora import posiflora_request
@@ -29,7 +30,7 @@ from app.dictionary_models import (
     UnitOfMeasure, OrderTag, RecipeTag, DiscountReason, CashReason,
     CustomerPreference, CustomerSource, CustomerDealSource, CustomerCelebration,
 )
-from app.models import Order, Payment
+from app.models import Order, OrderItem, Payment
 from app.staff_models import Worker
 from app.etl import transforms as T
 
@@ -214,6 +215,98 @@ async def import_order_payments(session) -> int:
     return n
 
 
+_LINES_PROGRESS_EVERY = 100
+
+
+async def import_order_lines(session) -> tuple[int, int]:
+    """Order composition (order card «Продукты» tab) — Posiflora exposes it only
+    on the per-order detail endpoint (`GET /v1/orders/{id}?include=lines`), so
+    this is one HTTP request per order (~2051 on the live account as of
+    2026-07-18) instead of a single paginated collection fetch like every
+    other importer here.
+
+    Must run after import_orders (order_id FK), import_bouquets (bouquet_id
+    FK — a multi-line bouquet group is folded into one synthetic top-level
+    row per transforms.build_order_item_rows) and import_items (inventory_item_id
+    FK + titles).
+
+    Idempotent: existing order_items for an order are deleted before its fresh
+    rows are inserted (handles a line disappearing from Posiflora between
+    runs, not just changed values) — see build_order_item_rows for why plain
+    ids are otherwise stable enough for a merge.
+
+    Resilient: a single order's HTTP/parsing failure is caught, logged and
+    skipped — it does not abort the run. Progress prints every
+    _LINES_PROGRESS_EVERY orders.
+
+    ETL_ORDER_LINES_LIMIT env var caps how many orders are processed (for a
+    quick smoke run without a full 2000+-request pass); unset/non-numeric/<=0
+    means no limit.
+    """
+    order_ids = (await session.execute(select(Order.id))).scalars().all()
+
+    try:
+        limit = int(os.environ.get("ETL_ORDER_LINES_LIMIT") or 0)
+    except ValueError:
+        limit = 0
+    if limit > 0:
+        order_ids = order_ids[:limit]
+
+    item_titles = dict((await session.execute(select(Item.id, Item.title))).all())
+    bouquet_titles = dict((await session.execute(select(Bouquet.id, Bouquet.title))).all())
+    measure_titles = dict((await session.execute(select(UnitOfMeasure.id, UnitOfMeasure.title))).all())
+    known_items = set(item_titles.keys())
+    known_bouquets = set(bouquet_titles.keys())
+
+    total = len(order_ids)
+    orders_ok = 0
+    orders_failed = 0
+    rows_created = 0
+
+    for i, order_id in enumerate(order_ids, start=1):
+        try:
+            detail = await posiflora_request("GET", f"/v1/orders/{order_id}?include=lines")
+            lines = [x for x in (detail.get("included") or []) if x.get("type") == "order-lines"]
+
+            await session.execute(delete(OrderItem).where(OrderItem.order_id == order_id))
+
+            rows = T.build_order_item_rows(order_id, lines, item_titles, bouquet_titles, measure_titles)
+            for r in rows:
+                if r["bouquet_id"] and r["bouquet_id"] not in known_bouquets:
+                    r["bouquet_id"] = None
+                if r["inventory_item_id"] and r["inventory_item_id"] not in known_items:
+                    r["inventory_item_id"] = None
+
+            # Bouquet parent rows first so component rows' parent_id FK
+            # resolves — order_items.parent_id has no ORM relationship() to
+            # drive automatic dependency ordering (see OrderItem docstring),
+            # so this is done explicitly with a flush in between.
+            for r in rows:
+                if r["kind"] == "bouquet":
+                    await session.merge(OrderItem(**r))
+            await session.flush()
+            for r in rows:
+                if r["kind"] != "bouquet":
+                    await session.merge(OrderItem(**r))
+            await session.flush()
+
+            await session.commit()
+            rows_created += len(rows)
+            orders_ok += 1
+        except Exception as e:
+            await session.rollback()
+            orders_failed += 1
+            print(f"  [order-lines] order {order_id} failed: {e}")
+
+        if i % _LINES_PROGRESS_EVERY == 0 or i == total:
+            print(
+                f"  order-lines progress: {i}/{total} orders "
+                f"(ok={orders_ok} failed={orders_failed} rows={rows_created})"
+            )
+
+    return orders_ok, rows_created
+
+
 # reference dictionaries: (Posiflora path, model)
 _DICTS = [
     ("order-tags", OrderTag),
@@ -297,6 +390,11 @@ async def run() -> None:
         print("dictionaries:", await import_dictionaries(session))
         print("orders:", await import_orders(session))
         print("order-payments:", await import_order_payments(session))
+        # Order composition — needs orders, bouquets and items already imported
+        # (FKs); see import_order_lines docstring for why this is one request
+        # per order rather than a paginated collection fetch.
+        orders_ok, lines_created = await import_order_lines(session)
+        print(f"order-lines: {orders_ok} orders, {lines_created} rows")
         print("warehouse docs(+packing lines):", await import_warehouse_docs(session))
     print("done.")
 
