@@ -536,6 +536,7 @@ export interface AdminInventoryItem {
     itemType: 'item' | 'service';
     globalId?: string | null;
     barcode?: string | null;
+    status: 'on' | 'off' | 'deleted';
     priceMin: number;
     priceMax: number;
     public: boolean;
