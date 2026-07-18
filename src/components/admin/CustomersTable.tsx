@@ -72,7 +72,7 @@ export default function CustomersTable({ customers, total, current }: Props) {
   }
 
   return (
-    <div className="admin-table-wrap">
+    <div>
       {selected.size > 0 && (
         <div className="admin-bulk-bar">
           <span className="admin-bulk-bar__count">Выбрано: {selected.size}</span>
@@ -91,6 +91,7 @@ export default function CustomersTable({ customers, total, current }: Props) {
         </div>
       )}
 
+      <div className="admin-table-wrap">
       <table className="admin-table">
         <thead>
           <tr>
@@ -154,6 +155,7 @@ export default function CustomersTable({ customers, total, current }: Props) {
               </span>
             ))}
         </div>
+      </div>
       </div>
     </div>
   );
