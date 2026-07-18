@@ -139,6 +139,7 @@ export interface AdminOrder {
     date: string | null;
     docNo: string | null;
     description: string;
+    budget: number;
     dueTime: string | null;
     deliveryContact: string;
     deliveryPhoneNumber: string;
@@ -154,7 +155,22 @@ export interface AdminOrder {
     florist?: { data: { type: 'users'; id: string } | null };
     createdBy?: { data: { type: 'users'; id: string } | null };
     closedBy?: { data: { type: 'users'; id: string } | null };
+    // «Быстрые теги» — order-tags ids; titles resolve via the response's
+    // top-level `included` (see adminOrders.ts tagsById helpers).
+    tags?: { data: { type: 'order-tags'; id: string }[] };
   };
+}
+
+// meta.aggregates of GET /v1/orders — итоговая строка под таблицей заказов
+// (admin-map §2.2), computed over every order matching the current filters.
+export interface AdminOrderAggregates {
+  ordersTotal: number;
+  budgetTotal: number;
+  paidTotal: number;
+  creditTotal: number;
+  bonusTotal: number;
+  discountTotal: number;
+  markupTotal: number;
 }
 
 export interface AdminOrderPayment {

@@ -1,49 +1,37 @@
 import {
-  AdminCustomer, AdminOrder, AdminOrderCompositionLine, AdminOrderPayment,
+  AdminCustomer, AdminOrder, AdminOrderAggregates, AdminOrderCompositionLine, AdminOrderPayment,
   AdminOrderStatusHistoryEntry, AdminOrderTotals, AdminShowcaseBouquet,
   SimpleDictEntry, Worker,
 } from '@/types';
 import { adminFetch } from './adminApi';
 
-// Re-exported from the client-safe module so existing importers of
-// `@/lib/adminOrders` keep working; client components should import these from
-// `@/lib/orderStatus` directly to avoid pulling in the server data layer.
+// Re-exported from client-safe modules so existing importers of
+// `@/lib/adminOrders` keep working; client components should import these
+// directly from `@/lib/orderStatus` / `@/lib/ordersQuery` to avoid pulling
+// the server data layer (adminApi.ts → next/headers) into the client bundle.
 export { STATUS_TABS, TERMINAL_STATUSES } from './orderStatus';
+export {
+  FILTER_KEYS, PAGE_SIZE, PAGE_SIZE_OPTIONS,
+  buildOrdersHref, resolvePageSize,
+} from './ordersQuery';
+export type { OrdersSearchParams } from './ordersQuery';
 
-// Query params accepted by the /admin/orders page (mirrors admin-map.md §2.2
-// "Фильтр заказов"). Maps 1:1 to the /v1/orders `filter[...]` params.
-export interface OrdersSearchParams {
-  status?: string;
-  store?: string;
-  source?: string;
-  florist?: string;
-  createdBy?: string;
-  closedBy?: string;
-  createdFrom?: string;
-  createdTo?: string;
-  dueFrom?: string;
-  dueTo?: string;
-  closedFrom?: string;
-  closedTo?: string;
-  // Карточка клиента, вкладка «Заказы» — заказы одного клиента (по FK или телефону).
-  customer?: string;
-  q?: string;
-  page?: string;
-}
+import { FILTER_KEYS, resolvePageSize, OrdersSearchParams } from './ordersQuery';
 
-const FILTER_KEYS: (keyof OrdersSearchParams)[] = [
-  'status', 'store', 'source', 'florist', 'createdBy', 'closedBy',
-  'createdFrom', 'createdTo', 'dueFrom', 'dueTo', 'closedFrom', 'closedTo',
-  'customer',
-];
-
-export const PAGE_SIZE = 25;
+const EMPTY_AGGREGATES: AdminOrderAggregates = {
+  ordersTotal: 0, budgetTotal: 0, paidTotal: 0, creditTotal: 0,
+  bonusTotal: 0, discountTotal: 0, markupTotal: 0,
+};
 
 export interface OrdersListResult {
   orders: AdminOrder[];
   total: number;
   statusCounts: Record<string, number>;
-  aggregates: { totalAmount: number; paymentsAmount: number };
+  aggregates: AdminOrderAggregates;
+  // order-tags included resources, keyed by id — resolves the chip titles for
+  // orders.relationships.tags without a per-row lookup.
+  tagsById: Record<string, SimpleDictEntry>;
+  pageSize: number;
 }
 
 export async function getOrders(params: OrdersSearchParams): Promise<OrdersListResult> {
@@ -54,27 +42,44 @@ export async function getOrders(params: OrdersSearchParams): Promise<OrdersListR
   }
   if (params.q) qs.set('q', params.q);
   const page = Math.max(1, parseInt(params.page || '1', 10) || 1);
+  const pageSize = resolvePageSize(params.pageSize);
   qs.set('page[number]', String(page));
-  qs.set('page[size]', String(PAGE_SIZE));
+  qs.set('page[size]', String(pageSize));
 
   const res = await adminFetch(`/api/v1/orders?${qs.toString()}`);
   if (!res.ok) {
-    return { orders: [], total: 0, statusCounts: {}, aggregates: { totalAmount: 0, paymentsAmount: 0 } };
+    return { orders: [], total: 0, statusCounts: {}, aggregates: EMPTY_AGGREGATES, tagsById: {}, pageSize };
   }
   const json = await res.json();
+  const tagsById: Record<string, SimpleDictEntry> = {};
+  for (const inc of json.included || []) {
+    if (inc.type === 'order-tags') tagsById[inc.id] = inc;
+  }
   return {
     orders: json.data || [],
     total: json.meta?.total ?? 0,
     statusCounts: json.meta?.statusCounts ?? {},
-    aggregates: json.meta?.aggregates ?? { totalAmount: 0, paymentsAmount: 0 },
+    aggregates: json.meta?.aggregates ?? EMPTY_AGGREGATES,
+    tagsById,
+    pageSize,
   };
 }
 
-export async function getOrder(id: string): Promise<AdminOrder | null> {
+export interface OrderResult {
+  order: AdminOrder;
+  tagsById: Record<string, SimpleDictEntry>;
+}
+
+export async function getOrder(id: string): Promise<OrderResult | null> {
   const res = await adminFetch(`/api/v1/orders/${id}`);
   if (!res.ok) return null;
   const json = await res.json();
-  return json.data ?? null;
+  if (!json.data) return null;
+  const tagsById: Record<string, SimpleDictEntry> = {};
+  for (const inc of json.included || []) {
+    if (inc.type === 'order-tags') tagsById[inc.id] = inc;
+  }
+  return { order: json.data, tagsById };
 }
 
 export async function getOrderPayments(orderId: string): Promise<AdminOrderPayment[]> {
@@ -164,22 +169,6 @@ export async function getCustomersForSelect(): Promise<AdminCustomer[]> {
   } catch {
     return [];
   }
-}
-
-// Builds an /admin/orders href that preserves every current filter/search
-// param, overriding only the given keys — used by status tabs and pagination
-// links so switching tabs/pages never drops the rest of the filter panel.
-export function buildOrdersHref(
-  current: OrdersSearchParams,
-  overrides: Partial<OrdersSearchParams>
-): string {
-  const merged: Record<string, string> = {};
-  for (const [key, value] of Object.entries({ ...current, ...overrides })) {
-    if (value) merged[key] = value;
-  }
-  const qs = new URLSearchParams(merged);
-  const query = qs.toString();
-  return query ? `/admin/orders?${query}` : '/admin/orders';
 }
 
 export async function getWorkers(): Promise<Worker[]> {

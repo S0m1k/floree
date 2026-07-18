@@ -5,6 +5,7 @@ interface Props {
   current: OrdersSearchParams;
   stores: SimpleDictEntry[];
   sources: SimpleDictEntry[];
+  tags: SimpleDictEntry[];
   workers: Worker[];
 }
 
@@ -22,12 +23,13 @@ function WorkerSelect({ name, label, workers, value }: { name: string; label: st
   );
 }
 
-export default function OrdersFilterPanel({ current, stores, sources, workers }: Props) {
+export default function OrdersFilterPanel({ current, stores, sources, tags, workers }: Props) {
   return (
     <form method="GET" action="/admin/orders" className="admin-panel">
       {/* Switching a status tab is a separate GET link — keep the current tab
           selection intact when the filter form itself is submitted. */}
       {current.status && <input type="hidden" name="status" value={current.status} />}
+      {current.pageSize && <input type="hidden" name="pageSize" value={current.pageSize} />}
 
       <p className="admin-panel__title">Фильтр заказов</p>
 
@@ -76,6 +78,16 @@ export default function OrdersFilterPanel({ current, stores, sources, workers }:
           <option value="">Все точки</option>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>{s.attributes.title}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="admin-field">
+        <label htmlFor="tag">Тег</label>
+        <select id="tag" name="tag" defaultValue={current.tag || ''}>
+          <option value="">Все теги</option>
+          {tags.map((t) => (
+            <option key={t.id} value={t.id}>{t.attributes.title}</option>
           ))}
         </select>
       </div>
