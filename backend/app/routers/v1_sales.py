@@ -27,6 +27,7 @@ from app.models import (
     PAYMENT_METHODS,
     SETTLED_PAYMENT_STATUSES,
 )
+from app.dictionary_models import OrderTag
 from app.staff_models import Worker
 from app.jsonapi import document
 from app.serializers import (
@@ -37,6 +38,7 @@ from app.serializers import (
     order_item_resource,
     order_payment_resource,
     order_status_history_resource,
+    dictionary_resource,
 )
 
 from app.deps import get_current_worker
@@ -318,6 +320,16 @@ def _order_filters(qs, *, include_status: bool):
         if value:
             clauses.append(column == value)
 
+    tag = qs.get("filter[tag]")
+    if tag:
+        # tags_json is a JSON array of order-tag ids, e.g. '["<id1>","<id2>"]'.
+        # There is no JSON column type available here portably (SQLite in tests,
+        # Postgres in prod), so a LIKE substring match on the quoted id is the
+        # reliable option — every id is a fixed-length UUID, so one id can never
+        # be a substring of another, and matching the surrounding quotes rules
+        # out a false-positive substring match against a longer, unrelated id.
+        clauses.append(Order.tags_json.like(f'%"{tag}"%'))
+
     def _date_range(prefix: str, column):
         from_str, to_str = qs.get(f"filter[{prefix}From]"), qs.get(f"filter[{prefix}To]")
         if from_str:
@@ -364,6 +376,28 @@ async def _order_customer_clauses(db: AsyncSession, qs) -> list:
     return [or_(Order.customer_id == customer_id, Order.phone == cust.phone)]
 
 
+def _order_tag_ids(order: Order) -> list[str]:
+    """Быстрые теги» ids for one order (order.tags_json parsed defensively)."""
+    try:
+        return json.loads(order.tags_json) if order.tags_json else []
+    except (TypeError, ValueError):
+        return []
+
+
+async def _resolve_order_tags_included(db: AsyncSession, orders: list[Order]) -> list[dict]:
+    """Batch-resolve order-tag titles for a set of orders (no N+1): collects
+    every tag id referenced across the given orders' tags_json and loads them
+    in a single query, returned as JSON:API `included` resources.
+    """
+    ids: set[str] = set()
+    for o in orders:
+        ids.update(_order_tag_ids(o))
+    if not ids:
+        return []
+    rows = (await db.execute(select(OrderTag).where(OrderTag.id.in_(ids)))).scalars().all()
+    return [dictionary_resource(t, "order-tags") for t in rows]
+
+
 @router.get("/orders")
 async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
     qs = request.query_params
@@ -372,9 +406,10 @@ async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
     # filter[customer] needs a DB lookup (phone match), so it's resolved once
     # here and appended to every clause set below.
     customer_clauses = await _order_customer_clauses(db, qs)
+    filtered_clauses = [*_order_filters(qs, include_status=True), *customer_clauses]
 
     base = select(Order)
-    for clause in (*_order_filters(qs, include_status=True), *customer_clauses):
+    for clause in filtered_clauses:
         base = base.where(clause)
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
@@ -386,9 +421,10 @@ async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
     )
     rows = (await db.execute(stmt)).scalars().all()
     data = [order_resource(o) for o in rows]
+    included = await _resolve_order_tags_included(db, rows)
 
-    # Status-tab counts + sum aggregates honor every filter except `status`
-    # itself, so switching tabs doesn't reset the rest of the filter panel.
+    # Status-tab counts honor every filter except `status` itself, so
+    # switching tabs doesn't reset the rest of the filter panel.
     no_status_clauses = [*_order_filters(qs, include_status=False), *customer_clauses]
 
     def _scoped(*extra):
@@ -402,28 +438,51 @@ async def list_orders(request: Request, db: AsyncSession = Depends(get_db)):
         status_counts[s] = (await db.execute(_scoped(Order.status == s))).scalar_one()
     status_counts["all"] = (await db.execute(_scoped())).scalar_one()
 
+    # Aggregates row under the orders table (admin-map §2.2) — computed over
+    # every order matching the current filters (including `status`), before
+    # pagination.
     agg_stmt = select(
         func.coalesce(func.sum(Order.total_amount), 0),
+        func.coalesce(func.sum(Order.budget), 0),
+        func.coalesce(func.sum(Order.bonus_paid), 0),
+        func.coalesce(func.sum(Order.discount_total), 0),
+        func.coalesce(func.sum(Order.markup_total), 0),
     ).select_from(Order)
-    for clause in (*_order_filters(qs, include_status=True), *customer_clauses):
+    for clause in filtered_clauses:
         agg_stmt = agg_stmt.where(clause)
-    sum_total = (await db.execute(agg_stmt)).scalar_one()
+    orders_total, budget_total, bonus_total, discount_total, markup_total = (
+        await db.execute(agg_stmt)
+    ).one()
 
     paid_stmt = (
         select(func.coalesce(func.sum(Payment.amount), 0))
         .select_from(Order)
         .join(Payment, Payment.order_id == Order.id)
-        .where(Payment.status.in_(("CONFIRMED", "paid")))
+        .where(Payment.status.in_(SETTLED_PAYMENT_STATUSES))
     )
-    for clause in (*_order_filters(qs, include_status=True), *customer_clauses):
+    for clause in filtered_clauses:
         paid_stmt = paid_stmt.where(clause)
-    sum_paid = (await db.execute(paid_stmt)).scalar_one()
+    paid_total = (await db.execute(paid_stmt)).scalar_one()
 
-    return document(data, meta={
+    orders_total_f = float(orders_total)
+    paid_total_f = float(paid_total)
+    # «Кредит» — outstanding balance across the filtered orders; never negative
+    # (a customer that overpaid isn't "owed" a negative credit here).
+    credit_total = max(orders_total_f - paid_total_f, 0.0)
+
+    return document(data, included=included, meta={
         "page": {"number": number, "size": size},
         "total": total,
         "statusCounts": status_counts,
-        "aggregates": {"totalAmount": sum_total, "paymentsAmount": sum_paid},
+        "aggregates": {
+            "ordersTotal": orders_total_f,
+            "budgetTotal": float(budget_total),
+            "paidTotal": paid_total_f,
+            "creditTotal": credit_total,
+            "bonusTotal": float(bonus_total),
+            "discountTotal": float(discount_total),
+            "markupTotal": float(markup_total),
+        },
     })
 
 
@@ -433,7 +492,8 @@ async def get_order_v1(order_id: str, db: AsyncSession = Depends(get_db)):
     order = (await db.execute(stmt)).scalar_one_or_none()
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
-    return document(order_resource(order))
+    included = await _resolve_order_tags_included(db, [order])
+    return document(order_resource(order), included=included)
 
 
 @router.get("/orders/{order_id}/status-history")
@@ -577,50 +637,101 @@ async def create_order_v1(
     await db.commit()
 
     fresh = await _load_order(db, order.id)
-    return document(order_resource(fresh))
+    included = await _resolve_order_tags_included(db, [fresh])
+    return document(order_resource(fresh), included=included)
 
 
 @router.patch("/orders/{order_id}")
-async def update_order_status_v1(
+async def update_order_v1(
     order_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
     worker: Worker = Depends(get_current_worker),
 ):
-    """Change an order's CRM/fulfillment status (admin-map §2.2.1).
+    """Update an order's status and/or card fields (admin-map §2.2.1).
 
     Posiflora allows free transitions between active statuses, but terminal ones
-    (completed/cancelled/return) are read-only — attempting to move out of them
-    is a 409. Every change appends a history entry; terminal moves stamp
-    closed_at / closed_by.
+    (completed/cancelled/return) are read-only for the workflow *status* —
+    attempting to move OUT of a terminal status is a 409. Tags, the comment and
+    the budget stay editable even once the order is terminal (Posiflora keeps
+    the order card's own fields open after it closes) — only the status
+    transition itself locks. Every status change appends a history entry;
+    terminal moves stamp closed_at / closed_by. Prices/sums are never accepted
+    from the client here (memory payment-price-vuln).
     """
     body = await request.json()
-    attrs = ((body or {}).get("data") or {}).get("attributes") or {}
-    new_status = attrs.get("status")
-    if new_status not in ORDER_STATUSES:
-        raise HTTPException(
-            status_code=400, detail=f"status must be one of {ORDER_STATUSES}"
-        )
+    data = (body or {}).get("data") or {}
+    attrs = data.get("attributes") or {}
+    rels = data.get("relationships") or {}
 
     order = await _load_order(db, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    if order.status in TERMINAL_STATUSES:
+    has_status = "status" in attrs
+    new_status = attrs.get("status")
+    if has_status and new_status not in ORDER_STATUSES:
         raise HTTPException(
-            status_code=409,
-            detail=f"Order is in terminal status '{order.status}' and cannot be changed",
+            status_code=400, detail=f"status must be one of {ORDER_STATUSES}"
         )
 
-    order.status = new_status
-    if new_status in TERMINAL_STATUSES:
-        order.closed_at = datetime.utcnow()
-        order.closed_by_id = worker.id
-    db.add(OrderStatusHistory(order_id=order.id, status=new_status, worker_id=worker.id))
+    has_tags = "tags" in rels or "tags" in attrs
+    tag_ids: list[str] = []
+    if has_tags:
+        tag_ids = _rel_ids(rels, "tags") if "tags" in rels else (
+            attrs.get("tags") if isinstance(attrs.get("tags"), list) else []
+        )
+        if tag_ids:
+            existing = set(
+                (
+                    await db.execute(select(OrderTag.id).where(OrderTag.id.in_(tag_ids)))
+                ).scalars().all()
+            )
+            unknown = [t for t in tag_ids if t not in existing]
+            if unknown:
+                raise HTTPException(
+                    status_code=400, detail=f"unknown order tag id(s): {unknown}"
+                )
+
+    has_comment = "comment" in attrs or "description" in attrs
+    comment = attrs.get("comment", attrs.get("description"))
+    if has_comment and comment is not None and len(comment) > COMMENT_MAX_LEN:
+        raise HTTPException(
+            status_code=400, detail=f"comment exceeds {COMMENT_MAX_LEN} characters"
+        )
+
+    has_budget = "budget" in attrs
+    budget = attrs.get("budget")
+    if has_budget and budget is not None:
+        try:
+            budget = float(budget)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="budget must be a number")
+
+    if has_status:
+        if order.status in TERMINAL_STATUSES:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Order is in terminal status '{order.status}' and cannot be changed",
+            )
+        order.status = new_status
+        if new_status in TERMINAL_STATUSES:
+            order.closed_at = datetime.utcnow()
+            order.closed_by_id = worker.id
+        db.add(OrderStatusHistory(order_id=order.id, status=new_status, worker_id=worker.id))
+
+    if has_tags:
+        order.tags_json = json.dumps(tag_ids) if tag_ids else None
+    if has_comment:
+        order.comment = comment
+    if has_budget:
+        order.budget = budget
+
     await db.commit()
 
     fresh = await _load_order(db, order.id)
-    return document(order_resource(fresh))
+    included = await _resolve_order_tags_included(db, [fresh])
+    return document(order_resource(fresh), included=included)
 
 
 @router.get("/payments")

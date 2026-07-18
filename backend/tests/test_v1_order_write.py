@@ -225,3 +225,224 @@ async def test_status_change_requires_auth(client, seed_refs):
         json={"data": {"attributes": {"status": "assembled"}}},
     )
     assert resp.status_code == 401
+
+
+# ---------- order tags: read, PATCH, filter, aggregates ----------
+
+
+async def test_order_response_includes_tag_titles(client, worker_token, seed_refs):
+    created = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    order_id = created.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/orders/{order_id}", headers=_auth(worker_token))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["data"]["relationships"]["tags"]["data"][0]["id"] == seed_refs["tag_id"]
+    included = {(i["type"], i["id"]): i for i in body.get("included", [])}
+    tag_res = included[("order-tags", seed_refs["tag_id"])]
+    assert tag_res["attributes"]["title"] == "WOW эффект"
+
+
+async def test_order_list_includes_tag_titles_without_n_plus_1(client, worker_token, seed_refs):
+    await client.post("/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token))
+    await client.post("/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token))
+
+    resp = await client.get("/api/v1/orders", headers=_auth(worker_token))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["data"]) >= 2
+    tag_included = [i for i in body.get("included", []) if i["type"] == "order-tags"]
+    # One tag used by every seeded order — de-duplicated to a single included resource.
+    assert len(tag_included) == 1
+    assert tag_included[0]["id"] == seed_refs["tag_id"]
+
+
+async def test_patch_tags_updates_order(client, worker_token, seed_refs):
+    async with TestingSessionLocal() as db:
+        other_tag = OrderTag(title="Срочно")
+        db.add(other_tag)
+        await db.commit()
+        other_tag_id = other_tag.id
+
+    created = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    order_id = created.json()["data"]["id"]
+
+    patch = await client.patch(
+        f"/api/v1/orders/{order_id}",
+        json={
+            "data": {
+                "type": "orders",
+                "relationships": {
+                    "tags": {"data": [{"type": "order-tags", "id": other_tag_id}]}
+                },
+            }
+        },
+        headers=_auth(worker_token),
+    )
+    assert patch.status_code == 200, patch.text
+    tag_ids = [t["id"] for t in patch.json()["data"]["relationships"]["tags"]["data"]]
+    assert tag_ids == [other_tag_id]
+
+
+async def test_patch_unknown_tag_is_400(client, worker_token, seed_refs):
+    created = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    order_id = created.json()["data"]["id"]
+
+    patch = await client.patch(
+        f"/api/v1/orders/{order_id}",
+        json={
+            "data": {
+                "type": "orders",
+                "relationships": {
+                    "tags": {"data": [{"type": "order-tags", "id": "does-not-exist"}]}
+                },
+            }
+        },
+        headers=_auth(worker_token),
+    )
+    assert patch.status_code == 400
+
+
+async def test_patch_tags_and_comment_on_terminal_order_is_allowed(client, worker_token, seed_refs):
+    created = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    order_id = created.json()["data"]["id"]
+    await client.patch(
+        f"/api/v1/orders/{order_id}",
+        json={"data": {"attributes": {"status": "completed"}}},
+        headers=_auth(worker_token),
+    )
+
+    patch = await client.patch(
+        f"/api/v1/orders/{order_id}",
+        json={
+            "data": {
+                "type": "orders",
+                "attributes": {"comment": "Обновили после закрытия"},
+                "relationships": {"tags": {"data": []}},
+            }
+        },
+        headers=_auth(worker_token),
+    )
+    assert patch.status_code == 200, patch.text
+    a = patch.json()["data"]["attributes"]
+    assert a["description"] == "Обновили после закрытия"
+    assert patch.json()["data"]["relationships"]["tags"]["data"] == []
+
+
+async def test_patch_status_on_terminal_order_still_409(client, worker_token, seed_refs):
+    created = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    order_id = created.json()["data"]["id"]
+    await client.patch(
+        f"/api/v1/orders/{order_id}",
+        json={"data": {"attributes": {"status": "completed"}}},
+        headers=_auth(worker_token),
+    )
+
+    patch = await client.patch(
+        f"/api/v1/orders/{order_id}",
+        json={"data": {"attributes": {"status": "new"}}},
+        headers=_auth(worker_token),
+    )
+    assert patch.status_code == 409
+
+
+async def test_patch_overlong_comment_is_400(client, worker_token, seed_refs):
+    created = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    order_id = created.json()["data"]["id"]
+
+    patch = await client.patch(
+        f"/api/v1/orders/{order_id}",
+        json={"data": {"attributes": {"comment": "x" * 501}}},
+        headers=_auth(worker_token),
+    )
+    assert patch.status_code == 400
+
+
+async def test_filter_by_tag_returns_only_matching_orders(client, worker_token, seed_refs):
+    async with TestingSessionLocal() as db:
+        other_tag = OrderTag(title="Без тега")
+        db.add(other_tag)
+        await db.commit()
+        other_tag_id = other_tag.id
+
+    tagged = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    tagged_id = tagged.json()["data"]["id"]
+
+    untagged_body = _create_body(seed_refs)
+    del untagged_body["data"]["relationships"]["tags"]
+    await client.post("/api/v1/orders", json=untagged_body, headers=_auth(worker_token))
+
+    resp = await client.get(
+        f"/api/v1/orders?filter[tag]={seed_refs['tag_id']}", headers=_auth(worker_token)
+    )
+    assert resp.status_code == 200
+    ids = [o["id"] for o in resp.json()["data"]]
+    assert ids == [tagged_id]
+
+    # A tag that exists but is never applied returns an empty set, not everything.
+    resp_empty = await client.get(
+        f"/api/v1/orders?filter[tag]={other_tag_id}", headers=_auth(worker_token)
+    )
+    assert resp_empty.json()["data"] == []
+
+
+async def test_order_list_aggregates_arithmetic(client, worker_token, seed_refs):
+    first = await client.post(
+        "/api/v1/orders",
+        json=_create_body(seed_refs, budget=1000),
+        headers=_auth(worker_token),
+    )
+    second = await client.post(
+        "/api/v1/orders",
+        json=_create_body(seed_refs, budget=2000),
+        headers=_auth(worker_token),
+    )
+    first_id = first.json()["data"]["id"]
+    second_id = second.json()["data"]["id"]
+
+    # Give each order a priced composition line + a settled advance so
+    # ordersTotal/paidTotal/creditTotal have non-trivial values to check.
+    async with TestingSessionLocal() as db:
+        from app.catalog_models import Store
+        from app.models import Order, Payment
+
+        store = (await db.execute(select(Store).where(Store.id == seed_refs["store_id"]))).scalar_one()
+        for order_id, total, paid in ((first_id, 3000, 1200), (second_id, 5000, 5000)):
+            order = (await db.execute(select(Order).where(Order.id == order_id))).scalar_one()
+            order.total_amount = total
+            order.discount_total = 100
+            order.markup_total = 50
+            order.bonus_paid = 10
+            db.add(Payment(
+                order_id=order_id, tbank_payment_id=None,
+                tbank_order_id=f"manual-{order_id}", amount=paid, status="CONFIRMED",
+                method="cash", kind="advance",
+            ))
+        await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/orders?filter[store]={seed_refs['store_id']}", headers=_auth(worker_token)
+    )
+    assert resp.status_code == 200
+    agg = resp.json()["meta"]["aggregates"]
+    assert agg["ordersTotal"] == 8000  # 3000 + 5000
+    assert agg["budgetTotal"] == 3000  # 1000 + 2000
+    assert agg["paidTotal"] == 6200  # 1200 + 5000
+    assert agg["creditTotal"] == 1800  # 8000 - 6200
+    assert agg["bonusTotal"] == 20  # 10 + 10
+    assert agg["discountTotal"] == 200  # 100 + 100
+    assert agg["markupTotal"] == 100  # 50 + 50
