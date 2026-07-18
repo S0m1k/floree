@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/customers', label: 'Список клиентов' },
       { label: 'Аналитика', disabled: true },
       { label: 'Импорт клиентов', disabled: true },
-      { label: 'Система лояльности', disabled: true },
+      { href: '/admin/bonuses', label: 'Система лояльности' },
     ],
   },
   {

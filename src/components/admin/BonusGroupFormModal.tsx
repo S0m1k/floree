@@ -1,0 +1,138 @@
+'use client';
+
+import { useState } from 'react';
+import { AdminBonusGroup } from '@/types';
+
+const TITLE_MAX = 100;
+
+interface Props {
+  group?: AdminBonusGroup; // present -> edit, absent -> create
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+// «Создать» / edit modal for a bonus group (admin-map §2.5.4): title, %
+// начисления, макс. % оплаты, порог входа, публичная группа, статус.
+export default function BonusGroupFormModal({ group, onClose, onSaved }: Props) {
+  const isEdit = Boolean(group);
+  const [title, setTitle] = useState(group?.attributes.title || '');
+  const [accrualPercent, setAccrualPercent] = useState(String(group?.attributes.accrualPercent ?? 0));
+  const [maxPercent, setMaxPercent] = useState(String(group?.attributes.maxPercent ?? 0));
+  const [entryThreshold, setEntryThreshold] = useState(String(group?.attributes.entryThreshold ?? 0));
+  const [isPublic, setIsPublic] = useState(group?.attributes.isPublic ?? true);
+  const [status, setStatus] = useState<'active' | 'archived'>(group?.attributes.status || 'active');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!title.trim()) { setError('Укажите название группы'); return; }
+
+    const accrual = Number(accrualPercent);
+    const max = Number(maxPercent);
+    const threshold = Number(entryThreshold);
+    if (!Number.isInteger(accrual) || accrual < 0 || accrual > 100) {
+      setError('% к начислению — целое число от 0 до 100'); return;
+    }
+    if (!Number.isInteger(max) || max < 0 || max > 100) {
+      setError('Максимальный % — целое число от 0 до 100'); return;
+    }
+    if (!Number.isInteger(threshold) || threshold < 0) {
+      setError('Порог входа не может быть отрицательным'); return;
+    }
+
+    const attributes = {
+      title: title.trim(),
+      accrualPercent: accrual,
+      maxPercent: max,
+      entryThreshold: threshold,
+      isPublic,
+      status,
+    };
+
+    setSaving(true);
+    try {
+      const url = isEdit ? `/admin/api/bonus-groups/${group!.id}` : '/admin/api/bonus-groups';
+      const res = await fetch(url, {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { type: 'bonus-groups', attributes } }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof json.detail === 'string' ? json.detail : 'Не удалось сохранить группу');
+      }
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Что-то пошло не так');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="admin-modal-backdrop" role="dialog" aria-modal="true" aria-label={isEdit ? 'Редактировать бонусную группу' : 'Создать бонусную группу'}>
+      <div className="admin-modal" style={{ width: 480 }}>
+        <div className="admin-modal__head">
+          <p className="admin-modal__title">{isEdit ? 'Редактировать бонусную группу' : 'Создать бонусную группу'}</p>
+          <button type="button" className="admin-modal__close" onClick={onClose} aria-label="Закрыть">×</button>
+        </div>
+
+        <form onSubmit={save}>
+          <div className="admin-modal__body">
+            <div className="admin-field">
+              <label htmlFor="bg-title">Название группы *</label>
+              <input
+                id="bg-title" value={title} maxLength={TITLE_MAX}
+                onChange={(e) => setTitle(e.target.value)} required autoFocus
+              />
+            </div>
+            <div className="admin-field-grid">
+              <div className="admin-field">
+                <label htmlFor="bg-accrual">% к начислению</label>
+                <input
+                  id="bg-accrual" type="number" min={0} max={100} value={accrualPercent}
+                  onChange={(e) => setAccrualPercent(e.target.value)}
+                />
+              </div>
+              <div className="admin-field">
+                <label htmlFor="bg-max">Максимальный % оплаты</label>
+                <input
+                  id="bg-max" type="number" min={0} max={100} value={maxPercent}
+                  onChange={(e) => setMaxPercent(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="admin-field">
+              <label htmlFor="bg-threshold">Порог входа, ₽</label>
+              <input
+                id="bg-threshold" type="number" min={0} value={entryThreshold}
+                onChange={(e) => setEntryThreshold(e.target.value)}
+              />
+            </div>
+            <div className="admin-field">
+              <label htmlFor="bg-status">Статус</label>
+              <select id="bg-status" value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'archived')}>
+                <option value="active">Активна</option>
+                <option value="archived">Архив</option>
+              </select>
+            </div>
+            <div className="admin-field">
+              <label className="admin-checkbox">
+                <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
+                Публичная группа
+              </label>
+            </div>
+            {error && <div className="admin-form-error">{error}</div>}
+          </div>
+          <div className="admin-form-actions" style={{ padding: '0 20px 20px' }}>
+            <button type="button" className="admin-btn" onClick={onClose} disabled={saving}>Отмена</button>
+            <button type="submit" className="admin-btn admin-btn--primary" disabled={saving}>
+              {saving ? 'Сохраняем…' : isEdit ? 'Сохранить' : 'Создать'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
