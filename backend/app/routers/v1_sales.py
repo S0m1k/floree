@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.catalog_models import Store, Customer, Bouquet
+from app.catalog_models import Store, Customer, Bouquet, CustomerBonusHistory
 from app.inventory_models import Item
 from app.models import (
     Order,
@@ -27,7 +27,7 @@ from app.models import (
     PAYMENT_METHODS,
     SETTLED_PAYMENT_STATUSES,
 )
-from app.dictionary_models import OrderTag
+from app.dictionary_models import OrderTag, DiscountReason
 from app.staff_models import Worker
 from app.jsonapi import document
 from app.serializers import (
@@ -772,6 +772,21 @@ def _dec(value) -> Decimal:
         return Decimal(0)
 
 
+def _opt_float(value) -> float | None:
+    """Like _dec, but preserves None (for optional display-only percent
+    columns, where None means "this discount/markup wasn't set as a percent",
+    distinct from 0%)."""
+    return None if value is None else float(_dec(value))
+
+
+# «Скидка/Надбавка» — PUT /orders/{id}/discount (admin-map §2.2.1). The client
+# picks kind/target/mode/value/reason only; the resulting money amount is
+# always computed server-side (memory payment-price-vuln).
+DISCOUNT_MARKUP_KINDS = ("discount", "markup")
+DISCOUNT_MARKUP_TARGETS = ("order", "item")
+DISCOUNT_MARKUP_MODES = ("percent", "amount")
+
+
 async def _load_order_full(db: AsyncSession, order_id: str) -> Order | None:
     # populate_existing: after a write in the same request the session already
     # holds this Order with stale items/payments collections; a plain re-select
@@ -854,6 +869,13 @@ def _compute_totals(order: Order, items: list[OrderItem], payments: list[Payment
             "bouquets": f(markup_bouquets),
             "order": f(markup_order),
         },
+        # Order-level discount/markup detail — how it was entered (percent vs a
+        # flat amount) and its reason, for the «Продукты» summary panel's
+        # СКИДКА/НАДБАВКА modals to redisplay the current value when reopened.
+        "orderDiscountReasonId": order.discount_reason_id,
+        "orderDiscountPercent": _opt_float(order.discount_percent),
+        "orderMarkupReasonId": order.markup_reason_id,
+        "orderMarkupPercent": _opt_float(order.markup_percent),
         "bonusPaid": f(bonus_paid),
         "advances": f(advances),
         "grandTotal": f(grand_total),
@@ -924,6 +946,10 @@ def _legacy_composition(order: Order) -> tuple[list[dict], dict] | None:
         "discountBreakdown": {"flowers": 0.0, "bouquets": 0.0, "order": 0.0},
         "markup": 0.0,
         "markupBreakdown": {"flowers": 0.0, "bouquets": 0.0, "order": 0.0},
+        "orderDiscountReasonId": None,
+        "orderDiscountPercent": None,
+        "orderMarkupReasonId": None,
+        "orderMarkupPercent": None,
         "bonusPaid": f(bonus_paid),
         "advances": f(advances),
         "grandTotal": f(grand_total),
@@ -998,6 +1024,18 @@ async def _recalc_total(db: AsyncSession, order: Order) -> None:
     await db.refresh(order, ["items", "payments"])
     totals = _compute_totals(order, list(order.items), list(order.payments))
     order.total_amount = Decimal(str(totals["grandTotal"]))
+
+
+def _current_totals(order: Order) -> dict:
+    """Totals for whatever composition the order currently has: real
+    order_items (_compute_totals) or, for legacy ETL/checkout orders that
+    predate them, the frozen bouquet_ids snapshot (_legacy_composition)."""
+    if order.items:
+        return _compute_totals(order, list(order.items), list(order.payments))
+    legacy = _legacy_composition(order)
+    if legacy is not None:
+        return legacy[1]
+    return _compute_totals(order, [], list(order.payments))
 
 
 def _bouquet_component_rows(bouquet: Bouquet, parent_id: str) -> list[OrderItem]:
@@ -1165,10 +1203,7 @@ async def add_order_payment(
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Сумма должна быть больше нуля")
 
-    totals = _compute_totals(order, list(order.items), list(order.payments)) if order.items else None
-    if totals is None:
-        legacy = _legacy_composition(order)
-        totals = legacy[1] if legacy else _compute_totals(order, [], list(order.payments))
+    totals = _current_totals(order)
     to_pay = _dec(totals["toPay"])
     if amount > to_pay:
         raise HTTPException(
@@ -1186,6 +1221,251 @@ async def add_order_payment(
         created_by_id=worker.id,
     )
     db.add(payment)
+    await db.commit()
+
+    fresh = await _load_order_full(db, order.id)
+    return await _composition_response(db, fresh)
+
+
+# ==========================================================================
+# Скидка/надбавка на заказ или строку состава + оплата бонусами
+# (admin-map §2.2.1, итоговая панель). Amounts are always computed here from
+# the target's own base — the client only sends kind/target/mode/value/reason
+# (memory payment-price-vuln).
+# ==========================================================================
+
+
+async def _validate_reason(db: AsyncSession, reason_id: str | None) -> None:
+    if reason_id is None:
+        return
+    exists = (
+        await db.execute(select(DiscountReason.id).where(DiscountReason.id == reason_id))
+    ).scalar_one_or_none()
+    if exists is None:
+        raise HTTPException(status_code=400, detail="Неизвестная причина скидки/надбавки")
+
+
+@router.put("/orders/{order_id}/discount")
+async def set_order_discount(
+    order_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """Скидка/надбавка на весь заказ или на одну строку состава.
+
+    Body: {kind: 'discount'|'markup', target: 'order'|'item', itemId?,
+    mode: 'percent'|'amount', value>=0, reasonId?}. `value` is a percent
+    (0..100) or a flat ruble amount depending on `mode` — the resulting money
+    amount is computed here (base = the item's own unit_price×quantity, or the
+    order's itemsTotal) and can never exceed that base. Replaces whatever
+    discount/markup was previously set on the same target (not additive).
+    """
+    order = await _load_order_full(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status in TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Order is in terminal status '{order.status}' and cannot be changed",
+        )
+
+    body = await request.json() or {}
+    kind = body.get("kind")
+    if kind not in DISCOUNT_MARKUP_KINDS:
+        raise HTTPException(status_code=400, detail=f"kind must be one of {DISCOUNT_MARKUP_KINDS}")
+    target = body.get("target")
+    if target not in DISCOUNT_MARKUP_TARGETS:
+        raise HTTPException(status_code=400, detail=f"target must be one of {DISCOUNT_MARKUP_TARGETS}")
+    mode = body.get("mode")
+    if mode not in DISCOUNT_MARKUP_MODES:
+        raise HTTPException(status_code=400, detail=f"mode must be one of {DISCOUNT_MARKUP_MODES}")
+
+    try:
+        value = _dec(body.get("value"))
+    except (InvalidOperation, ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="value must be a number")
+    if value < 0:
+        raise HTTPException(status_code=400, detail="value must be >= 0")
+
+    reason_id = body.get("reasonId")
+    await _validate_reason(db, reason_id)
+
+    target_item: OrderItem | None = None
+    if target == "item":
+        item_id = body.get("itemId")
+        target_item = next((it for it in order.items if it.id == item_id), None)
+        if target_item is None:
+            raise HTTPException(status_code=400, detail="itemId должен принадлежать заказу")
+        base = _dec(target_item.unit_price) * _dec(target_item.quantity)
+    else:
+        totals_now = _compute_totals(order, list(order.items), list(order.payments))
+        base = _dec(totals_now["itemsTotal"])
+
+    if mode == "percent":
+        if value > 100:
+            raise HTTPException(status_code=400, detail="value must be between 0 and 100")
+        amount = (base * value / Decimal(100)).quantize(Decimal("0.01"))
+        percent = value
+    else:
+        amount = value
+        if amount > base:
+            raise HTTPException(
+                status_code=400, detail="Сумма не может превышать базу для скидки/надбавки"
+            )
+        percent = None
+
+    if target_item is not None:
+        if kind == "discount":
+            target_item.discount = amount
+            target_item.discount_reason_id = reason_id
+            target_item.discount_percent = percent
+        else:
+            target_item.markup = amount
+            target_item.markup_reason_id = reason_id
+            target_item.markup_percent = percent
+    else:
+        if kind == "discount":
+            order.discount_total = amount
+            order.discount_reason_id = reason_id
+            order.discount_percent = percent
+        else:
+            order.markup_total = amount
+            order.markup_reason_id = reason_id
+            order.markup_percent = percent
+
+    await db.flush()
+    await _recalc_total(db, order)
+    await db.commit()
+
+    fresh = await _load_order_full(db, order.id)
+    return await _composition_response(db, fresh)
+
+
+@router.delete("/orders/{order_id}/discount")
+async def clear_order_discount(
+    order_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """Снять скидку/надбавку — query params target=order|item[&itemId=...]
+    &kind=discount|markup."""
+    order = await _load_order_full(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status in TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Order is in terminal status '{order.status}' and cannot be changed",
+        )
+
+    qs = request.query_params
+    kind = qs.get("kind")
+    if kind not in DISCOUNT_MARKUP_KINDS:
+        raise HTTPException(status_code=400, detail=f"kind must be one of {DISCOUNT_MARKUP_KINDS}")
+    target = qs.get("target")
+    if target not in DISCOUNT_MARKUP_TARGETS:
+        raise HTTPException(status_code=400, detail=f"target must be one of {DISCOUNT_MARKUP_TARGETS}")
+
+    target_item: OrderItem | None = None
+    if target == "item":
+        item_id = qs.get("itemId")
+        target_item = next((it for it in order.items if it.id == item_id), None)
+        if target_item is None:
+            raise HTTPException(status_code=400, detail="itemId должен принадлежать заказу")
+
+    if target_item is not None:
+        if kind == "discount":
+            target_item.discount = Decimal(0)
+            target_item.discount_reason_id = None
+            target_item.discount_percent = None
+        else:
+            target_item.markup = Decimal(0)
+            target_item.markup_reason_id = None
+            target_item.markup_percent = None
+    else:
+        if kind == "discount":
+            order.discount_total = Decimal(0)
+            order.discount_reason_id = None
+            order.discount_percent = None
+        else:
+            order.markup_total = Decimal(0)
+            order.markup_reason_id = None
+            order.markup_percent = None
+
+    await db.flush()
+    await _recalc_total(db, order)
+    await db.commit()
+
+    fresh = await _load_order_full(db, order.id)
+    return await _composition_response(db, fresh)
+
+
+@router.put("/orders/{order_id}/bonus-payment")
+async def set_order_bonus_payment(
+    order_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """«Оплата бонусами» (admin-map §2.2.1, итоговая панель). {"amount": >= 0}.
+
+    1 бонус == 1 рубль. Replaces any previous bonus payment on this order —
+    the old amount is returned to the customer's balance first, so calling
+    this twice never double-charges (and a follow-up amount=0 fully reverses
+    it). Cannot exceed the customer's own bonus balance or the order's
+    «К оплате» (before this bonus is applied).
+    """
+    order = await _load_order_full(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    customer_id = getattr(order, "customer_id", None)
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="У заказа не выбран клиент")
+    customer = (
+        await db.execute(select(Customer).where(Customer.id == customer_id))
+    ).scalar_one_or_none()
+    if customer is None:
+        raise HTTPException(status_code=400, detail="Клиент не найден")
+
+    body = await request.json() or {}
+    try:
+        amount = _dec(body.get("amount"))
+    except (InvalidOperation, ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="amount must be a number")
+    if amount < 0:
+        raise HTTPException(status_code=400, detail="amount must be >= 0")
+
+    old_amount = _dec(order.bonus_paid)
+    # Returning the previous charge to the balance first is what makes a
+    # repeat call replace rather than stack (memory: never double-charge).
+    available_balance = Decimal(customer.bonus_balance or 0) + old_amount
+    if amount > available_balance:
+        raise HTTPException(status_code=400, detail="Сумма превышает баланс бонусов клиента")
+
+    totals = _current_totals(order)
+    grand_total = _dec(totals["grandTotal"])
+    advances = _dec(totals["advances"])
+    to_pay_without_bonus = grand_total - advances
+    if to_pay_without_bonus < 0:
+        to_pay_without_bonus = Decimal(0)
+    if amount > to_pay_without_bonus:
+        raise HTTPException(status_code=400, detail="Сумма превышает сумму к оплате")
+
+    delta = amount - old_amount
+    if delta != 0:
+        customer.bonus_balance = int(available_balance - amount)
+        db.add(CustomerBonusHistory(
+            customer_id=customer.id,
+            amount=int(-delta),
+            comment=f"Оплата заказа №{order.order_number or order.id}",
+            order_id=order.id,
+            worker_id=worker.id,
+        ))
+    order.bonus_paid = amount
+
     await db.commit()
 
     fresh = await _load_order_full(db, order.id)

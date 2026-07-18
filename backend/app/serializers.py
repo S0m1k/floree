@@ -478,6 +478,8 @@ def order_item_resource(item) -> dict:
     discount = _num(item.discount)
     original = round(unit * qty, 2)
     total = round(original - discount + markup, 2)
+    discount_percent = getattr(item, "discount_percent", None)
+    markup_percent = getattr(item, "markup_percent", None)
     a = {
         "kind": item.kind,
         "title": item.title,
@@ -488,6 +490,10 @@ def order_item_resource(item) -> dict:
         "discount": discount,
         "originalSum": original,
         "sum": total,
+        # How the discount/markup was entered — percent is display-only, the
+        # money columns above stay authoritative (PUT /orders/{id}/discount).
+        "discountPercent": float(discount_percent) if discount_percent is not None else None,
+        "markupPercent": float(markup_percent) if markup_percent is not None else None,
         "createdAt": _iso(item.created_at),
     }
     rels = {
@@ -495,6 +501,8 @@ def order_item_resource(item) -> dict:
         "order": rel_one("orders", item.order_id),
         "bouquet": rel_one("bouquets", item.bouquet_id),
         "inventoryItem": rel_one("inventory-items", item.inventory_item_id),
+        "discountReason": rel_one("discount-reasons", getattr(item, "discount_reason_id", None)),
+        "markupReason": rel_one("discount-reasons", getattr(item, "markup_reason_id", None)),
     }
     return resource("order-items", item.id, a, rels)
 
