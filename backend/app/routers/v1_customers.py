@@ -14,11 +14,16 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.catalog_models import Customer, CustomerBonusHistory
+from app.catalog_models import Customer, CustomerBonusHistory, CustomerBonusGroupHistory
+from app.loyalty_models import BonusGroup, DiscountGroup
 from app.models import Order
 from app.staff_models import Worker
 from app.jsonapi import document, resource
-from app.serializers import customer_resource, customer_bonus_history_resource
+from app.serializers import (
+    customer_resource,
+    customer_bonus_history_resource,
+    customer_bonus_group_history_resource,
+)
 from app.deps import get_current_worker
 
 router = APIRouter(
@@ -167,10 +172,20 @@ async def update_customer(
     db: AsyncSession = Depends(get_db),
     worker: Worker = Depends(get_current_worker),
 ):
-    """Edit a customer (admin form) and/or adjust the bonus balance.
+    """Edit a customer (admin form), adjust the bonus balance, and/or change
+    their loyalty group assignment.
 
     A `bonusBalance` attribute is treated as a manual correction: the delta is
     appended to customer_bonus_history with the author from the JWT.
+
+    A `relationships.bonusGroup`/`relationships.discountGroup` entry changes
+    the customer's tier (admin-map §2.5.4-2.5.6, customer card «Бонусы» tab).
+    This reuses the general customer PATCH instead of a dedicated
+    `/loyalty` route — a group assignment is just another customer field, the
+    same way `bonusBalance` already is on this endpoint, and the admin card's
+    save flow already PATCHes this route for everything else on the page.
+    A bonus-group change is logged to customer_bonus_group_history (the
+    discount group isn't — Posiflora has no equivalent history screen for it).
     """
     body = await request.json()
     data = (body or {}).get("data") or {}
@@ -224,6 +239,41 @@ async def update_customer(
                 )
             )
         customer.bonus_balance = new_balance
+
+    if "bonusGroup" in rels:
+        new_group_id = _rel_id(rels, "bonusGroup")
+        if new_group_id is not None:
+            exists = (
+                await db.execute(select(BonusGroup.id).where(BonusGroup.id == new_group_id))
+            ).scalar_one_or_none()
+            if exists is None:
+                raise HTTPException(status_code=400, detail="Бонусная группа не найдена")
+        if new_group_id != customer.bonus_group_id:
+            db.add(
+                CustomerBonusGroupHistory(
+                    customer_id=customer.id,
+                    old_group_id=customer.bonus_group_id,
+                    new_group_id=new_group_id,
+                    worker_id=worker.id,
+                    is_automatic=False,
+                )
+            )
+            customer.bonus_group_id = new_group_id
+
+    # «discountGroup» (singular) on write — our schema keeps one discount
+    # group per customer even though the read side echoes it back as the
+    # (0-or-1-item) Posiflora-shaped `discountGroups` relationship.
+    if "discountGroup" in rels:
+        new_discount_group_id = _rel_id(rels, "discountGroup")
+        if new_discount_group_id is not None:
+            exists = (
+                await db.execute(
+                    select(DiscountGroup.id).where(DiscountGroup.id == new_discount_group_id)
+                )
+            ).scalar_one_or_none()
+            if exists is None:
+                raise HTTPException(status_code=400, detail="Скидочная группа не найдена")
+        customer.discount_group_id = new_discount_group_id
 
     await db.commit()
     await db.refresh(customer)
@@ -337,3 +387,21 @@ async def get_customer_bonus_history(
         await db.execute(stmt.order_by(CustomerBonusHistory.created_at.desc()))
     ).scalars().all()
     return document([customer_bonus_history_resource(h) for h in rows])
+
+
+@router.get("/customers/{customer_id}/bonus-group-history")
+async def get_customer_bonus_group_history(
+    customer_id: str, db: AsyncSession = Depends(get_db)
+):
+    """«История изменения бонусных групп» (customer card, Бонусы tab) — every
+    manual (PATCH /v1/customers/{id}) or automatic
+    (POST /v1/bonus-groups/recalculate) tier change for this customer."""
+    customer = await _load_customer(db, customer_id)
+    rows = (
+        await db.execute(
+            select(CustomerBonusGroupHistory)
+            .where(CustomerBonusGroupHistory.customer_id == customer.id)
+            .order_by(CustomerBonusGroupHistory.changed_at.desc())
+        )
+    ).scalars().all()
+    return document([customer_bonus_group_history_resource(h) for h in rows])
