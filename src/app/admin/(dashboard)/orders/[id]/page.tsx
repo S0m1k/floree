@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
-  TERMINAL_STATUSES, getOrder, getOrderComposition, getOrderStatusHistory,
+  TERMINAL_STATUSES, getOrder, getOrderComposition, getOrderStatusHistory, getOrderTags,
   getShowcaseBouquets, getStores, getWorkers,
 } from '@/lib/adminOrders';
 import { getAllInventoryItemsMap } from '@/lib/adminInventory';
@@ -9,6 +9,8 @@ import { fmtDateTime } from '@/lib/format';
 import OrderStatusBadge from '@/components/admin/OrderStatusBadge';
 import OrderStatusControl from '@/components/admin/OrderStatusControl';
 import OrderProductsTab from '@/components/admin/OrderProductsTab';
+import OrderTagsEditor from '@/components/admin/OrderTagsEditor';
+import OrderCommentEditor from '@/components/admin/OrderCommentEditor';
 
 export const metadata = { title: 'Заказ' };
 
@@ -18,16 +20,19 @@ interface Props {
 }
 
 export default async function AdminOrderDetailPage({ params, searchParams }: Props) {
-  const order = await getOrder(params.id);
-  if (!order) notFound();
+  const result = await getOrder(params.id);
+  if (!result) notFound();
+  const { order, tagsById } = result;
 
   const a = order.attributes;
   const tab = searchParams.tab === 'products' ? 'products' : 'info';
   const storeId = order.relationships?.store?.data?.id ?? null;
+  const tagIds = order.relationships?.tags?.data?.map((t) => t.id) ?? [];
 
-  const [statusHistory, stores, workers] = await Promise.all([
+  const [statusHistory, stores, allTags, workers] = await Promise.all([
     getOrderStatusHistory(order.id),
     getStores(),
+    getOrderTags(),
     getWorkers(),
   ]);
 
@@ -98,6 +103,16 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
                 </tbody>
               </table>
             </div>
+          </section>
+
+          <section className="admin-panel">
+            <p className="admin-panel__title">Быстрые теги</p>
+            <OrderTagsEditor orderId={order.id} allTags={allTags} tagIds={tagIds} tagsById={tagsById} />
+          </section>
+
+          <section className="admin-panel">
+            <p className="admin-panel__title">Комментарий</p>
+            <OrderCommentEditor orderId={order.id} comment={a.description || ''} />
           </section>
 
           <section className="admin-panel">

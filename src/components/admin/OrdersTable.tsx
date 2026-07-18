@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AdminOrder, Worker } from '@/types';
+import { AdminOrder, SimpleDictEntry, Worker } from '@/types';
 import { OrdersSearchParams, PAGE_SIZE, buildOrdersHref } from '@/lib/adminOrders';
 import OrderStatusBadge from './OrderStatusBadge';
 
@@ -15,11 +15,13 @@ interface Props {
   total: number;
   current: OrdersSearchParams;
   workersById: Record<string, Worker>;
+  tagsById?: Record<string, SimpleDictEntry>;
+  pageSize?: number;
 }
 
-export default function OrdersTable({ orders, total, current, workersById }: Props) {
+export default function OrdersTable({ orders, total, current, workersById, tagsById = {}, pageSize = PAGE_SIZE }: Props) {
   const page = Math.max(1, parseInt(current.page || '1', 10) || 1);
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   if (orders.length === 0) {
     return (
@@ -37,6 +39,7 @@ export default function OrdersTable({ orders, total, current, workersById }: Pro
             <th>№</th>
             <th>Статус</th>
             <th>Клиент</th>
+            <th>Теги</th>
             <th>Дата/время создания</th>
             <th>Автор заказа</th>
             <th>Дата/время завершения</th>
@@ -47,6 +50,7 @@ export default function OrdersTable({ orders, total, current, workersById }: Pro
             const a = o.attributes;
             const createdById = o.relationships?.createdBy?.data?.id;
             const author = createdById ? workersById[createdById]?.attributes.name : null;
+            const tagIds = o.relationships?.tags?.data?.map((t) => t.id) || [];
             return (
               <tr key={o.id}>
                 <td><Link href={`/admin/orders/${o.id}`}>{a.docNo || o.id.slice(0, 8)}</Link></td>
@@ -54,6 +58,19 @@ export default function OrdersTable({ orders, total, current, workersById }: Pro
                 <td>
                   <div>{a.deliveryContact || '—'}</div>
                   <div style={{ color: 'var(--admin-text-3)', fontSize: 12 }}>{a.deliveryPhoneNumber}</div>
+                </td>
+                <td>
+                  {tagIds.length === 0 ? (
+                    '—'
+                  ) : (
+                    <div className="admin-chips" style={{ gap: 4 }}>
+                      {tagIds.map((id) => (
+                        <span key={id} className="admin-chip admin-chip--active" style={{ padding: '2px 8px', fontSize: 12 }}>
+                          {tagsById[id]?.attributes.title || id}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td>{fmtDateTime(a.createdAt)}</td>
                 <td>{author || '—'}</td>

@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import {
-  getOrders, getStores, getOrderSources, getWorkers,
+  getOrders, getStores, getOrderSources, getOrderTags, getWorkers,
   STATUS_TABS, buildOrdersHref, OrdersSearchParams,
 } from '@/lib/adminOrders';
 import { Worker } from '@/types';
 import OrdersFilterPanel from '@/components/admin/OrdersFilterPanel';
 import OrdersTable from '@/components/admin/OrdersTable';
+import PageSizeSelect from '@/components/admin/PageSizeSelect';
 
 export const metadata = { title: 'Заказы' };
 
@@ -16,12 +17,14 @@ interface Props {
 }
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
-  const [{ orders, total, statusCounts, aggregates }, stores, sources, workers] = await Promise.all([
-    getOrders(searchParams),
-    getStores(),
-    getOrderSources(),
-    getWorkers(),
-  ]);
+  const [{ orders, total, statusCounts, aggregates, tagsById, pageSize }, stores, sources, tags, workers] =
+    await Promise.all([
+      getOrders(searchParams),
+      getStores(),
+      getOrderSources(),
+      getOrderTags(),
+      getWorkers(),
+    ]);
 
   const workersById: Record<string, Worker> = Object.fromEntries(workers.map((w) => [w.id, w]));
   const activeStatus = searchParams.status || '';
@@ -59,19 +62,50 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       </form>
 
       <div className="admin-layout">
-        <OrdersFilterPanel current={searchParams} stores={stores} sources={sources} workers={workers} />
+        <OrdersFilterPanel current={searchParams} stores={stores} sources={sources} tags={tags} workers={workers} />
 
         <div>
-          <OrdersTable orders={orders} total={total} current={searchParams} workersById={workersById} />
+          <OrdersTable
+            orders={orders}
+            total={total}
+            current={searchParams}
+            workersById={workersById}
+            tagsById={tagsById}
+            pageSize={pageSize}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <PageSizeSelect current={searchParams} />
+          </div>
 
           <div className="admin-aggregates">
             <div className="admin-aggregate">
               <span className="admin-aggregate__label">Сумма заказов</span>
-              <span className="admin-aggregate__value">{fmtMoney(aggregates.totalAmount)}</span>
+              <span className="admin-aggregate__value">{fmtMoney(aggregates.ordersTotal)}</span>
+            </div>
+            <div className="admin-aggregate">
+              <span className="admin-aggregate__label">Бюджет</span>
+              <span className="admin-aggregate__value">{fmtMoney(aggregates.budgetTotal)}</span>
             </div>
             <div className="admin-aggregate">
               <span className="admin-aggregate__label">Оплачено</span>
-              <span className="admin-aggregate__value">{fmtMoney(aggregates.paymentsAmount)}</span>
+              <span className="admin-aggregate__value">{fmtMoney(aggregates.paidTotal)}</span>
+            </div>
+            <div className="admin-aggregate">
+              <span className="admin-aggregate__label">Кредит</span>
+              <span className="admin-aggregate__value">{fmtMoney(aggregates.creditTotal)}</span>
+            </div>
+            <div className="admin-aggregate">
+              <span className="admin-aggregate__label">Бонусы</span>
+              <span className="admin-aggregate__value">{fmtMoney(aggregates.bonusTotal)}</span>
+            </div>
+            <div className="admin-aggregate">
+              <span className="admin-aggregate__label">Скидка</span>
+              <span className="admin-aggregate__value">{fmtMoney(aggregates.discountTotal)}</span>
+            </div>
+            <div className="admin-aggregate">
+              <span className="admin-aggregate__label">Надбавка</span>
+              <span className="admin-aggregate__value">{fmtMoney(aggregates.markupTotal)}</span>
             </div>
           </div>
         </div>
