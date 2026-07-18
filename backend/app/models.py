@@ -102,13 +102,25 @@ class Order(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # Order-level money adjustments shown on the «Продукты» итоговая панель
-    # (admin-map §2.2.1). Kept at 0 in this track — order-level discount/markup
-    # has no admin UI yet — but persisted so the panel and total stay honest
-    # once it lands. Per-line adjustments live on OrderItem instead.
+    # (admin-map §2.2.1), set via PUT /v1/orders/{id}/discount (target=order).
+    # Per-line adjustments live on OrderItem instead.
     markup_total: Mapped[Decimal] = mapped_column(Money, default=0)
     discount_total: Mapped[Decimal] = mapped_column(Money, default=0)
-    # «Оплата бонусами» — bonuses spent against this order (0 for now).
+    # «Оплата бонусами» — bonuses spent against this order, set via
+    # PUT /v1/orders/{id}/bonus-payment. 1 bonus point == 1 ruble.
     bonus_paid: Mapped[Decimal] = mapped_column(Money, default=0)
+    # How the order-level discount/markup was entered — percent is display-only
+    # (discount_total/markup_total above stay authoritative for money math);
+    # the reason is picked from the shared «Причины скидок и надбавок»
+    # dictionary (discount_reasons, admin-map §2.7).
+    discount_reason_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("discount_reasons.id"), nullable=True
+    )
+    discount_percent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    markup_reason_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("discount_reasons.id"), nullable=True
+    )
+    markup_percent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
 
     # store/source/florist/created_by/closed_by are plain FKs, resolved by a
     # separate lookup where needed — matching the rest of the codebase's
@@ -154,6 +166,16 @@ class OrderItem(Base):
     measure: Mapped[str] = mapped_column(String, default=DEFAULT_MEASURE)
     markup: Mapped[Decimal] = mapped_column(Money, default=0)  # rubles, per line
     discount: Mapped[Decimal] = mapped_column(Money, default=0)  # rubles, per line
+    # Same percent/reason detail as Order.discount_*/markup_* above, but for a
+    # per-line discount/markup (PUT /v1/orders/{id}/discount, target=item).
+    discount_reason_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("discount_reasons.id"), nullable=True
+    )
+    discount_percent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    markup_reason_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("discount_reasons.id"), nullable=True
+    )
+    markup_percent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     # No self-referential ORM relationship: the parent/child tree is small and
