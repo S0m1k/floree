@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import time
 import uuid
@@ -8,34 +9,78 @@ _token_cache: dict = {"access_token": None, "expires_at": 0}
 # Posiflora inventory-group id for "Рецепты" (specifications)
 RECIPES_GROUP_ID = "9"
 
+# Shared client so a long run (the ETL makes hundreds of paginated calls) reuses
+# one TLS connection instead of re-handshaking per request — the per-request
+# client this used to open exhausted the remote and surfaced as ConnectTimeout
+# a few dozen requests in.
+_client: httpx.AsyncClient | None = None
+_client_lock = asyncio.Lock()
+
+# Transient network faults are retried with backoff; everything else propagates.
+_RETRY_EXCEPTIONS = (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError, httpx.RemoteProtocolError)
+_MAX_ATTEMPTS = 4
+
+
+async def _get_client() -> httpx.AsyncClient:
+    global _client
+    async with _client_lock:
+        if _client is None or _client.is_closed:
+            _client = httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0, connect=30.0),
+                limits=httpx.Limits(max_keepalive_connections=4, max_connections=8),
+            )
+        return _client
+
+
+async def close_client() -> None:
+    """Release the shared client (call at the end of a standalone script)."""
+    global _client
+    if _client is not None and not _client.is_closed:
+        await _client.aclose()
+    _client = None
+
 
 async def _get_token() -> str:
     if _token_cache["access_token"] and time.time() < _token_cache["expires_at"]:
         return _token_cache["access_token"]
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{settings.posiflora_base_url}/v1/sessions",
-            headers={"Content-Type": "application/vnd.api+json"},
-            json={
-                "data": {
-                    "type": "sessions",
-                    "attributes": {
-                        "username": settings.posiflora_username,
-                        "password": settings.posiflora_password,
-                    },
-                }
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        attrs = data["data"]["attributes"]
-        _token_cache["access_token"] = attrs["accessToken"]
-        # Cache until 1 min before expiry
-        from datetime import datetime
-        expire_dt = datetime.fromisoformat(attrs["expireAt"])
-        _token_cache["expires_at"] = expire_dt.timestamp() - 60
-        return _token_cache["access_token"]
+    client = await _get_client()
+    resp = await _with_retry(
+        client.post,
+        f"{settings.posiflora_base_url}/v1/sessions",
+        headers={"Content-Type": "application/vnd.api+json"},
+        json={
+            "data": {
+                "type": "sessions",
+                "attributes": {
+                    "username": settings.posiflora_username,
+                    "password": settings.posiflora_password,
+                },
+            }
+        },
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    attrs = data["data"]["attributes"]
+    _token_cache["access_token"] = attrs["accessToken"]
+    # Cache until 1 min before expiry
+    from datetime import datetime
+    expire_dt = datetime.fromisoformat(attrs["expireAt"])
+    _token_cache["expires_at"] = expire_dt.timestamp() - 60
+    return _token_cache["access_token"]
+
+
+async def _with_retry(fn, *args, **kwargs):
+    """Call `fn`, retrying transient network faults with exponential backoff."""
+    delay = 1.0
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            return await fn(*args, **kwargs)
+        except _RETRY_EXCEPTIONS:
+            if attempt == _MAX_ATTEMPTS:
+                raise
+            await asyncio.sleep(delay)
+            delay *= 2
 
 
 async def posiflora_request(method: str, path: str, **kwargs):
@@ -45,16 +90,17 @@ async def posiflora_request(method: str, path: str, **kwargs):
         "Content-Type": "application/vnd.api+json",
         "Accept": "application/vnd.api+json",
     }
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.request(
-            method,
-            f"{settings.posiflora_base_url}{path}",
-            headers=headers,
-            **kwargs,
-        )
-        if not resp.is_success:
-            raise Exception(f"Posiflora error {resp.status_code}: {resp.text}")
-        return resp.json()
+    client = await _get_client()
+    resp = await _with_retry(
+        client.request,
+        method,
+        f"{settings.posiflora_base_url}{path}",
+        headers=headers,
+        **kwargs,
+    )
+    if not resp.is_success:
+        raise Exception(f"Posiflora error {resp.status_code}: {resp.text}")
+    return resp.json()
 
 
 # ---------- Recipes (Posiflora specifications) ----------

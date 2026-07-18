@@ -33,14 +33,19 @@ from app.models import Order, Payment
 from app.etl import transforms as T
 
 
-async def _fetch_page(path: str, page: int, size: int = 200) -> dict:
+# Posiflora caps page[size] at 100 — a larger value is rejected with
+# 422 "Page size must be leas or equal than 100" (their spelling).
+PAGE_SIZE = 100
+
+
+async def _fetch_page(path: str, page: int, size: int = PAGE_SIZE) -> dict:
     sep = "&" if "?" in path else "?"
     return await posiflora_request(
         "GET", f"{path}{sep}page%5Bnumber%5D={page}&page%5Bsize%5D={size}"
     )
 
 
-async def _fetch_all(path: str, size: int = 200) -> tuple[list, list]:
+async def _fetch_all(path: str, size: int = PAGE_SIZE) -> tuple[list, list]:
     """Return (data, included) across all pages."""
     data, included, page = [], [], 1
     while True:
