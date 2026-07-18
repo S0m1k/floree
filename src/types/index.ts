@@ -526,6 +526,7 @@ export interface AdminVendor {
     description: string | null;
     email: string | null;
     phone: string | null;
+    isSystem?: boolean;
   };
 }
 
@@ -547,7 +548,9 @@ export interface AdminWarehouseDoc {
     linesCount: number;
     createdAt: string;
     posted: boolean;
+    postedAt?: string | null;
     status: string;
+    reason?: string | null;
   };
   relationships: {
     store?: { data: { type: 'stores'; id: string } | null };
