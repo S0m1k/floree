@@ -437,7 +437,12 @@ export default async function AdminCustomerDetailPage({ params, searchParams }: 
         <h1 className="admin-title" style={{ margin: 0, flex: 1 }}>
           {customer.attributes.title || 'Без имени'}
         </h1>
-        <CustomerActionsMenu editHref={`/admin/customers/${customer.id}/edit`} />
+        <CustomerActionsMenu
+          customerId={customer.id}
+          customerName={customer.attributes.title || 'Без имени'}
+          editHref={`/admin/customers/${customer.id}/edit`}
+          afterDeleteHref="/admin/customers"
+        />
       </div>
 
       <nav className="admin-tabs">

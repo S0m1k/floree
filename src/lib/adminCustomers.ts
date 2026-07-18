@@ -6,20 +6,18 @@ import {
   SimpleDictEntry,
 } from '@/types';
 import { adminFetch } from './adminApi';
+import { PAGE_SIZE, CustomersSearchParams, buildCustomersHref } from './adminCustomersShared';
 
-export const PAGE_SIZE = 25;
+export { PAGE_SIZE, buildCustomersHref };
+export type { CustomersSearchParams };
 
-export interface CustomersSearchParams {
-  source?: string;
-  gender?: string;
-  registeredFrom?: string;
-  registeredTo?: string;
-  q?: string;
-  page?: string;
-}
+// Cap for the «Экспорт клиентов» CSV — the whole filtered selection, not just
+// the current page. 437 live Posiflora customers fit comfortably under this.
+export const EXPORT_PAGE_SIZE = 5000;
 
 const FILTER_KEYS: (keyof CustomersSearchParams)[] = [
-  'source', 'gender', 'registeredFrom', 'registeredTo',
+  'source', 'gender', 'customerType', 'preferences', 'amountFrom', 'amountTo',
+  'registeredFrom', 'registeredTo',
 ];
 
 export interface CustomersListResult {
@@ -27,16 +25,26 @@ export interface CustomersListResult {
   total: number;
 }
 
-export async function getCustomers(params: CustomersSearchParams): Promise<CustomersListResult> {
+// Shared by getCustomers() and the CSV export route handler — the filter[...]
+// query the backend understands, without paging.
+export function customersFilterQuery(params: CustomersSearchParams): URLSearchParams {
   const qs = new URLSearchParams();
   for (const key of FILTER_KEYS) {
     const value = params[key];
     if (value) qs.set(`filter[${key}]`, value);
   }
   if (params.q) qs.set('q', params.q);
+  return qs;
+}
+
+export async function getCustomers(
+  params: CustomersSearchParams,
+  pageSize: number = PAGE_SIZE,
+): Promise<CustomersListResult> {
+  const qs = customersFilterQuery(params);
   const page = Math.max(1, parseInt(params.page || '1', 10) || 1);
   qs.set('page[number]', String(page));
-  qs.set('page[size]', String(PAGE_SIZE));
+  qs.set('page[size]', String(pageSize));
 
   const res = await adminFetch(`/api/v1/customers?${qs.toString()}`);
   if (!res.ok) return { customers: [], total: 0 };
@@ -102,15 +110,13 @@ export async function getCustomerSources(): Promise<SimpleDictEntry[]> {
   }
 }
 
-export function buildCustomersHref(
-  current: CustomersSearchParams,
-  overrides: Partial<CustomersSearchParams>
-): string {
-  const merged: Record<string, string> = {};
-  for (const [key, value] of Object.entries({ ...current, ...overrides })) {
-    if (value) merged[key] = value;
+export async function getCustomerPreferences(): Promise<SimpleDictEntry[]> {
+  try {
+    const res = await adminFetch(`/api/v1/customer-preferences?page[size]=200`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch {
+    return [];
   }
-  const qs = new URLSearchParams(merged);
-  const query = qs.toString();
-  return query ? `/admin/customers?${query}` : '/admin/customers';
 }
