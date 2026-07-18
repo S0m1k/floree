@@ -581,6 +581,10 @@ def vendor_resource(v) -> dict:
         "phone": v.phone,
         "phoneValid": bool(v.phone),
         "countryCode": 7,
+        # Our own extension (not a Posiflora field) — gates the admin UI's
+        # edit/delete affordances for system vendors (Прямая поставка,
+        # Уценка, …), which the backend also refuses to delete (400).
+        "isSystem": bool(v.is_system),
     }
     rels = {"person": rel_one("persons", None)}
     return resource("vendors", v.id, a, rels, links={"self": f"/vendors/{v.id}"})

@@ -5,6 +5,7 @@ import {
 } from '@/types';
 import { getDocConfig } from '@/lib/adminWarehouseDocs';
 import { fmtMoney, fmtDate } from '@/lib/format';
+import WarehouseDocActions from './WarehouseDocActions';
 
 function relId(rel?: { data: { id: string } | null }): string | undefined {
   return rel?.data?.id;
@@ -106,6 +107,9 @@ export default function WarehouseDocCard({
         <span className={`admin-doc-status admin-doc-status--${a.posted ? 'posted' : 'draft'}`}>
           {a.posted ? 'Проведён' : 'Черновик'}
         </span>
+        <div style={{ marginLeft: 'auto' }}>
+          <WarehouseDocActions docType={docType} docId={doc.id} posted={a.posted} />
+        </div>
       </div>
 
       <div className="admin-metric-grid">

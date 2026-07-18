@@ -104,6 +104,9 @@ def writeoff_invoice_resource(doc, lines: list | None = None) -> dict:
         "link": None,
         "idParent": None,
         "description": None,
+        # Free-text reason (or a cash-reasons id) chosen on write — the
+        # writeoff_invoices.reason column, not a modeled FK relationship.
+        "reason": doc.reason,
     }
     rels = {
         "createdBy": rel_one("workers", doc.worker_id),
@@ -143,7 +146,7 @@ def inventory_act_resource(doc, lines: list | None = None) -> dict:
         "linesCount": doc.items_count,
         "createdAt": _iso(doc.created_at),
         "posted": _posted(doc.status),
-        "postedAt": None,
+        "postedAt": _date(doc.posted_date),
         "calculated": True,
         "processing": False,
         "footnote": None,
@@ -185,7 +188,7 @@ def sorting_act_resource(doc, lines: list | None = None) -> dict:
         "linesCount": doc.items_count,
         "amount": 0,
         "posted": _posted(doc.status),
-        "postedAt": None,
+        "postedAt": _date(doc.posted_date),
         "calculated": True,
         "processing": False,
     }
@@ -227,7 +230,7 @@ def markdown_act_resource(doc, lines: list | None = None) -> dict:
         "linesCount": doc.items_count,
         "createdAt": _iso(doc.created_at),
         "posted": _posted(doc.status),
-        "postedAt": None,
+        "postedAt": _date(doc.posted_date),
         "calculated": True,
         "processing": False,
         "status": doc.status,

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { getVendors, buildVendorsHref, VendorsSearchParams, PAGE_SIZE } from '@/lib/adminVendors';
 import WarehouseNav from '@/components/admin/WarehouseNav';
+import VendorCreateButton from '@/components/admin/VendorCreateButton';
+import VendorRowActions from '@/components/admin/VendorRowActions';
 
 export const metadata = { title: 'Поставщики' };
 
@@ -19,9 +21,7 @@ export default async function AdminVendorsPage({ searchParams }: Props) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 className="admin-title" style={{ marginBottom: 0 }}>Поставщики</h1>
-        <button className="admin-btn" disabled title="Пока недоступно" style={{ height: 36, marginBottom: 16 }}>
-          Создать поставщика
-        </button>
+        <VendorCreateButton />
       </div>
 
       {vendors.length === 0 ? (
@@ -47,7 +47,7 @@ export default async function AdminVendorsPage({ searchParams }: Props) {
                     <td>{a.phone || '—'}</td>
                     <td>{a.email || '—'}</td>
                     <td>{a.description || '—'}</td>
-                    <td><button className="admin-btn" disabled style={{ height: 28, padding: '0 8px' }}>⋮</button></td>
+                    <td><VendorRowActions vendor={v} /></td>
                   </tr>
                 );
               })}

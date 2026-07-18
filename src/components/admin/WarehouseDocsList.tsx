@@ -63,10 +63,7 @@ function getColumns(docType: AdminWarehouseDocType, route: string, ctx: Ctx): Co
         { label: 'Дата', render: (d) => fmtDate(d.attributes.date) },
         { label: 'Сумма', render: (d) => fmtMoney(d.attributes.amount) },
         linesCol,
-        // The WriteoffInvoice.reason column (backend/app/inventory_models.py)
-        // isn't emitted by writeoff_invoice_resource yet (serializers_docs.py)
-        // — placeholder until the backend adds it to the attributes.
-        { label: 'Причина списания', render: () => '—' },
+        { label: 'Причина списания', render: (d) => d.attributes.reason || '—' },
         { label: 'Точка продаж', render: store },
         { label: 'Сотрудник', render: author },
       ];
@@ -74,9 +71,7 @@ function getColumns(docType: AdminWarehouseDocType, route: string, ctx: Ctx): Co
       return [
         statusCol, numberCol,
         { label: 'Дата создания', render: (d) => fmtDate(d.attributes.date) },
-        // The API stores a single `date` (created_date) per doc — posted_date
-        // isn't serialized, so this falls back to the same date once posted.
-        { label: 'Дата проведения', render: (d) => (d.attributes.posted ? fmtDate(d.attributes.date) : '—') },
+        { label: 'Дата проведения', render: (d) => fmtDate(d.attributes.postedAt ?? null) },
         linesCol,
         { label: 'Точка продаж', render: store },
         { label: 'Автор', render: author },
@@ -85,7 +80,7 @@ function getColumns(docType: AdminWarehouseDocType, route: string, ctx: Ctx): Co
       return [
         statusCol, numberCol,
         { label: 'Дата создания', render: (d) => fmtDate(d.attributes.date) },
-        { label: 'Дата проведения', render: (d) => (d.attributes.posted ? fmtDate(d.attributes.date) : '—') },
+        { label: 'Дата проведения', render: (d) => fmtDate(d.attributes.postedAt ?? null) },
         linesCol,
         { label: 'Точка продаж', render: store },
       ];
@@ -93,7 +88,7 @@ function getColumns(docType: AdminWarehouseDocType, route: string, ctx: Ctx): Co
       return [
         statusCol, numberCol,
         { label: 'Дата акта', render: (d) => fmtDate(d.attributes.date) },
-        { label: 'Дата проведения', render: (d) => (d.attributes.posted ? fmtDate(d.attributes.date) : '—') },
+        { label: 'Дата проведения', render: (d) => fmtDate(d.attributes.postedAt ?? null) },
         linesCol,
         {
           label: 'Финансовый результат',
@@ -146,9 +141,13 @@ export default function WarehouseDocsList({
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <h1 className="admin-title" style={{ marginBottom: 0 }}>{cfg.title}</h1>
-        <button className="admin-btn" disabled title="Пока недоступно" style={{ height: 36, marginBottom: 16 }}>
+        <Link
+          href={`/admin/${cfg.route}/create`}
+          className="admin-btn admin-btn--primary"
+          style={{ height: 36, marginBottom: 16, display: 'inline-flex', alignItems: 'center' }}
+        >
           {cfg.createLabel}
-        </button>
+        </Link>
       </div>
 
       {cfg.hasStoreFilter && (
