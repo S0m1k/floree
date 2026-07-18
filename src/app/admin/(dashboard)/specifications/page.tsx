@@ -1,22 +1,23 @@
 import Link from 'next/link';
 import {
-  getSpecifications, getCategories, specImageUrl, buildSpecificationsHref,
-  PAGE_SIZE, SpecificationsSearchParams,
+  getSpecifications, getCategories, buildSpecificationsHref,
+  PAGE_SIZE, SpecificationsSearchParams, SPECIFICATION_SORT_OPTIONS,
 } from '@/lib/adminCatalog';
+import { getWorkers } from '@/lib/adminOrders';
 import BouquetsNav from '@/components/admin/BouquetsNav';
+import SpecificationsGrid from '@/components/admin/SpecificationsGrid';
 
 export const metadata = { title: 'Рецепты' };
-
-const fmtMoney = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
 
 interface Props {
   searchParams: SpecificationsSearchParams;
 }
 
 export default async function AdminSpecificationsPage({ searchParams }: Props) {
-  const [{ specifications, imagesById, total }, categories] = await Promise.all([
+  const [{ specifications, imagesById, tagsById, total }, categories, workers] = await Promise.all([
     getSpecifications(searchParams),
     getCategories(),
+    getWorkers(),
   ]);
 
   const page = Math.max(1, parseInt(searchParams.page || '1', 10) || 1);
@@ -51,7 +52,7 @@ export default async function AdminSpecificationsPage({ searchParams }: Props) {
         </Link>
       </nav>
 
-      <form method="GET" action="/admin/specifications" className="admin-search" style={{ alignItems: 'center' }}>
+      <form method="GET" action="/admin/specifications" className="admin-search" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
         {searchParams.archive === 'true' && <input type="hidden" name="archive" value="true" />}
         <select name="category" defaultValue={searchParams.category || ''} className="admin-inline-select">
           <option value="">Все категории</option>
@@ -64,7 +65,18 @@ export default async function AdminSpecificationsPage({ searchParams }: Props) {
           <option value="true">На сайте</option>
           <option value="false">Не на сайте</option>
         </select>
-        <input type="text" name="q" defaultValue={searchParams.q || ''} placeholder="Название рецепта…" style={{ flex: 1 }} />
+        <select name="author" defaultValue={searchParams.author || ''} className="admin-inline-select">
+          <option value="">Все авторы</option>
+          {workers.map((w) => (
+            <option key={w.id} value={w.id}>{w.attributes.name}</option>
+          ))}
+        </select>
+        <select name="sort" defaultValue={searchParams.sort || '-updatedAt'} className="admin-inline-select">
+          {SPECIFICATION_SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <input type="text" name="q" defaultValue={searchParams.q || ''} placeholder="Название рецепта…" style={{ flex: 1, minWidth: 180 }} />
         <button type="submit" className="admin-btn admin-btn--primary">Найти</button>
       </form>
 
@@ -72,35 +84,7 @@ export default async function AdminSpecificationsPage({ searchParams }: Props) {
         <div className="admin-table-wrap"><div className="admin-empty">Рецепты не найдены — попробуйте изменить фильтры.</div></div>
       ) : (
         <>
-          <div className="admin-card-grid">
-            {specifications.map((spec) => {
-              const a = spec.attributes;
-              const imageUrl = specImageUrl(spec, imagesById);
-              const priceRange = a.minPrice === a.maxPrice
-                ? fmtMoney(a.minPrice)
-                : `${fmtMoney(a.minPrice)} – ${fmtMoney(a.maxPrice)}`;
-              return (
-                <Link key={spec.id} href={`/admin/specifications/${spec.id}`} className="admin-recipe-card">
-                  <div className="admin-recipe-card__photo">
-                    {imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- external Posiflora CDN images, not under next/image domains
-                      <img src={imageUrl} alt={a.title} />
-                    ) : (
-                      <span className="material-symbols-outlined admin-recipe-card__placeholder">local_florist</span>
-                    )}
-                    <span className={`admin-recipe-card__status admin-recipe-card__status--${a.public ? 'on' : 'off'}`}>
-                      {a.public ? 'На сайте' : 'Не на сайте'}
-                    </span>
-                  </div>
-                  <div className="admin-recipe-card__body">
-                    <div className="admin-recipe-card__title">{a.title}</div>
-                    <div className="admin-recipe-card__price">{priceRange}</div>
-                    <div className="admin-recipe-card__variants">{a.variantsCount} вариант(ов)</div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <SpecificationsGrid specifications={specifications} imagesById={imagesById} tagsById={tagsById} />
 
           <div className="admin-pagination" style={{ marginTop: 14 }}>
             <span>Найдено рецептов: {total}</span>

@@ -1,11 +1,15 @@
 import Link from 'next/link';
 import { getCategories } from '@/lib/adminCatalog';
+import { getDictionary } from '@/lib/adminSettings';
 import SpecificationCreateForm from '@/components/admin/SpecificationCreateForm';
 
 export const metadata = { title: 'Новый рецепт' };
 
 export default async function AdminSpecificationCreatePage() {
-  const categories = await getCategories();
+  const [categories, tags] = await Promise.all([
+    getCategories(),
+    getDictionary('recipe-tags'),
+  ]);
 
   return (
     <div>
@@ -13,7 +17,7 @@ export default async function AdminSpecificationCreatePage() {
         <Link href="/admin/specifications" className="admin-btn">← Назад</Link>
         <h1 className="admin-title" style={{ margin: 0 }}>Новый рецепт</h1>
       </div>
-      <SpecificationCreateForm categories={categories} />
+      <SpecificationCreateForm categories={categories} tags={tags} />
     </div>
   );
 }

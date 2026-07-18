@@ -410,6 +410,8 @@ export interface AdminSpecification {
   relationships: {
     category?: { data: { type: 'categories'; id: string } | null };
     logo?: { data: { type: 'images'; id: string } | null };
+    author?: { data: { type: 'workers'; id: string } | null };
+    recipeTags?: { data: { type: 'recipe-tags'; id: string }[] };
   };
 }
 

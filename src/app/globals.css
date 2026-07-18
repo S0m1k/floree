@@ -1615,4 +1615,42 @@ img { display: block; max-width: 100%; }
 }
 .admin-store-price-card__sale input { max-width: 100px; }
 .admin-store-price-card__label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--admin-text-3); }
+
+/* Recipe card grid multi-select (admin-map §2.3.6 «Выбрать все рецепты»).
+ * The card is a plain <div> now (not the anchor itself) — the checkbox sits
+ * outside `.admin-recipe-card__link` so it never triggers navigation, and
+ * `.admin-recipe-card` carries `position: relative` so the checkbox can be
+ * pinned to its corner. */
+.admin-recipe-card { position: relative; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.admin-recipe-card:hover { border-color: var(--admin-text-3); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06); }
+.admin-recipe-card--selected { border-color: var(--admin-accent); box-shadow: 0 0 0 2px var(--admin-accent) inset; }
+.admin-recipe-card__link { display: block; text-decoration: none; color: inherit; }
+.admin-recipe-card__select {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px; background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); cursor: pointer;
+}
+.admin-recipe-card__select input { width: 16px; height: 16px; accent-color: var(--admin-accent); cursor: pointer; }
+
+.admin-recipe-card__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.admin-recipe-card__tag {
+  display: inline-flex; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  background: var(--admin-blue-bg); color: var(--admin-blue); white-space: nowrap;
+}
+
+.admin-select-all { display: flex; align-items: center; margin-bottom: 12px; }
+.admin-bulk-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 14px;
+  background: var(--admin-accent-2); border: 1px solid var(--admin-accent); border-radius: 8px;
+}
+.admin-bulk-bar__count { font-size: 13px; font-weight: 700; color: var(--admin-text); margin-right: 4px; }
+.admin-bulk-bar .admin-btn { height: 34px; padding: 0 14px; font-size: 13px; background: #fff; }
+.admin-bulk-bar__clear {
+  margin-left: auto; border: none; background: none; color: var(--admin-blue);
+  font-size: 13px; font-weight: 500; cursor: pointer; padding: 6px 8px; border-radius: 4px;
+}
+.admin-bulk-bar__clear:hover { background: var(--admin-blue-bg); }
+.admin-bulk-bar__clear:disabled { color: var(--admin-text-3); cursor: not-allowed; background: none; }
 .admin-store-price-card .admin-composition__delete { position: absolute; top: 6px; right: 6px; }

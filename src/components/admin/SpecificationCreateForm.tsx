@@ -3,23 +3,31 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminCategory } from '@/types';
+import { DictEntry } from '@/lib/adminSettings';
 
 const TITLE_MAX = 100;
 
 interface Props {
   categories: AdminCategory[];
+  tags: DictEntry[];
 }
 
 // «Новый рецепт» — the minimal creation form (admin-map §2.3.2: title +
-// category + description). The backend seeds the first quantity variant, so
-// the user lands on the full card ready to edit the composition/prices.
-export default function SpecificationCreateForm({ categories }: Props) {
+// category + tags + description). The backend seeds the first quantity
+// variant, so the user lands on the full card ready to edit the
+// composition/prices.
+export default function SpecificationCreateForm({ categories, tags }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleTag = (id: string) => {
+    setTagIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +42,7 @@ export default function SpecificationCreateForm({ categories }: Props) {
         body: JSON.stringify({
           data: {
             type: 'specifications',
-            attributes: { title: title.trim(), description: description.trim() },
+            attributes: { title: title.trim(), description: description.trim(), tags: tagIds },
             relationships: {
               category: { data: categoryId ? { type: 'categories', id: categoryId } : null },
             },
@@ -73,6 +81,27 @@ export default function SpecificationCreateForm({ categories }: Props) {
             <option key={c.id} value={c.id}>{c.attributes.title}</option>
           ))}
         </select>
+      </div>
+
+      <div className="admin-field">
+        <label>Выбрать теги</label>
+        <div className="admin-chips">
+          {tags.map((t) => {
+            const selected = tagIds.includes(t.id);
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className={`admin-chip ${selected ? 'admin-chip--active' : ''}`}
+                onClick={() => toggleTag(t.id)}
+              >
+                {t.attributes.title}
+                {selected && <span className="admin-chip__x" aria-hidden> ×</span>}
+              </button>
+            );
+          })}
+          {tags.length === 0 && <span className="admin-form-note">Тегов пока нет — добавьте их в Настройках.</span>}
+        </div>
       </div>
 
       <div className="admin-field" style={{ paddingBottom: 16 }}>

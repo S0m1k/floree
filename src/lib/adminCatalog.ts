@@ -1,20 +1,35 @@
 import {
   AdminCategory, AdminSpecification, AdminSpecificationComposition, AdminSpecificationDetail,
-  AdminSpecificationVariant, AdminSpecificationVariantLabel, AdminSpecificationVariantPrice,
+  AdminSpecificationVariant, AdminSpecificationVariantLabel, AdminSpecificationVariantPrice, Worker,
 } from '@/types';
 import { adminFetch } from './adminApi';
+import { DictEntry } from './adminSettings';
 
 export const PAGE_SIZE = 24;
 
 export interface SpecificationsSearchParams {
   category?: string;
   public?: string;
+  author?: string;
   archive?: string;
   q?: string;
+  sort?: string;
   page?: string;
 }
 
-interface JsonApiImage {
+// Admin card-grid «Сортировка» dropdown (admin-map §2.3.6). Values map 1:1 to
+// backend `sort` values in v1_catalog.list_specifications.
+export const SPECIFICATION_SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: '-updatedAt', label: 'Сначала изменённые' },
+  { value: '-createdAt', label: 'Сначала новые' },
+  { value: 'createdAt', label: 'Сначала старые' },
+  { value: 'title', label: 'Название А–Я' },
+  { value: '-title', label: 'Название Я–А' },
+  { value: 'price', label: 'Цена по возрастанию' },
+  { value: '-price', label: 'Цена по убыванию' },
+];
+
+export interface JsonApiImage {
   id: string;
   type: 'images';
   attributes: { fileShop: string | null; file: string | null };
@@ -30,6 +45,8 @@ export async function getCategories(): Promise<AdminCategory[]> {
 export interface SpecificationsListResult {
   specifications: AdminSpecification[];
   imagesById: Record<string, JsonApiImage>;
+  tagsById: Record<string, DictEntry>;
+  workersById: Record<string, Worker>;
   total: number;
 }
 
@@ -37,21 +54,27 @@ export async function getSpecifications(params: SpecificationsSearchParams): Pro
   const qs = new URLSearchParams();
   if (params.category) qs.set('filter[category]', params.category);
   if (params.public) qs.set('filter[public]', params.public);
+  if (params.author) qs.set('filter[author]', params.author);
   // «Рецепты» / «Архив рецептов» tabs (admin-map §2.3.2).
   qs.set('filter[status]', params.archive === 'true' ? 'off' : 'on');
   if (params.q) qs.set('q', params.q);
+  if (params.sort) qs.set('sort', params.sort);
   const page = Math.max(1, parseInt(params.page || '1', 10) || 1);
   qs.set('page[number]', String(page));
   qs.set('page[size]', String(PAGE_SIZE));
 
   const res = await adminFetch(`/api/v1/specifications?${qs.toString()}`);
-  if (!res.ok) return { specifications: [], imagesById: {}, total: 0 };
+  if (!res.ok) return { specifications: [], imagesById: {}, tagsById: {}, workersById: {}, total: 0 };
   const json = await res.json();
   const imagesById: Record<string, JsonApiImage> = {};
+  const tagsById: Record<string, DictEntry> = {};
+  const workersById: Record<string, Worker> = {};
   for (const inc of json.included || []) {
     if (inc.type === 'images') imagesById[inc.id] = inc;
+    else if (inc.type === 'recipe-tags') tagsById[inc.id] = inc;
+    else if (inc.type === 'workers') workersById[inc.id] = inc;
   }
-  return { specifications: json.data || [], imagesById, total: json.meta?.total ?? 0 };
+  return { specifications: json.data || [], imagesById, tagsById, workersById, total: json.meta?.total ?? 0 };
 }
 
 export function specImageUrl(spec: AdminSpecification, imagesById: Record<string, JsonApiImage>): string | null {
