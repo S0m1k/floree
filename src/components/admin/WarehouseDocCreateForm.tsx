@@ -181,9 +181,13 @@ export default function WarehouseDocCreateForm({ docType, stores, vendors, items
       lines = sortingRows.map((r) => ({ itemFromId: r.itemFromId, itemToId: r.itemToId, quantity: Number(r.quantity) }));
     } else {
       if (rows.length === 0) { setError('Добавьте хотя бы одну позицию'); return; }
+      // Every doc type needs a positive quantity except inventory-acts, where
+      // 0 is a legitimate actual count (item fully missing on recount).
+      const isInventory = docType === 'inventory-acts';
       for (const r of rows) {
         const qty = Number(r.quantity);
-        if (!(qty > 0)) { setError(`Некорректное количество для «${r.title}»`); return; }
+        const valid = isInventory ? qty >= 0 : qty > 0;
+        if (Number.isNaN(qty) || !valid) { setError(`Некорректное количество для «${r.title}»`); return; }
         if (lineConfig?.extraField) {
           const raw = r[lineConfig.extraField.key];
           const val = Number(raw);
@@ -363,7 +367,8 @@ export default function WarehouseDocCreateForm({ docType, stores, vendors, items
                         <td>{r.title}</td>
                         <td>
                           <input
-                            type="number" min="0.001" step="any" value={r.quantity} style={{ width: 90 }}
+                            type="number" min={docType === 'inventory-acts' ? '0' : '0.001'} step="any"
+                            value={r.quantity} style={{ width: 90 }}
                             onChange={(e) => updateRow(r.itemId, { quantity: e.target.value })}
                           />
                         </td>
