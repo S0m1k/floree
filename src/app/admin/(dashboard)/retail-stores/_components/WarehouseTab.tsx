@@ -5,8 +5,8 @@ import { fmtMoney, fmtNum, DashTile } from './shared';
 type WoSort = 'amount' | 'quantity';
 
 function href(from: string, to: string, extra: Record<string, string>): string {
-  const qs = new URLSearchParams({ tab: 'warehouse', from, to, ...extra });
-  return `/admin/retail-stores?${qs.toString()}`;
+  const qs = new URLSearchParams({ from, to, ...extra });
+  return `/admin/warehouse/analytics?${qs.toString()}`;
 }
 
 export default function WarehouseTab({

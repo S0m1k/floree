@@ -6,8 +6,8 @@ type Segment = 'regular' | 'new' | 'anon';
 type BonusView = 'accrued' | 'spent';
 
 function href(from: string, to: string, extra: Record<string, string>): string {
-  const qs = new URLSearchParams({ tab: 'customers', from, to, ...extra });
-  return `/admin/retail-stores?${qs.toString()}`;
+  const qs = new URLSearchParams({ from, to, ...extra });
+  return `/admin/customers/analytic?${qs.toString()}`;
 }
 
 function SegmentCard({
