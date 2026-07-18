@@ -30,6 +30,7 @@ from app.dictionary_models import (
     CustomerPreference, CustomerSource, CustomerDealSource, CustomerCelebration,
 )
 from app.models import Order, Payment
+from app.staff_models import Worker
 from app.etl import transforms as T
 
 
@@ -99,17 +100,43 @@ async def import_customers(session) -> int:
     return await _merge_all(session, Customer, [T.map_customer(r) for r in data])
 
 
+async def import_workers(session) -> int:
+    """Staff — needed so orders' createdBy/postedBy resolve to a real name in
+    the admin "Автор заказа" column and the "Флорист" filter isn't empty.
+
+    Imported workers get no password_hash/pin_hash (see Worker docstring in
+    app/staff_models.py) and can't log into the admin — that's expected, this
+    is display-only data. `_merge_all` -> `session.merge()` never touches an
+    attribute this transform doesn't set, so re-running the ETL against a
+    worker who *did* get a local password later (e.g. hand-provisioned) won't
+    clear it.
+    """
+    data, included = await _fetch_all("/v1/workers?include=user,stores")
+    users_by_id = T.index_included_users(included)
+    return await _merge_all(session, Worker, [T.map_worker(r, users_by_id) for r in data])
+
+
 _SPEC_INCLUDE = (
     "include=logo,images,specVariants,specVariants.variant,"
     "specVariants.specVariantPrices&filter%5BactiveVariants%5D=true"
 )
 
 
+def _drop_unknown_author(row: dict, known_workers: set[str]) -> dict:
+    if row.get("author_id") not in known_workers:
+        row["author_id"] = None
+    return row
+
+
 async def import_specifications(session) -> int:
+    known_workers = set((await session.execute(select(Worker.id))).scalars().all())
+
     listing, listing_inc = await _fetch_all("/v1/specifications?include=logo")
     # logos from the list
     await _merge_all(session, Image, [T.map_image(i) for i in listing_inc if i.get("type") == "images"])
-    await _merge_all(session, Specification, [T.map_specification(r) for r in listing])
+    await _merge_all(session, Specification, [
+        _drop_unknown_author(T.map_specification(r), known_workers) for r in listing
+    ])
 
     # Per-spec detail for the variant graph (SWV collection lacks parent + prices).
     n = 0
@@ -119,7 +146,7 @@ async def import_specifications(session) -> int:
         )
         g = T.parse_spec_graph(detail)
         await _merge_all(session, Image, g["images"])
-        await _merge_all(session, Specification, [g["spec"]])
+        await _merge_all(session, Specification, [_drop_unknown_author(g["spec"], known_workers)])
         await _merge_all(session, SpecificationVariant, g["variants"])
         await _merge_all(session, SpecificationWithVariants, g["swvs"])
         await _merge_all(session, SpecificationVariantPrice, g["prices"])
@@ -143,13 +170,27 @@ async def import_orders(session) -> int:
     data, _ = await _fetch_all("/v1/orders")
     known_stores = set((await session.execute(select(Store.id))).scalars().all())
     known_sources = set((await session.execute(select(CustomerDealSource.id))).scalars().all())
+    known_workers = set((await session.execute(select(Worker.id))).scalars().all())
+    customer_lookup = {
+        cid: {"name": name, "phone": phone}
+        for cid, name, phone in (
+            await session.execute(select(Customer.id, Customer.name, Customer.phone))
+        ).all()
+    }
+    known_customers = set(customer_lookup.keys())
     rows = []
     for r in data:
-        o = T.map_order(r)
+        o = T.map_order(r, customer_lookup)
         if o["store_id"] not in known_stores:
             o["store_id"] = None
         if o["source_id"] not in known_sources:
             o["source_id"] = None
+        if o["customer_id"] not in known_customers:
+            o["customer_id"] = None
+        if o["created_by_id"] not in known_workers:
+            o["created_by_id"] = None
+        if o["closed_by_id"] not in known_workers:
+            o["closed_by_id"] = None
         rows.append(o)
     return await _merge_all(session, Order, rows)
 
@@ -198,26 +239,32 @@ async def import_dictionaries(session) -> int:
     return total
 
 
-# warehouse document headers: (Posiflora path, model, header mapper)
+# warehouse document headers: (Posiflora path, model, header mapper, FK column
+# holding a workers.id — differs per table: worker_id vs author_id).
 _DOCS = [
-    ("packing-invoices", PackingInvoice, T.map_packing_invoice),
-    ("write-off-invoices", WriteoffInvoice, T.map_writeoff_invoice),
-    ("markdown-acts", MarkdownAct, T.map_markdown_act),
-    ("sorting-acts", SortingAct, T.map_sorting_act),
-    ("inventory-acts", InventoryAct, T.map_inventory_act),
-    ("movement-acts", MovementAct, T.map_movement_act),
+    ("packing-invoices", PackingInvoice, T.map_packing_invoice, "worker_id"),
+    ("write-off-invoices", WriteoffInvoice, T.map_writeoff_invoice, "worker_id"),
+    ("markdown-acts", MarkdownAct, T.map_markdown_act, "author_id"),
+    ("sorting-acts", SortingAct, T.map_sorting_act, "author_id"),
+    ("inventory-acts", InventoryAct, T.map_inventory_act, "worker_id"),
+    ("movement-acts", MovementAct, T.map_movement_act, "worker_id"),
 ]
 
 
 async def import_warehouse_docs(session) -> int:
     total = 0
-    for path, model, mapper in _DOCS:
+    known_workers = set((await session.execute(select(Worker.id))).scalars().all())
+    for path, model, mapper, worker_field in _DOCS:
         try:
             data, _ = await _fetch_all(f"/v1/{path}")
         except Exception as e:
             print(f"  [skip {path}] {e}")
             continue
-        total += await _merge_all(session, model, [mapper(r) for r in data])
+        rows = [mapper(r) for r in data]
+        for r in rows:
+            if r.get(worker_field) not in known_workers:
+                r[worker_field] = None
+        total += await _merge_all(session, model, rows)
 
     # Packing-invoice lines (only verified line shape) — fetched per document.
     known_items = set((await session.execute(select(Item.id))).scalars().all())
@@ -237,6 +284,11 @@ async def run() -> None:
         print("categories:", await import_categories(session))
         print("items(+measures,images):", await import_items(session))
         print("vendors:", await import_vendors(session))
+        # Workers only depend on stores (already imported) and must precede
+        # specifications (author_id), orders (created_by_id/closed_by_id) and
+        # warehouse docs (worker_id/author_id) so those FKs resolve instead of
+        # being dropped by each importer's FK-safety check.
+        print("workers:", await import_workers(session))
         print("specifications(+graph):", await import_specifications(session))
         print("bouquets:", await import_bouquets(session))
         print("customers:", await import_customers(session))

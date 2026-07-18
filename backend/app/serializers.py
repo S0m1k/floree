@@ -394,7 +394,7 @@ def order_resource(order) -> dict:
         "dueDate": getattr(order, "due_date", None),
         "delivery": is_delivery,
         "deliveryType": delivery_type or ("delivery" if is_delivery else "pickup"),
-        "deliveryComments": order.comment or "",
+        "deliveryComments": getattr(order, "delivery_comment", None) or "",
         "deliveryCity": getattr(order, "delivery_city", None) or "",
         "deliveryStreet": getattr(order, "delivery_street", None) or "",
         "deliveryHouse": getattr(order, "delivery_house", None) or "",

@@ -71,6 +71,9 @@ class Order(Base):
     delivery_building: Mapped[str | None] = mapped_column(String, nullable=True)
     delivery_time_from: Mapped[str | None] = mapped_column(String, nullable=True)
     delivery_time_to: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Courier-facing delivery note — Posiflora's `deliveryComments`, distinct
+    # from `comment` (the customer's own wishes, Posiflora's `description`).
+    delivery_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     # «Когда выполнить» — target date (YYYY-MM-DD). due_time keeps the full ISO
     # timestamp for back-compat with the checkout/ETL path.
     due_date: Mapped[str | None] = mapped_column(String, nullable=True)
