@@ -3,6 +3,7 @@ import { getInventoryItems, getMeasures, buildInventoryHref, InventorySearchPara
 import { getCategories } from '@/lib/adminCatalog';
 import WarehouseNav from '@/components/admin/WarehouseNav';
 import BouquetsNav from '@/components/admin/BouquetsNav';
+import ItemRowActions from '@/components/admin/ItemRowActions';
 import { fmtMoney } from '@/lib/format';
 
 export const metadata = { title: 'Каталог товаров и услуг' };
@@ -23,6 +24,11 @@ export default async function AdminCatalogPage({ searchParams }: Props) {
   const page = Math.max(1, parseInt(searchParams.page || '1', 10) || 1);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const exportQs = new URLSearchParams();
+  if (searchParams.category) exportQs.set('category', searchParams.category);
+  if (searchParams.q) exportQs.set('q', searchParams.q);
+  const exportHref = `/admin/api/inventory-items/export${exportQs.toString() ? `?${exportQs.toString()}` : ''}`;
+
   return (
     <div>
       <BouquetsNav active="/admin/catalog" />
@@ -33,9 +39,12 @@ export default async function AdminCatalogPage({ searchParams }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <h1 className="admin-title" style={{ marginBottom: 0 }}>Каталог товаров и услуг</h1>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button className="admin-btn" disabled title="Пока недоступно">Создать продукт</button>
-          <button className="admin-btn" disabled title="Пока недоступно">Экспортировать продукты</button>
-          <button className="admin-btn" disabled title="Пока недоступно">Сгенерировать штрих-коды</button>
+          <Link href="/admin/catalog/create" className="admin-btn admin-btn--primary">Создать продукт</Link>
+          <a href={exportHref} className="admin-btn">Экспортировать продукты</a>
+          {/* Bulk barcode generation needs a row-selection UI the table doesn't
+              have yet (admin-map §2.3.4 ☐ column) — per-row generation lives
+              in each row's ⋮ menu (ItemRowActions) below instead. */}
+          <button className="admin-btn" disabled title="Выберите товары в списке — пока доступно только по одному, через ⋮">Сгенерировать штрих-коды</button>
         </div>
       </div>
 
@@ -62,6 +71,8 @@ export default async function AdminCatalogPage({ searchParams }: Props) {
                 <th>Цены</th>
                 <th>Единица измерения</th>
                 <th>Активность</th>
+                <th>Связь со справочником</th>
+                <th>В магазине</th>
                 <th></th>
               </tr>
             </thead>
@@ -71,10 +82,11 @@ export default async function AdminCatalogPage({ searchParams }: Props) {
                 const categoryId = item.relationships.category?.data?.id;
                 const measureId = item.relationships.measure?.data?.id;
                 const priceRange = a.priceMin === a.priceMax ? fmtMoney(a.priceMin) : `${fmtMoney(a.priceMin)} – ${fmtMoney(a.priceMax)}`;
+                const isActive = a.status !== 'off';
                 return (
                   <tr key={item.id}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Link href={`/admin/catalog/${item.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'inherit', textDecoration: 'none' }}>
                         {/* No photo: /v1/inventory-items doesn't include image
                             resources in the list response yet (see
                             backend/app/routers/v1_inventory.py) — placeholder
@@ -83,17 +95,19 @@ export default async function AdminCatalogPage({ searchParams }: Props) {
                           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>inventory_2</span>
                         </span>
                         {a.title}
-                      </div>
+                      </Link>
                     </td>
                     <td>{categoryId ? categoriesById[categoryId]?.attributes.title || '—' : '—'}</td>
                     <td>{priceRange}</td>
                     <td>{measureId ? measuresById[measureId]?.attributes.title || '—' : '—'}</td>
                     <td>
-                      <span className={`admin-doc-status admin-doc-status--${a.public ? 'posted' : 'draft'}`}>
-                        {a.public ? 'Активен' : 'Неактивен'}
+                      <span className={`admin-doc-status admin-doc-status--${isActive ? 'posted' : 'draft'}`}>
+                        {isActive ? 'Активен' : 'Неактивен'}
                       </span>
                     </td>
-                    <td><button className="admin-btn" disabled style={{ height: 28, padding: '0 8px' }}>⋮</button></td>
+                    <td>{a.globalId ? 'POSIFLORA' : 'Не связано'}</td>
+                    <td>{a.public ? 'Добавлен' : 'Не добавлен'}</td>
+                    <td><ItemRowActions item={item} /></td>
                   </tr>
                 );
               })}

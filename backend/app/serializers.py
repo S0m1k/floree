@@ -692,6 +692,7 @@ def item_resource(item) -> dict:
         "itemType": item.item_type,
         "globalId": item.global_id,
         "barcode": item.barcode,
+        "status": item.status,
         "updatedAt": _iso(item.updated_at),
         "added": None,
         "postfix": None,
@@ -700,7 +701,7 @@ def item_resource(item) -> dict:
         "priceMin": item.min_price,
         "priceMax": item.max_price,
         "revision": 0,
-        "deleted": False,
+        "deleted": item.status == "deleted",
         "showInCheckout": False,
     }
     rels = {

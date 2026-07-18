@@ -41,6 +41,15 @@ export async function getInventoryItems(params: InventorySearchParams): Promise<
   return { items: items.slice(start, start + PAGE_SIZE), total };
 }
 
+// Single item by id — the catalog card (/admin/catalog/[id], admin-map
+// §2.3.4) and its edit form.
+export async function getInventoryItem(id: string): Promise<AdminInventoryItem | null> {
+  const res = await adminFetch(`/api/v1/inventory-items/${id}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data || null;
+}
+
 // Full id->item lookup for warehouse document line items (packing-invoice-lines
 // etc. only carry the item id in their `item` relationship, not an included
 // resource — see backend/app/routers/v1_warehouse_docs.py `_make_detail`).
