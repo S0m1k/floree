@@ -39,6 +39,8 @@ from app.serializers import (
     specification_resource,
     category_resource,
     build_category_path,
+    dictionary_resource,
+    worker_resource,
 )
 
 from app.deps import get_current_worker
@@ -64,6 +66,34 @@ def _int(qs, key: str, default: int) -> int:
         return int(qs.get(key, default))
     except (TypeError, ValueError):
         return default
+
+
+# Admin card-grid sort (admin-map §2.3.6 «Сортировка»). Price sorts by
+# max_price — the top of the card's price range. Same registry-dict pattern
+# as `_BOUQUET_SORT_COLUMNS` in v1_sales.py.
+_SPEC_SORT_COLUMNS = {
+    "title": Specification.title.asc(),
+    "-title": Specification.title.desc(),
+    "price": Specification.max_price.asc(),
+    "-price": Specification.max_price.desc(),
+    "createdAt": Specification.created_at.asc(),
+    "-createdAt": Specification.created_at.desc(),
+    "updatedAt": Specification.updated_at.asc(),
+    "-updatedAt": Specification.updated_at.desc(),
+}
+
+
+def _parse_tags_json(raw: str | None) -> list[str]:
+    """Defensive parse of Specification.tags_json (same shape as
+    serializers._json_list, duplicated here so the router doesn't reach into
+    a serializer's private helper)."""
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return [str(t) for t in parsed] if isinstance(parsed, list) else []
 
 
 def _rel_id(rels: dict, key: str) -> str | None:
@@ -134,6 +164,7 @@ async def list_specifications(request: Request, db: AsyncSession = Depends(get_d
     status = qs.get("filter[status]")
     category = qs.get("filter[category]")
     public = qs.get("filter[public]")
+    author = qs.get("filter[author]")
     q = qs.get("q")
     number = _int(qs, "page[number]", 1)
     size = _int(qs, "page[size]", 200)
@@ -145,6 +176,8 @@ async def list_specifications(request: Request, db: AsyncSession = Depends(get_d
         base = base.where(Specification.category_id == category)
     if public is not None:
         base = base.where(Specification.public.is_(public == "true"))
+    if author is not None:
+        base = base.where(Specification.author_id == author)
     if q:
         base = base.where(or_(
             Specification.title.ilike(f"%{q}%"),
@@ -153,9 +186,11 @@ async def list_specifications(request: Request, db: AsyncSession = Depends(get_d
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
+    sort = qs.get("sort", "-updatedAt")
+    order_by = _SPEC_SORT_COLUMNS.get(sort, Specification.updated_at.desc())
     stmt = (
         base.options(*_SPEC_GALLERY)
-        .order_by(Specification.updated_at.desc())
+        .order_by(order_by)
         .offset((number - 1) * size)
         .limit(size)
     )
@@ -184,6 +219,24 @@ async def list_specifications(request: Request, db: AsyncSession = Depends(get_d
         # Not a Posiflora field — our own extension for the admin card grid.
         res["attributes"]["variantsCount"] = variant_counts.get(s.id, 0)
         data.append(res)
+
+    # Resolve recipe-tag titles and author names for the card grid — batched
+    # (one query each over the whole page) so N cards never trigger N queries.
+    # specification_resource() already put the id-only relationships on each
+    # resource; this just adds the matching `included` resources so the admin
+    # UI can join them without extra round-trips (same convention as `images`).
+    tag_ids = {tid for s in rows for tid in _parse_tags_json(s.tags_json)}
+    if tag_ids:
+        tags = (await db.execute(select(RecipeTag).where(RecipeTag.id.in_(tag_ids)))).scalars().all()
+        for t in tags:
+            inc.add(dictionary_resource(t, "recipe-tags", None))
+
+    author_ids = {s.author_id for s in rows if s.author_id}
+    if author_ids:
+        authors = (await db.execute(select(Worker).where(Worker.id.in_(author_ids)))).scalars().all()
+        for w in authors:
+            inc.add(worker_resource(w))
+
     return document(
         data,
         included=inc.as_list(),
@@ -408,6 +461,57 @@ async def update_specification(spec_id: str, request: Request, db: AsyncSession 
 
     fresh = await _load_spec_detail(db, spec.id)
     return await _spec_detail_response(db, fresh)
+
+
+# ---------- bulk actions (admin card grid «Выбрать все рецепты») ----------
+
+BULK_ACTION_LIMIT = 200
+
+_BULK_ACTIONS: dict[str, dict] = {
+    "archive": {"status": "off"},
+    "unarchive": {"status": "on"},
+    "publish": {"public": True},
+    "unpublish": {"public": False},
+}
+
+
+@router.post("/specifications/bulk")
+async def bulk_update_specifications(request: Request, db: AsyncSession = Depends(get_db)):
+    """Multi-select actions on the admin card grid: archive/unarchive
+    («Перенести в архив» / «Вернуть из архива») and publish/unpublish
+    («Показать на сайте» / «Скрыть с сайта»). One UPDATE-per-row commit
+    instead of N separate PATCH requests from the client."""
+    body = await request.json() or {}
+    raw_ids = body.get("ids")
+    action = body.get("action")
+
+    if not isinstance(raw_ids, list) or not raw_ids:
+        raise HTTPException(status_code=400, detail="ids must be a non-empty list")
+    if len(raw_ids) > BULK_ACTION_LIMIT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"cannot update more than {BULK_ACTION_LIMIT} specifications at once",
+        )
+    if action not in _BULK_ACTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"action must be one of: {', '.join(sorted(_BULK_ACTIONS))}",
+        )
+
+    ids = [str(i) for i in raw_ids]
+    rows = (await db.execute(select(Specification).where(Specification.id.in_(ids)))).scalars().all()
+    found_ids = {s.id for s in rows}
+    missing = set(ids) - found_ids
+    if missing:
+        raise HTTPException(status_code=400, detail=f"specification(s) not found: {', '.join(sorted(missing))}")
+
+    changes = _BULK_ACTIONS[action]
+    for spec in rows:
+        for field, value in changes.items():
+            setattr(spec, field, value)
+
+    await db.commit()
+    return {"updated": len(rows)}
 
 
 # ---------- gallery (URL-based; no file-upload pipeline yet) ----------

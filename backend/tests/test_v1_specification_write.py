@@ -7,9 +7,11 @@ price PUT (including the `priceValue: null` «по цене состава» cas
 auth on every mutating endpoint.
 """
 
+from datetime import datetime
+
 import pytest_asyncio
 
-from app.catalog_models import Category, Store
+from app.catalog_models import Category, Specification, Store
 from app.dictionary_models import RecipeTag
 from app.inventory_models import Item
 from app.staff_models import Worker
@@ -491,3 +493,212 @@ async def test_add_gallery_image_requires_url(client, worker_token, seed):
         headers=_auth(worker_token),
     )
     assert resp.status_code == 400
+
+
+# ---------- listing: sort, filter[author], tag/author includes ----------
+
+
+async def _seed_three_specs(seed):
+    """Three recipes with distinct title/price/timestamps so every sort key
+    (title, price, createdAt, updatedAt) produces an unambiguous order."""
+    async with TestingSessionLocal() as db:
+        specs = [
+            Specification(
+                title="Азалия", min_price=100, max_price=100,
+                category_id=seed["category_id"], author_id=seed["author_id"],
+                created_at=datetime(2026, 1, 1), updated_at=datetime(2026, 1, 3),
+            ),
+            Specification(
+                title="Бегония", min_price=300, max_price=300,
+                category_id=seed["category_id"],
+                created_at=datetime(2026, 1, 2), updated_at=datetime(2026, 1, 1),
+            ),
+            Specification(
+                title="Вербена", min_price=200, max_price=200,
+                category_id=seed["category_id"],
+                created_at=datetime(2026, 1, 3), updated_at=datetime(2026, 1, 2),
+            ),
+        ]
+        db.add_all(specs)
+        await db.commit()
+        return {s.title: s.id for s in specs}
+
+
+async def test_sort_by_title(client, worker_token, seed):
+    await _seed_three_specs(seed)
+    resp = await client.get("/api/v1/specifications?sort=title", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Азалия", "Бегония", "Вербена"]
+
+    resp = await client.get("/api/v1/specifications?sort=-title", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Вербена", "Бегония", "Азалия"]
+
+
+async def test_sort_by_price(client, worker_token, seed):
+    await _seed_three_specs(seed)
+    resp = await client.get("/api/v1/specifications?sort=price", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Азалия", "Вербена", "Бегония"]
+
+    resp = await client.get("/api/v1/specifications?sort=-price", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Бегония", "Вербена", "Азалия"]
+
+
+async def test_sort_by_created_at(client, worker_token, seed):
+    await _seed_three_specs(seed)
+    resp = await client.get("/api/v1/specifications?sort=createdAt", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Азалия", "Бегония", "Вербена"]
+
+    resp = await client.get("/api/v1/specifications?sort=-createdAt", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Вербена", "Бегония", "Азалия"]
+
+
+async def test_sort_by_updated_at(client, worker_token, seed):
+    await _seed_three_specs(seed)
+    # Default sort (no `sort` param) is also -updatedAt.
+    resp = await client.get("/api/v1/specifications", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Азалия", "Вербена", "Бегония"]
+
+    resp = await client.get("/api/v1/specifications?sort=updatedAt", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Бегония", "Вербена", "Азалия"]
+
+    resp = await client.get("/api/v1/specifications?sort=-updatedAt", headers=_auth(worker_token))
+    assert [r["attributes"]["title"] for r in resp.json()["data"]] == ["Азалия", "Вербена", "Бегония"]
+
+
+async def test_filter_by_author(client, worker_token, seed):
+    ids_by_title = await _seed_three_specs(seed)
+    resp = await client.get(
+        f"/api/v1/specifications?filter[author]={seed['author_id']}", headers=_auth(worker_token)
+    )
+    data = resp.json()["data"]
+    assert [r["id"] for r in data] == [ids_by_title["Азалия"]]
+
+
+async def test_listing_includes_recipe_tag_titles(client, worker_token, seed):
+    doc = await _create_spec(client, worker_token, seed)
+    spec_id = doc["data"]["id"]
+    await client.patch(
+        f"/api/v1/specifications/{spec_id}",
+        json={"data": {"attributes": {"tags": [seed["tag_id"]]}}},
+        headers=_auth(worker_token),
+    )
+
+    resp = await client.get("/api/v1/specifications", headers=_auth(worker_token))
+    body = resp.json()
+    spec = next(r for r in body["data"] if r["id"] == spec_id)
+    assert spec["relationships"]["recipeTags"]["data"] == [{"type": "recipe-tags", "id": seed["tag_id"]}]
+    tag_included = next(r for r in body["included"] if r["type"] == "recipe-tags" and r["id"] == seed["tag_id"])
+    assert tag_included["attributes"]["title"] == "Хит продаж"
+
+
+async def test_listing_includes_author_worker(client, worker_token, seed):
+    doc = await _create_spec(client, worker_token, seed)
+    spec_id = doc["data"]["id"]
+
+    resp = await client.get("/api/v1/specifications", headers=_auth(worker_token))
+    body = resp.json()
+    spec = next(r for r in body["data"] if r["id"] == spec_id)
+    assert spec["relationships"]["author"]["data"] == {"type": "workers", "id": seed["author_id"]}
+    author_included = next(r for r in body["included"] if r["type"] == "workers" and r["id"] == seed["author_id"])
+    assert author_included["attributes"]["name"] == "Флорист Аня"
+
+
+# ---------- bulk actions ----------
+
+
+async def test_bulk_archive_and_unarchive(client, worker_token, seed):
+    doc1 = await _create_spec(client, worker_token, seed)
+    doc2 = await _create_spec(client, worker_token, seed)
+    ids = [doc1["data"]["id"], doc2["data"]["id"]]
+
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": ids, "action": "archive"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"updated": 2}
+
+    listing = await client.get("/api/v1/specifications?filter[status]=off", headers=_auth(worker_token))
+    assert set(ids).issubset({r["id"] for r in listing.json()["data"]})
+
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": ids, "action": "unarchive"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"updated": 2}
+    listing = await client.get("/api/v1/specifications?filter[status]=on", headers=_auth(worker_token))
+    assert set(ids).issubset({r["id"] for r in listing.json()["data"]})
+
+
+async def test_bulk_publish_and_unpublish(client, worker_token, seed):
+    doc = await _create_spec(client, worker_token, seed)
+    spec_id = doc["data"]["id"]
+
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": [spec_id], "action": "publish"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"updated": 1}
+    listing = await client.get("/api/v1/specifications?filter[public]=true", headers=_auth(worker_token))
+    assert spec_id in [r["id"] for r in listing.json()["data"]]
+
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": [spec_id], "action": "unpublish"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"updated": 1}
+    listing = await client.get("/api/v1/specifications?filter[public]=false", headers=_auth(worker_token))
+    assert spec_id in [r["id"] for r in listing.json()["data"]]
+
+
+async def test_bulk_rejects_unknown_id(client, worker_token, seed):
+    doc = await _create_spec(client, worker_token, seed)
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": [doc["data"]["id"], "does-not-exist"], "action": "archive"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 400
+
+
+async def test_bulk_rejects_unknown_action(client, worker_token, seed):
+    doc = await _create_spec(client, worker_token, seed)
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": [doc["data"]["id"]], "action": "delete-forever"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 400
+
+
+async def test_bulk_rejects_empty_ids(client, worker_token, seed):
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": [], "action": "archive"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 400
+
+
+async def test_bulk_rejects_batch_over_limit(client, worker_token, seed):
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": [f"id-{i}" for i in range(201)], "action": "archive"},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 400
+
+
+async def test_bulk_requires_auth(client, worker_token, seed):
+    doc = await _create_spec(client, worker_token, seed)
+    resp = await client.post(
+        "/api/v1/specifications/bulk",
+        json={"ids": [doc["data"]["id"]], "action": "archive"},
+    )
+    assert resp.status_code == 401
