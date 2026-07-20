@@ -1415,6 +1415,11 @@ img { display: block; max-width: 100%; }
 .admin-row-menu__item:disabled:hover { background: none; }
 .admin-row-menu__error { font-size: 11px; color: #B3261E; margin-left: 6px; white-space: nowrap; }
 
+/* «Столбцы» — настройка видимых колонок таблицы (admin-map §2.2) */
+.admin-columns-menu { max-height: 320px; overflow-y: auto; min-width: 220px; }
+.admin-columns-menu__item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.admin-columns-menu__item input { accent-color: var(--admin-accent, #7C5C46); }
+
 /* Staff status pill */
 .admin-staff-status {
   display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px;

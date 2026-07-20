@@ -27,6 +27,8 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     ]);
 
   const workersById: Record<string, Worker> = Object.fromEntries(workers.map((w) => [w.id, w]));
+  const sourcesById = Object.fromEntries(sources.map((s) => [s.id, s]));
+  const storesById = Object.fromEntries(stores.map((s) => [s.id, s]));
   const activeStatus = searchParams.status || '';
 
   return (
@@ -71,6 +73,8 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
             current={searchParams}
             workersById={workersById}
             tagsById={tagsById}
+            sourcesById={sourcesById}
+            storesById={storesById}
             pageSize={pageSize}
           />
 

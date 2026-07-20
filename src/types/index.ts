@@ -141,6 +141,8 @@ export interface AdminOrder {
     description: string;
     budget: number;
     dueTime: string | null;
+    // «Когда выполнить» (YYYY-MM-DD) — optional: absent on ETL/checkout rows.
+    dueDate?: string | null;
     deliveryContact: string;
     deliveryPhoneNumber: string;
     createdAt: string;
