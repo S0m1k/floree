@@ -311,6 +311,10 @@ def _order_address(a: dict) -> str:
 POSIFLORA_ORDER_STATUS_MAP = {
     "new": "new",
     "assembled": "assembled",
+    # Seen live 2026-07-19 once a real order went out for delivery — the
+    # original dictionary was derived from a snapshot where no order happened
+    # to be in transit.
+    "courier": "courier",
     "done": "completed",
     "canceled": "cancelled",
     "returned": "return",
