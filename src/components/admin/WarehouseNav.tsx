@@ -14,6 +14,9 @@ const ITEMS: { href: string; label: string }[] = [
   { href: '/admin/inventory-acts', label: 'Инвентаризации' },
   { href: '/admin/movement-acts', label: 'Перемещения' },
   { href: '/admin/vendors', label: 'Поставщики' },
+  { href: '/admin/reports', label: 'Отчёты' },
+  { href: '/admin/financial-accounting', label: 'Финансовый учёт' },
+  { href: '/admin/exports-list', label: 'Экспорт таблиц' },
 ];
 
 export default function WarehouseNav({ active }: { active: string }) {

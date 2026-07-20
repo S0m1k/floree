@@ -45,6 +45,9 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/sorting-acts', label: 'Акты пересорта' },
       { href: '/admin/inventory-acts', label: 'Акты инвентаризаций' },
       { href: '/admin/movement-acts', label: 'Акты перемещений' },
+      { href: '/admin/reports', label: 'Отчёты' },
+      { href: '/admin/financial-accounting', label: 'Финансовый учёт' },
+      { href: '/admin/exports-list', label: 'Экспорт таблиц' },
     ],
   },
   {

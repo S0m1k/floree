@@ -97,3 +97,32 @@ export async function getGeneratedFiles(kind: GeneratedFileKind | undefined, pag
   const json = await res.json();
   return { files: json.data || [], count: json.meta?.page?.count ?? (json.data || []).length };
 }
+
+// ---------- filter-form href builders (server components, GET forms) ----------
+
+export interface FinancialAccountingSearchParams extends ExpensesSearchParams {
+  tab?: 'expenses' | 'pnl';
+}
+
+export function buildFinanceHref(
+  current: FinancialAccountingSearchParams,
+  overrides: Partial<FinancialAccountingSearchParams>
+): string {
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries({ ...current, ...overrides })) {
+    if (value) merged[key] = value;
+  }
+  const qs = new URLSearchParams(merged);
+  const query = qs.toString();
+  return query ? `/admin/financial-accounting?${query}` : '/admin/financial-accounting';
+}
+
+export function buildReportsHref(current: ReportsSearchParams, overrides: Partial<ReportsSearchParams>): string {
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries({ ...current, ...overrides })) {
+    if (value) merged[key] = value;
+  }
+  const qs = new URLSearchParams(merged);
+  const query = qs.toString();
+  return query ? `/admin/reports?${query}` : '/admin/reports';
+}
