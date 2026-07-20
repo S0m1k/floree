@@ -20,6 +20,7 @@ type NavItem =
 const NAV_ITEMS: NavItem[] = [
   { kind: 'link', id: 'analytics', href: '/admin/retail-stores', icon: 'home', label: 'Аналитика' },
   { kind: 'link', id: 'orders', href: '/admin/orders', icon: 'event', label: 'Заказы' },
+  { kind: 'link', id: 'pos', href: '/admin/pos', icon: 'point_of_sale', label: 'Касса (терминал)' },
   {
     kind: 'group', id: 'bouquets', icon: 'local_florist', label: 'Букеты и каталог',
     children: [
