@@ -46,6 +46,12 @@ BOUQUET_SOLD_STATUS = "purchased"
 
 POS_PAYMENT_METHODS = ("cash", "card")
 
+# Маркер «наших» смен. ETL импортирует исторические смены Posiflora (свои
+# device_name, часть висит незакрытой в самом источнике) — касса должна видеть
+# только смены, открытые нашим терминалом, иначе брошенная Posiflora-смена
+# навсегда блокирует открытие новой.
+POS_DEVICE_NAME = "POS"
+
 
 def _money(raw, field: str) -> Decimal:
     try:
@@ -61,7 +67,11 @@ async def _open_shift(db: AsyncSession, store_id: str) -> Shift | None:
     return (
         await db.execute(
             select(Shift)
-            .where(Shift.store_id == store_id, Shift.closed_at.is_(None))
+            .where(
+                Shift.store_id == store_id,
+                Shift.closed_at.is_(None),
+                Shift.device_name == POS_DEVICE_NAME,
+            )
             .order_by(Shift.opened_at.desc())
             .limit(1)
         )
@@ -110,7 +120,11 @@ async def _last_closing_cash(db: AsyncSession, store_id: str) -> Decimal:
     last = (
         await db.execute(
             select(Shift.closing_cash)
-            .where(Shift.store_id == store_id, Shift.closed_at.is_not(None))
+            .where(
+                Shift.store_id == store_id,
+                Shift.closed_at.is_not(None),
+                Shift.device_name == POS_DEVICE_NAME,
+            )
             .order_by(Shift.closed_at.desc())
             .limit(1)
         )
@@ -244,7 +258,9 @@ async def open_shift(
 
     shift = Shift(
         store_id=store_id,
-        device_name=body.get("deviceName") or "POS",
+        # Всегда POS_DEVICE_NAME: маркер отличает наши смены от импортированных
+        # из Posiflora — клиентское deviceName сломало бы этот фильтр.
+        device_name=POS_DEVICE_NAME,
         opened_by_id=worker.id,
         opened_at=datetime.utcnow(),
         opening_cash=counted,

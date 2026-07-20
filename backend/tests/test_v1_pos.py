@@ -90,6 +90,35 @@ async def test_products_lists_sellable_bouquets_and_priced_items(client, worker_
 # ---------- смены ----------
 
 
+async def test_imported_posiflora_shifts_do_not_block_pos(client, worker_token, seed):
+    """ETL приносит исторические смены Posiflora, часть висит незакрытой в самом
+    источнике — они не должны ни блокировать открытие нашей смены, ни давать
+    базу ожидаемой кассы (у них свой device_name и closing_cash = NULL)."""
+    from datetime import datetime
+
+    async with TestingSessionLocal() as db:
+        db.add(Shift(
+            store_id=seed["store_id"],
+            device_name="032351 (POS)",
+            opened_at=datetime(2025, 10, 9, 19, 46),
+        ))
+        await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/pos/context?filter[store]={seed['store_id']}",
+        headers=_auth(worker_token),
+    )
+    assert resp.json()["data"] is None  # висящая импортная смена не «наша»
+
+    resp = await client.post(
+        "/api/v1/pos/shifts",
+        json={"storeId": seed["store_id"], "countedCash": 0},
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["data"]["attributes"]["openDiscrepancy"] == 0
+
+
 async def test_open_shift_first_discrepancy_vs_zero(client, worker_token, seed):
     resp = await client.post(
         "/api/v1/pos/shifts",
