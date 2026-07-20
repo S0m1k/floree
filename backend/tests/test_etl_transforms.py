@@ -238,6 +238,61 @@ def test_map_worker_no_stores():
     assert row["store_ids"] is None
 
 
+# ---------- shifts ----------
+
+
+def _shift_resource() -> dict:
+    return {
+        "type": "shifts",
+        "id": "shift-1",
+        "attributes": {
+            "date": "2026-06-06",
+            "status": "closed",
+            "openedAt": "2026-06-06T10:47:39+00:00",
+            "closedAt": "2026-06-06T18:33:11+00:00",
+            "openingAmount": 27810,
+            "openingAmountDiff": 0,
+            "closingAmount": 32210,
+            "closingAmountDiff": -150,
+            "expected": 32360,
+            "actual": 32210,
+            "variance": -150,
+        },
+        "relationships": {
+            "application": {"data": {"type": "applications", "id": "6"}},
+            "store": {"data": {"type": "stores", "id": "store-1"}},
+            "openedBy": {"data": {"type": "workers", "id": "worker-1"}},
+            "closedBy": {"data": {"type": "workers", "id": "worker-2"}},
+        },
+    }
+
+
+def test_map_shift_full():
+    row = T.map_shift(_shift_resource())
+    assert row["id"] == "shift-1"
+    assert row["store_id"] == "store-1"
+    assert row["opened_by_id"] == "worker-1"
+    assert row["closed_by_id"] == "worker-2"
+    assert row["opened_at"].isoformat().startswith("2026-06-06T10:47:39")
+    assert row["opening_cash"] == 27810
+    assert row["closing_cash"] == 32210
+    assert row["open_discrepancy"] == 0
+    assert row["close_discrepancy"] == -150
+
+
+def test_map_shift_open_shift_has_no_close_fields():
+    resource = _shift_resource()
+    resource["attributes"].update(
+        {"status": "opened", "closedAt": None, "closingAmount": None, "closingAmountDiff": None}
+    )
+    resource["relationships"]["closedBy"] = {"data": None}
+    row = T.map_shift(resource)
+    assert row["closed_at"] is None
+    assert row["closed_by_id"] is None
+    assert row["closing_cash"] is None
+    assert row["close_discrepancy"] == 0
+
+
 def test_index_included_users():
     included = [
         {"type": "users", "id": "u1", "attributes": {"login": "a", "status": "on"}},

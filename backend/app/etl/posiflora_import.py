@@ -31,7 +31,7 @@ from app.dictionary_models import (
     CustomerPreference, CustomerSource, CustomerDealSource, CustomerCelebration,
 )
 from app.models import Order, OrderItem, Payment
-from app.staff_models import Worker
+from app.staff_models import Shift, Worker
 from app.etl import transforms as T
 
 
@@ -115,6 +115,27 @@ async def import_workers(session) -> int:
     data, included = await _fetch_all("/v1/workers?include=user,stores")
     users_by_id = T.index_included_users(included)
     return await _merge_all(session, Worker, [T.map_worker(r, users_by_id) for r in data])
+
+
+async def import_shifts(session) -> int:
+    """Кассовые смены — журнал «Рабочие смены» (§2.6.1) и кассовая история для
+    POS. FK-safe: смена неизвестной точки пропускается, неизвестный сотрудник
+    открытия/закрытия обнуляется (как в других импортёрах)."""
+    data, _ = await _fetch_all("/v1/shifts")
+    known_workers = set((await session.execute(select(Worker.id))).scalars().all())
+    known_stores = set((await session.execute(select(Store.id))).scalars().all())
+
+    rows = []
+    for r in data:
+        row = T.map_shift(r)
+        if row["store_id"] not in known_stores:
+            continue
+        if row["opened_by_id"] not in known_workers:
+            row["opened_by_id"] = None
+        if row["closed_by_id"] not in known_workers:
+            row["closed_by_id"] = None
+        rows.append(row)
+    return await _merge_all(session, Shift, rows)
 
 
 _SPEC_INCLUDE = (
@@ -386,6 +407,7 @@ async def run() -> None:
         # warehouse docs (worker_id/author_id) so those FKs resolve instead of
         # being dropped by each importer's FK-safety check.
         print("workers:", await import_workers(session))
+        print("shifts:", await import_shifts(session))
         print("specifications(+graph):", await import_specifications(session))
         print("bouquets:", await import_bouquets(session))
         print("customers:", await import_customers(session))

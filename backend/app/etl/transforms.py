@@ -192,6 +192,30 @@ def map_worker(raw: dict, users_by_id: dict[str, dict] | None = None) -> dict:
     }
 
 
+def map_shift(raw: dict) -> dict:
+    """Posiflora shift -> Shift model kwargs (журнал «Рабочие смены» §2.6.1).
+
+    Деньги: openingAmount/closingAmount → opening_cash/closing_cash (та же
+    семантика, что у POS-смен клона: пересчитанный нал при открытии/закрытии),
+    openingAmountDiff/closingAmountDiff → расхождения (целые рубли). POS-поле
+    device_name Posiflora не отдаёт (rel `application` — числовой id без
+    названия), остаётся NULL.
+    """
+    a = _attrs(raw)
+    return {
+        "id": raw["id"],
+        "store_id": _rel_id(raw, "store"),
+        "opened_by_id": _rel_id(raw, "openedBy"),
+        "closed_by_id": _rel_id(raw, "closedBy"),
+        "opened_at": _dt(a.get("openedAt")),
+        "closed_at": _dt(a.get("closedAt")),
+        "open_discrepancy": int(a.get("openingAmountDiff") or 0),
+        "close_discrepancy": int(a.get("closingAmountDiff") or 0),
+        "opening_cash": a.get("openingAmount"),
+        "closing_cash": a.get("closingAmount"),
+    }
+
+
 def index_included_users(included: list[dict]) -> dict[str, dict]:
     """{user_id: {"login": ..., "status": ...}} from a `/v1/workers?include=user`
     response's `included`, for map_worker's `users_by_id` argument."""
