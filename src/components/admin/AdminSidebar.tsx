@@ -24,7 +24,7 @@ const NAV_ITEMS: NavItem[] = [
     kind: 'group', id: 'bouquets', icon: 'local_florist', label: 'Букеты и каталог',
     children: [
       { href: '/admin/showcase', label: 'Букеты в магазине' },
-      { label: 'Онлайн-витрина', disabled: true },
+      { href: '/admin/shop-settings', label: 'Онлайн-витрина' },
       { href: '/admin/showcase/analytics', label: 'Аналитика' },
       { href: '/admin/catalog', label: 'Каталог товаров и услуг' },
       { href: '/admin/categories', label: 'Категории' },

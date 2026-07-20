@@ -1668,4 +1668,38 @@ img { display: block; max-width: 100%; }
 }
 .admin-bulk-bar__clear:hover { background: var(--admin-blue-bg); }
 .admin-bulk-bar__clear:disabled { color: var(--admin-text-3); cursor: not-allowed; background: none; }
+
+/* Онлайн-витрина (admin-map §2.3.2) */
+.admin-shop-header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.admin-shop-header__link {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+  color: var(--admin-blue); text-decoration: none;
+}
+.admin-shop-header__link:hover { text-decoration: underline; }
+.admin-shop-header__link .material-symbols-outlined { font-size: 16px; }
+
+/* Toggle switch — «Витрина включена» and the per-row «На сайте» column. A
+ * checkbox visually styled as a pill/knob rather than the native control. */
+.admin-switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.admin-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.admin-switch__track {
+  width: 38px; height: 22px; border-radius: 11px; background: var(--admin-field-bg);
+  border: 1px solid var(--admin-border); transition: background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0; position: relative;
+}
+.admin-switch__track::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.admin-switch input:checked + .admin-switch__track { background: var(--admin-accent); border-color: var(--admin-accent); }
+.admin-switch input:checked + .admin-switch__track::after { transform: translateX(16px); }
+.admin-switch input:disabled + .admin-switch__track { opacity: 0.6; cursor: not-allowed; }
+.admin-switch__label { font-size: 14px; color: var(--admin-text); }
+
+.admin-shop-publication__search { max-width: 320px; margin-bottom: 12px; }
+.admin-shop-publication__price { white-space: nowrap; color: var(--admin-text-2); }
+.admin-shop-publication__note { font-size: 12px; color: var(--admin-text-3); margin-top: 10px; }
 .admin-store-price-card .admin-composition__delete { position: absolute; top: 6px; right: 6px; }
