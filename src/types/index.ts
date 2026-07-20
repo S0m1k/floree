@@ -753,3 +753,60 @@ export interface WarehouseDashboard extends DashboardPeriod {
     inventoryActsCount: number;
   };
 }
+
+// Учёт и финансы → Отчёты / Финансовый учёт / история выгрузок
+// (admin-map §2.4.5-2.4.8, backend/app/routers/v1_finance.py).
+
+export const EXPENSE_ARTICLES = [
+  'Налоги и страховые взносы', 'Типография', 'Упаковка', 'Коммунальные услуги',
+  'Интернет', 'Курьер', 'Хоз блок', 'Списание товаров', 'Аренда', 'Прочее',
+  'Банковская комиссия', 'ФОТ',
+] as const;
+export type ExpenseArticle = typeof EXPENSE_ARTICLES[number];
+
+export interface AdminExpense {
+  id: string;
+  type: 'expenses';
+  attributes: {
+    article: string;
+    amount: number;
+    date: string;
+    comment: string | null;
+    createdAt: string | null;
+  };
+  relationships?: {
+    store?: { data: { type: 'stores'; id: string } | null };
+    createdBy?: { data: { type: 'workers'; id: string } | null };
+  };
+}
+
+export type ReportType = 'payments' | 'sales' | 'vendors' | 'goods-flow' | 'bouquets';
+export type GeneratedFileKind = `report:${ReportType}` | 'items-export' | 'customers-export';
+
+export interface AdminGeneratedFile {
+  id: string;
+  type: 'generated-files';
+  attributes: {
+    kind: GeneratedFileKind;
+    title: string;
+    periodFrom: string | null;
+    periodTo: string | null;
+    status: string;
+    createdAt: string | null;
+  };
+  relationships?: {
+    createdBy?: { data: { type: 'workers'; id: string } | null };
+  };
+}
+
+export interface FinancePnl {
+  period: { from: string; to: string };
+  revenue: number;
+  costOfGoods: number;
+  coveredItems: number;
+  totalItems: number;
+  grossProfit: number;
+  expensesTotal: number;
+  writeoffsTotal: number;
+  netProfit: number;
+}
