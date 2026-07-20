@@ -585,8 +585,23 @@ async def _load_order(db: AsyncSession, order_id: str) -> Order | None:
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
+# Posiflora's human order numbers are YY######  (year prefix + serial within
+# the year, e.g. 26000008) — 8 digits, always < 10^8. The ETL also produced
+# junk order_numbers above that ceiling by trimming trailing digits from
+# storefront doc numbers (12-digit payment timestamps like 778852657260);
+# those must never seed the counter or new orders continue the timestamp run.
+ORDER_NUMBER_CEILING = 100_000_000
+
+
 async def _next_order_number(db: AsyncSession) -> int:
-    current = (await db.execute(select(func.max(Order.order_number)))).scalar_one()
+    """Next human order number — continues Posiflora's own YY###### series."""
+    current = (
+        await db.execute(
+            select(func.max(Order.order_number)).where(
+                Order.order_number < ORDER_NUMBER_CEILING
+            )
+        )
+    ).scalar_one()
     return int(current or 0) + 1
 
 

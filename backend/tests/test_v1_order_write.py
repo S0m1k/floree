@@ -117,6 +117,33 @@ async def test_order_number_increments(client, worker_token, seed_refs):
     assert n2 == n1 + 1
 
 
+async def test_order_number_ignores_timestamp_junk_and_continues_posiflora_series(
+    client, worker_token, seed_refs
+):
+    """ETL rows carry order_numbers trimmed from storefront doc numbers
+    (12-digit payment timestamps) — the counter must skip them and continue
+    Posiflora's own YY###### series instead."""
+    from app.models import Order
+    from tests.conftest import TestingSessionLocal
+
+    async with TestingSessionLocal() as db:
+        db.add(Order(
+            customer_name="", phone="", address="", bouquet_ids="[]",
+            posiflora_doc_no="778852657260", order_number=778852657260,
+        ))
+        db.add(Order(
+            customer_name="", phone="", address="", bouquet_ids="[]",
+            posiflora_doc_no="aaab26000008", order_number=26000008,
+        ))
+        await db.commit()
+
+    resp = await client.post(
+        "/api/v1/orders", json=_create_body(seed_refs), headers=_auth(worker_token)
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["data"]["attributes"]["docNo"] == "26000009"
+
+
 async def test_create_pickup_order_has_no_address(client, worker_token, seed_refs):
     resp = await client.post(
         "/api/v1/orders",
