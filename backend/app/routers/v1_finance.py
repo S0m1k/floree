@@ -630,3 +630,20 @@ async def create_generated_file(
     await db.commit()
     await db.refresh(row)
     return document(generated_file_resource(row))
+
+
+@router.get("/generated-files/{file_id}/download")
+async def download_generated_file(file_id: str, db: AsyncSession = Depends(get_db)):
+    """Same download shape as `/reports/{id}/download` — kept as a separate
+    route (rather than making that one generic) because reports are
+    conceptually reachable at both `/reports/{id}/download` and here; a
+    customers/items export row only has this one."""
+    row = (await db.execute(select(GeneratedFile).where(GeneratedFile.id == file_id))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="not found")
+    content = row.content if row.content.startswith("﻿") else "﻿" + row.content
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers=_download_headers(row),
+    )

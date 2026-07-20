@@ -339,6 +339,27 @@ async def test_create_and_filter_generated_file(client, worker_token):
     assert kinds == {"items-export"}
 
 
+async def test_download_generated_file(client, worker_token):
+    create = await client.post(
+        "/api/v1/generated-files",
+        json={"data": {"type": "generated-files", "attributes": {
+            "kind": "customers-export", "title": "Экспорт клиентов", "content": "a;b\r\n1;2\r\n",
+        }}},
+        headers=_auth(worker_token),
+    )
+    file_id = create.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/generated-files/{file_id}/download", headers=_auth(worker_token))
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert resp.content.decode("utf-8-sig").startswith("a;b")
+
+    assert (await client.get(f"/api/v1/generated-files/{file_id}/download")).status_code == 401
+    assert (
+        await client.get("/api/v1/generated-files/missing/download", headers=_auth(worker_token))
+    ).status_code == 404
+
+
 async def test_create_generated_file_rejects_unknown_kind(client, worker_token):
     resp = await client.post(
         "/api/v1/generated-files",
