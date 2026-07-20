@@ -776,3 +776,33 @@ def item_resource(item) -> dict:
         "markdowns": rel_many("markdowns", []),
     }
     return resource("inventory-items", item.id, a, rels, links={"self": f"/inventory-items/{item.id}"})
+
+
+# ---------- Учёт и финансы: расходы / выгрузки (admin-map §2.4.5-2.4.8) ----------
+
+def expense_resource(e) -> dict:
+    a = {
+        "article": e.article,
+        "amount": float(e.amount),
+        "date": _iso(e.date),
+        "comment": e.comment,
+        "createdAt": _iso(e.created_at),
+    }
+    rels = {
+        "store": rel_one("stores", e.store_id),
+        "createdBy": rel_one("workers", e.created_by_id),
+    }
+    return resource("expenses", e.id, a, rels)
+
+
+def generated_file_resource(f) -> dict:
+    a = {
+        "kind": f.kind,
+        "title": f.title,
+        "periodFrom": _iso(f.period_from),
+        "periodTo": _iso(f.period_to),
+        "status": f.status,
+        "createdAt": _iso(f.created_at),
+    }
+    rels = {"createdBy": rel_one("workers", f.created_by_id)}
+    return resource("generated-files", f.id, a, rels)
