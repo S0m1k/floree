@@ -635,6 +635,23 @@ def personal_data_resource(obj) -> dict:
     return resource("personal-data-template", obj.id, a)
 
 
+def shop_settings_resource(obj) -> dict:
+    """Singleton «Онлайн-витрина» settings → JSON:API."""
+    a = {
+        "shopTitle": obj.shop_title,
+        "phone": obj.phone,
+        "address": obj.address,
+        "emailOrders": obj.email_orders,
+        "instagram": obj.instagram,
+        "telegram": obj.telegram,
+        "whatsapp": obj.whatsapp,
+        "isEnabled": obj.is_enabled,
+        "announcement": obj.announcement,
+        "updatedAt": _iso(obj.updated_at),
+    }
+    return resource("shop-settings", obj.id, a)
+
+
 # ---------- vendors ----------
 
 def vendor_resource(v) -> dict:

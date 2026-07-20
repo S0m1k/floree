@@ -16,6 +16,7 @@ from app.routers import (
     v1_analytics,
     v1_loyalty,
     v1_finance,
+    v1_shop,
 )
 
 app = FastAPI(title="Floree API")
@@ -43,6 +44,7 @@ app.include_router(v1_staff.router, prefix="/api")
 app.include_router(v1_analytics.router, prefix="/api")
 app.include_router(v1_loyalty.router, prefix="/api")
 app.include_router(v1_finance.router, prefix="/api")
+app.include_router(v1_shop.router, prefix="/api")
 
 
 @app.get("/health")

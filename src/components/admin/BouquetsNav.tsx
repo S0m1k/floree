@@ -7,7 +7,7 @@ import Link from 'next/link';
 // an inert, disabled tab instead of a link.
 const ITEMS: { href?: string; label: string }[] = [
   { href: '/admin/showcase', label: 'Букеты в магазине' },
-  { label: 'Онлайн-витрина' },
+  { href: '/admin/shop-settings', label: 'Онлайн-витрина' },
   { label: 'Аналитика' },
   { href: '/admin/catalog', label: 'Каталог товаров и услуг' },
   { href: '/admin/categories', label: 'Категории' },

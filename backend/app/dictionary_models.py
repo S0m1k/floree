@@ -4,9 +4,9 @@ Small reference tables used as enums/tags across the app. Most are a plain
 id+title; units carry a short name + measure code; celebrations carry a period.
 """
 
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import String, Integer, Date
+from sqlalchemy import String, Integer, Date, Boolean, Text, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -117,3 +117,32 @@ class PersonalDataTemplate(Base):
     legal_address: Mapped[str | None] = mapped_column(String, nullable=True)
     website: Mapped[str | None] = mapped_column(String, nullable=True)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class ShopSettings(Base):
+    """Настройки онлайн-витрины (admin-map §2.3.2, /admin/shop-settings).
+
+    Singleton — always exactly one row, keyed by a fixed id (same pattern as
+    `PersonalDataTemplate`). Backs the admin screen that manages contact info,
+    social links, the on/off switch and announcement banner for our public
+    storefront (floree.ru). Note: the storefront pages themselves don't read
+    these values yet — that wiring is a follow-up (see UI hint on the screen).
+    """
+
+    __tablename__ = "shop_settings"
+
+    SINGLETON_ID = "singleton"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: ShopSettings.SINGLETON_ID)
+    shop_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    address: Mapped[str | None] = mapped_column(String, nullable=True)
+    email_orders: Mapped[str | None] = mapped_column(String, nullable=True)
+    instagram: Mapped[str | None] = mapped_column(String, nullable=True)
+    telegram: Mapped[str | None] = mapped_column(String, nullable=True)
+    whatsapp: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    announcement: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
