@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminFetch } from '@/lib/adminApi';
+import { adminFetch, adminMutate } from '@/lib/adminApi';
 import { getCategories } from '@/lib/adminCatalog';
 import { getMeasures } from '@/lib/adminInventory';
 import { AdminInventoryItem } from '@/types';
@@ -69,6 +69,20 @@ export async function GET(request: NextRequest) {
 
   const lines = [CSV_HEADER, ...rows].map((row) => row.map(csvCell).join(';'));
   const csv = '﻿' + lines.join('\r\n') + '\r\n';
+
+  // Log this export to the shared history (admin-map §2.4.5/§2.4.8 «Экспорт
+  // товаров» / «Экспорт таблиц»). A logging failure must never block the
+  // actual download.
+  try {
+    await adminMutate('/api/v1/generated-files', 'POST', {
+      data: {
+        type: 'generated-files',
+        attributes: { kind: 'items-export', title: 'Экспорт товаров', content: csv },
+      },
+    });
+  } catch {
+    // best-effort history log
+  }
 
   return new NextResponse(csv, {
     status: 200,

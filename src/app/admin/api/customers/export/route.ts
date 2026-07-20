@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminFetch } from '@/lib/adminApi';
+import { adminFetch, adminMutate } from '@/lib/adminApi';
 import { customersFilterQuery, EXPORT_PAGE_SIZE, CustomersSearchParams } from '@/lib/adminCustomers';
 import { customersToCsv } from '@/lib/customerCsv';
 import { AdminCustomer } from '@/types';
@@ -24,6 +24,21 @@ export async function GET(request: NextRequest) {
   const customers: AdminCustomer[] = json.data || [];
 
   const csv = customersToCsv(customers);
+
+  // Log this export to the shared history (admin-map §2.4.8 «Экспорт таблиц»).
+  // Awaited so it completes within the request lifetime, but a logging
+  // failure must never block the actual download.
+  try {
+    await adminMutate('/api/v1/generated-files', 'POST', {
+      data: {
+        type: 'generated-files',
+        attributes: { kind: 'customers-export', title: 'Экспорт клиентов', content: csv },
+      },
+    });
+  } catch {
+    // best-effort history log — the download itself must still succeed
+  }
+
   return new NextResponse(csv, {
     status: 200,
     headers: {
