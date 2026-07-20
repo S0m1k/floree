@@ -61,6 +61,32 @@ async def test_pos_requires_auth(client, seed):
     assert resp.status_code == 401
 
 
+# ---------- каталог кассы ----------
+
+
+async def test_products_lists_sellable_bouquets_and_priced_items(client, worker_token, seed):
+    async with TestingSessionLocal() as db:
+        from app.catalog_models import Bouquet as B
+
+        db.add(B(title="Проданный", status="purchased", sale_amount=100, store_id=seed["store_id"]))
+        await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/pos/products?filter[store]={seed['store_id']}",
+        headers=_auth(worker_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # Продаваемый букет попал, проданный — нет.
+    assert [b["title"] for b in body["bouquets"]] == ["Букет с пионами"]
+    assert body["bouquets"][0]["price"] == 5400
+    assert body["bouquets"][0]["createdAt"]
+    # Товар с розничной ценой; поле фото присутствует (может быть null).
+    rose = next(i for i in body["items"] if i["title"] == "Роза Кения 40 см")
+    assert rose["price"] == 350
+    assert "photo" in rose
+
+
 # ---------- смены ----------
 
 

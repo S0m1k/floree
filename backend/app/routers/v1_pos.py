@@ -159,6 +159,68 @@ async def pos_context(request: Request, db: AsyncSession = Depends(get_db)):
     return document(shift_resource(shift), meta=meta)
 
 
+# ---------- каталог кассы ----------
+
+
+@router.get("/products")
+async def pos_products(request: Request, db: AsyncSession = Depends(get_db)):
+    """Товарная витрина кассы одной ручкой (мобильный терминал, вкладки
+    «Товары»/«Витрина»): продаваемые букеты точки (+возраст для бейджа срока
+    жизни) и позиции каталога с розничной ценой и фото.
+    """
+    store_id = request.query_params.get("filter[store]")
+    if not store_id:
+        raise HTTPException(status_code=400, detail="filter[store] is required")
+
+    bouquet_rows = (
+        (
+            await db.execute(
+                select(Bouquet)
+                .where(
+                    Bouquet.store_id == store_id,
+                    Bouquet.status.not_in(BOUQUET_UNSELLABLE_STATUSES),
+                    Bouquet.sale_amount > 0,
+                )
+                .order_by(Bouquet.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    from app.catalog_models import Image
+
+    item_rows = (
+        await db.execute(
+            select(Item, Image.file_small)
+            .join(Image, Image.id == Item.logo_id, isouter=True)
+            .where(Item.status != "deleted")
+            .order_by(Item.title)
+        )
+    ).all()
+
+    bouquets = [
+        {
+            "id": b.id,
+            "title": b.title,
+            "price": float(_dec(b.sale_amount)),
+            "createdAt": b.created_at.isoformat() if b.created_at else None,
+        }
+        for b in bouquet_rows
+    ]
+    items = [
+        {
+            "id": item.id,
+            "title": item.title,
+            "price": float(price),
+            "photo": photo,
+        }
+        for item, photo in item_rows
+        if (price := _retail_price(item)) is not None and price > 0
+    ]
+    return {"bouquets": bouquets, "items": items}
+
+
 # ---------- смены ----------
 
 
