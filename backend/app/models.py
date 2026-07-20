@@ -232,3 +232,4 @@ from app import dictionary_models  # noqa: E402,F401
 from app import inventory_models  # noqa: E402,F401
 from app import staff_models  # noqa: E402,F401
 from app import loyalty_models  # noqa: E402,F401
+from app import finance_models  # noqa: E402,F401

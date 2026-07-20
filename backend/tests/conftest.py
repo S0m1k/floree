@@ -25,6 +25,7 @@ from sqlalchemy.pool import StaticPool
 # Import every model module so Base.metadata knows all tables before create_all.
 import app.catalog_models  # noqa: F401
 import app.dictionary_models  # noqa: F401
+import app.finance_models  # noqa: F401
 import app.inventory_models  # noqa: F401
 import app.loyalty_models  # noqa: F401
 import app.models  # noqa: F401
