@@ -91,6 +91,9 @@ class Order(Base):
     order_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     store_id: Mapped[str | None] = mapped_column(String, ForeignKey("stores.id"), nullable=True)
+    # POS: продажа терминала привязана к кассовой смене — по ней считается
+    # ожидаемый нал при закрытии. NULL для витрины/админки/ETL.
+    shift_id: Mapped[str | None] = mapped_column(String, ForeignKey("shifts.id"), nullable=True)
     source_id: Mapped[str | None] = mapped_column(String, ForeignKey("customer_deal_sources.id"), nullable=True)
     customer_id: Mapped[str | None] = mapped_column(String, ForeignKey("customers.id"), nullable=True)
     florist_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)

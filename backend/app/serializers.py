@@ -749,6 +749,9 @@ def shift_resource(s) -> dict:
         "closedAt": _iso(s.closed_at),
         "openDiscrepancy": s.open_discrepancy,
         "closeDiscrepancy": s.close_discrepancy,
+        # POS: пересчитанный нал при открытии/закрытии (None у ETL-строк).
+        "openingCash": float(s.opening_cash) if s.opening_cash is not None else None,
+        "closingCash": float(s.closing_cash) if s.closing_cash is not None else None,
     }
     rels = {
         "store": rel_one("stores", s.store_id),

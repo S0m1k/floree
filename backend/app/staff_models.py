@@ -2,7 +2,9 @@
 
 from datetime import datetime
 
-from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, func
+from decimal import Decimal
+
+from sqlalchemy import String, Integer, Boolean, DateTime, Numeric, Text, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -79,6 +81,11 @@ class Shift(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     open_discrepancy: Mapped[int] = mapped_column(Integer, default=0)
     close_discrepancy: Mapped[int] = mapped_column(Integer, default=0)
+    # POS: пересчитанный нал при открытии/закрытии (Numeric(12,2), рубли).
+    # opening_cash задаёт базу «ожидаемой кассы» смены; closing_cash последней
+    # закрытой смены — ожидаемая база для открытия следующей.
+    opening_cash: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    closing_cash: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
 
     opened_by: Mapped["Worker | None"] = relationship("Worker", foreign_keys=[opened_by_id])
     closed_by: Mapped["Worker | None"] = relationship("Worker", foreign_keys=[closed_by_id])
