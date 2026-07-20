@@ -817,3 +817,1061 @@ img { display: block; max-width: 100%; }
   .fl-mask__veil { display: none; }
   .fl-ticker__track { animation: none; }
 }
+
+/* ═══════════════════════════════════════════
+   Admin (internal CRM) — tokens sampled live from floreii.posiflora.com
+   (getComputedStyle on the real admin, 2026-07-04) so this matches the
+   product Floree is cloning rather than an invented style.
+   ═══════════════════════════════════════════ */
+:root {
+  --admin-bg: #F5F5F5;
+  --admin-surface: #FFFFFF;
+  --admin-border: #E2E4E9;
+  --admin-text: #222222;
+  --admin-text-2: #757575;   /* rgba(0,0,0,.54) on white */
+  --admin-text-3: #9E9E9E;   /* rgba(0,0,0,.38) on white */
+  --admin-accent: #1BB382;   /* primary action green */
+  --admin-accent-outline: #247146; /* secondary/outline green */
+  --admin-blue: #1EAAF1;     /* secondary accent (reset, links, "new" state) */
+  --admin-blue-bg: #E8F5FD;
+  --admin-accent-2: #E5F6F0; /* light green tint for hovers */
+  --admin-sidebar-bg: #222222;
+  --admin-field-bg: #F3F3F3;
+  --admin-orange: #FEAA07;   /* "у курьера" */
+}
+
+.admin-shell {
+  display: flex; min-height: 100vh; background: var(--admin-bg); color: var(--admin-text);
+  font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Reserves the resting-width column in the flex flow. Only grows when the
+   sidebar is pinned — hover-only expansion overlays on top instead of
+   shifting `.admin-main`, matching live Posiflora. */
+.admin-sidebar-spacer { flex-shrink: 0; transition: width 0.2s ease; }
+
+.admin-sidebar {
+  position: fixed; top: 0; left: 0; z-index: 40; width: 64px; height: 100vh;
+  background: var(--admin-sidebar-bg);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 0; overflow-y: auto; overflow-x: hidden;
+  transition: width 0.2s ease, box-shadow 0.2s ease;
+}
+.admin-sidebar--expanded { width: 280px; box-shadow: 4px 0 24px rgba(0,0,0,0.25); }
+
+.admin-sidebar__top { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; margin-bottom: 8px; flex-shrink: 0; }
+.admin-sidebar__logo { display: flex; align-items: center; gap: 10px; text-decoration: none; overflow: hidden; }
+.admin-sidebar__logo-mark {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--admin-accent);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 16px; flex-shrink: 0;
+}
+.admin-sidebar__logo-text { color: #fff; font-weight: 700; font-size: 16px; letter-spacing: 0.02em; white-space: nowrap; }
+.admin-sidebar__burger {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent;
+  color: rgba(255,255,255,0.7); cursor: pointer;
+}
+.admin-sidebar__burger:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+.admin-sidebar__ctas { display: flex; flex-direction: column; gap: 8px; padding: 0 12px; margin-bottom: 12px; flex-shrink: 0; }
+.admin-sidebar__cta {
+  width: 100%; border: none; border-radius: 8px; padding: 10px 12px; text-align: left;
+  font-size: 13px; font-weight: 500; font-family: inherit; cursor: not-allowed;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-sidebar__cta--primary { background: var(--admin-accent); color: #fff; }
+.admin-sidebar__cta--accent { background: var(--admin-orange); color: var(--admin-text); }
+
+.admin-sidebar__nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+.admin-sidebar__bottom { margin-top: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+
+.admin-nav-link {
+  width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.7); text-decoration: none; flex-shrink: 0;
+}
+.admin-nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.admin-nav-link--active { background: rgba(255,255,255,0.12); color: #fff; }
+.admin-nav-link--expanded { width: 100%; height: 40px; justify-content: flex-start; gap: 12px; padding: 0 10px; }
+.admin-nav-link--disabled { color: rgba(255,255,255,0.3); cursor: not-allowed; }
+.admin-nav-link--disabled:hover { background: none; color: rgba(255,255,255,0.3); }
+.admin-nav-link__icon {
+  font-size: 22px; line-height: 1; flex-shrink: 0;
+  font-variation-settings: 'opsz' 20, 'wght' 400, 'FILL' 0, 'GRAD' 0;
+}
+.admin-nav-link__label { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Accordion group (Букеты и каталог, Учёт и финансы, …) — collapsed it's an
+   icon button identical to .admin-nav-link; expanded it grows a label +
+   chevron header with an indented submenu underneath. */
+.admin-nav-group { display: flex; flex-direction: column; }
+.admin-nav-group__btn {
+  width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.7); background: none; border: none; cursor: pointer; flex-shrink: 0; font-family: inherit;
+}
+.admin-nav-group__btn:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.admin-nav-group__btn--expanded { width: 100%; justify-content: flex-start; gap: 12px; padding: 0 10px; }
+.admin-nav-group--active > .admin-nav-group__btn { background: rgba(255,255,255,0.12); color: #fff; }
+.admin-nav-group__chevron { margin-left: auto; font-size: 18px; transition: transform 0.15s ease; flex-shrink: 0; }
+.admin-nav-group--open > .admin-nav-group__btn .admin-nav-group__chevron { transform: rotate(90deg); }
+
+.admin-nav-group__children { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 6px 40px; }
+.admin-nav-subitem {
+  display: block; padding: 7px 10px; border-radius: 6px; font-size: 13px;
+  color: rgba(255,255,255,0.6); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-nav-subitem:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.admin-nav-subitem--active { background: rgba(255,255,255,0.12); color: #fff; font-weight: 500; }
+.admin-nav-subitem--disabled { color: rgba(255,255,255,0.28); cursor: not-allowed; }
+.admin-nav-subitem--disabled:hover { background: none; }
+.admin-nav-subitem__badge {
+  margin-left: 6px; display: inline-block; padding: 1px 6px; border-radius: 8px;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em;
+  background: var(--admin-blue); color: #fff; vertical-align: middle;
+}
+
+.admin-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-topbar { height: 62px; flex-shrink: 0; background: var(--admin-surface); border-bottom: 1px solid var(--admin-border); }
+.admin-body { padding: 24px 32px 48px; }
+
+.admin-title { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 16px; color: var(--admin-text); }
+
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--admin-border); }
+.admin-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px; font-size: 13px; font-weight: 500; letter-spacing: 0.02em;
+  text-transform: uppercase; color: var(--admin-text-2); text-decoration: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.admin-tab:hover { color: var(--admin-text); }
+.admin-tab--active { color: var(--admin-text); border-bottom-color: var(--admin-blue); font-weight: 700; }
+
+.admin-tab__count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px;
+  font-size: 12px; font-weight: 600; line-height: 1;
+  border: 1px solid var(--admin-text); color: var(--admin-text); background: transparent;
+}
+.admin-tab__count--new { background: var(--admin-blue); border-color: var(--admin-blue); color: #fff; }
+.admin-tab__count--assembled { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.admin-tab__count--completed { background: var(--admin-text); border-color: var(--admin-text); color: #fff; }
+.admin-tab__count--courier { background: var(--admin-orange); border-color: var(--admin-orange); color: var(--admin-text); }
+
+.admin-layout { display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: start; }
+
+.admin-panel { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; }
+.admin-panel__title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--admin-text-2); padding: 14px 16px 0; }
+
+.admin-field { display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; }
+.admin-field label { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--admin-text-3); }
+.admin-field input, .admin-field select {
+  border: none; border-radius: 4px; padding: 0 12px; height: 40px;
+  font-size: 14px; color: var(--admin-text); background: var(--admin-field-bg);
+}
+.admin-field input:focus, .admin-field select:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+
+.admin-filter-actions { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.admin-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 40px; padding: 0 24px; font-size: 14px; font-weight: 400;
+  border-radius: 4px; border: 1px solid var(--admin-border); background: #fff;
+  color: var(--admin-text); cursor: pointer; text-align: center; text-decoration: none;
+  white-space: nowrap;
+}
+.admin-btn:hover { background: var(--admin-bg); }
+.admin-btn--primary { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.admin-btn--primary:hover { background: #17a077; border-color: #17a077; }
+.admin-btn--outline-blue { background: transparent; border-color: var(--admin-blue); color: var(--admin-blue); }
+.admin-btn--outline-blue:hover { background: var(--admin-blue-bg); }
+
+.admin-search { display: flex; gap: 10px; margin-bottom: 14px; }
+.admin-search input {
+  flex: 1; border: 1px solid var(--admin-border); border-radius: 20px;
+  padding: 0 16px; height: 40px; font-size: 14px; background: #fff;
+}
+.admin-search input:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+
+.admin-table-wrap { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; overflow-x: auto; }
+.admin-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 14px; }
+.admin-table th {
+  text-align: left; font-size: 12px; font-weight: 500; text-transform: none;
+  color: var(--admin-text-2); padding: 10px 14px;
+  border-bottom: 1px solid var(--admin-border); background: transparent;
+}
+.admin-table td { padding: 12px 14px; border-bottom: 1px solid var(--admin-border); vertical-align: top; color: var(--admin-text); }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: #FAFAFA; }
+.admin-table a { color: var(--admin-blue); text-decoration: none; }
+.admin-table a:hover { text-decoration: underline; }
+
+/* Status pill — order detail header only; list tables render status as plain text. */
+.admin-status-pill {
+  display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 14px;
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+  border: 1px solid var(--admin-text); color: var(--admin-text);
+}
+.admin-status-pill--new { background: var(--admin-blue); border-color: var(--admin-blue); color: #fff; }
+.admin-status-pill--assembled { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.admin-status-pill--completed { background: var(--admin-text); border-color: var(--admin-text); color: #fff; }
+.admin-status-pill--courier { background: var(--admin-orange); border-color: var(--admin-orange); color: var(--admin-text); }
+
+.admin-empty { padding: 48px 16px; text-align: center; color: var(--admin-text-3); font-size: 14px; }
+
+.admin-pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; font-size: 13px; color: var(--admin-text-2); }
+.admin-pagination__pages { display: flex; gap: 4px; }
+.admin-pagination__pages a, .admin-pagination__pages span {
+  min-width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 5px; text-decoration: none; color: var(--admin-text-2); font-size: 13px;
+}
+.admin-pagination__pages a:hover { background: var(--admin-blue-bg); }
+.admin-pagination__pages span.admin-pagination__current { background: var(--admin-blue); color: #fff; }
+
+.admin-aggregates { display: flex; flex-wrap: wrap; gap: 24px; padding: 16px; margin-top: 14px; background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; }
+.admin-aggregate { display: flex; flex-direction: column; gap: 2px; }
+.admin-aggregate__label { font-size: 12px; color: var(--admin-text-2); }
+.admin-aggregate__value { font-size: 16px; font-weight: 700; }
+
+@media (max-width: 900px) {
+  .admin-layout { grid-template-columns: 1fr; }
+}
+
+/* Dashboard (Аналитика) */
+.admin-dashboard-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+.admin-dashboard-header__meta { color: var(--admin-text-3); font-size: 12px; margin-top: 4px; }
+.admin-period-form { display: flex; align-items: center; gap: 8px; }
+.admin-period-form input { border: 1px solid var(--admin-border); border-radius: 20px; padding: 0 12px; height: 36px; font-size: 13px; }
+.admin-period-form button { padding: 0 20px; height: 36px; }
+
+.admin-subtabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--admin-field-bg); border-radius: 8px; padding: 4px; width: fit-content; }
+.admin-subtab { padding: 8px 18px; font-size: 13px; border-radius: 6px; text-decoration: none; color: var(--admin-text-2); }
+.admin-subtab--active { background: var(--admin-blue); color: #fff; font-weight: 500; }
+.admin-subtab--disabled { color: var(--admin-text-3); cursor: not-allowed; }
+
+.admin-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.admin-metric-card { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; padding: 14px 16px; }
+.admin-metric-card__label { font-size: 13px; color: var(--admin-text-2); margin-bottom: 6px; }
+.admin-metric-card__value { font-size: 22px; font-weight: 700; }
+.admin-metric-card__value--muted { font-size: 13px; font-weight: 400; color: var(--admin-text-3); }
+.admin-metric-card__delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
+.admin-metric-card__delta--up { color: var(--admin-accent-outline); }
+.admin-metric-card__delta--down { color: #C0392B; }
+
+.admin-section-title { font-size: 18px; font-weight: 700; color: var(--admin-text); margin: 24px 0 10px; }
+
+.admin-list-row { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--admin-border); font-size: 14px; }
+.admin-list-row:last-child { border-bottom: none; }
+.admin-list-row__share { color: var(--admin-text-3); margin-left: 8px; }
+
+.admin-calendar { display: flex; gap: 8px; padding: 16px; }
+.admin-calendar__day { flex: 1; text-align: center; background: var(--admin-bg); border: 1px solid var(--admin-border); border-radius: 6px; padding: 10px 4px; }
+.admin-calendar__day-label { font-size: 11px; color: var(--admin-text-3); text-transform: uppercase; }
+.admin-calendar__day-count { font-size: 16px; font-weight: 700; margin-top: 4px; }
+
+/* Categories tree (Букеты и каталог → Категории) */
+.admin-category-row {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-bottom: 1px solid var(--admin-border); font-size: 14px;
+}
+.admin-category-row:last-child { border-bottom: none; }
+.admin-category-row__icon { font-size: 20px; color: var(--admin-text-3); }
+
+/* Recipe card grid (Букеты и каталог → Рецепты) */
+.admin-inline-select {
+  height: 40px; padding: 0 12px; border-radius: 4px; border: none;
+  background: var(--admin-field-bg); font-size: 14px; color: var(--admin-text);
+}
+.admin-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.admin-recipe-card {
+  display: block; background: var(--admin-surface); border: 1px solid var(--admin-border);
+  border-radius: 8px; overflow: hidden; text-decoration: none; color: var(--admin-text);
+}
+.admin-recipe-card__photo {
+  position: relative; aspect-ratio: 4 / 3; background: var(--admin-bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.admin-recipe-card__photo img { width: 100%; height: 100%; object-fit: cover; }
+.admin-recipe-card__placeholder { font-size: 40px; color: var(--admin-text-3); }
+.admin-recipe-card__status {
+  position: absolute; top: 8px; left: 8px; padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600;
+}
+.admin-recipe-card__status--on { background: var(--admin-accent); color: #fff; }
+.admin-recipe-card__status--off { background: rgba(34,34,34,0.7); color: #fff; }
+.admin-recipe-card__body { padding: 12px 14px; }
+.admin-recipe-card__title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.admin-recipe-card__price { font-size: 15px; font-weight: 700; }
+.admin-recipe-card__variants { font-size: 12px; color: var(--admin-text-2); margin-top: 2px; }
+
+/* Showcase (Букеты и каталог → Букеты в магазине, /admin/showcase) */
+.admin-showcase-header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.admin-showcase-store { position: relative; }
+.admin-showcase-store::after {
+  content: '▾'; position: absolute; right: -18px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; color: var(--admin-text-2); pointer-events: none;
+}
+.admin-showcase-store__select {
+  appearance: none; border: none; background: transparent; padding: 0 22px 0 0;
+  font-size: 24px; font-weight: 700; color: var(--admin-text); cursor: pointer;
+}
+.admin-showcase-store__select:focus { outline: none; }
+.admin-showcase-header__address { font-size: 13px; color: var(--admin-text-2); }
+
+.admin-showcase-summary { display: flex; align-items: stretch; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.admin-showcase-tab {
+  background: var(--admin-surface); border: 1px solid var(--admin-border); border-bottom: 3px solid transparent;
+  border-radius: 8px 8px 0 0; padding: 12px 20px; min-width: 220px;
+}
+.admin-showcase-tab--active { border-bottom-color: var(--admin-blue); }
+.admin-showcase-tab--disabled { color: var(--admin-text-3); cursor: default; }
+.admin-showcase-tab__title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.admin-showcase-tab--disabled .admin-showcase-tab__title { color: var(--admin-text-3); font-weight: 500; }
+.admin-showcase-tab__sub { font-size: 12px; color: var(--admin-text-2); }
+.admin-showcase-print-all { margin-left: auto; align-self: center; }
+
+.admin-showcase-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.admin-showcase-sort { display: flex; align-items: center; gap: 6px; }
+.admin-showcase-sort__label { font-size: 13px; color: var(--admin-text-2); margin-right: 4px; }
+.admin-showcase-sort__btn {
+  font-size: 13px; padding: 6px 12px; border-radius: 6px; color: var(--admin-text-2);
+  text-decoration: none; background: var(--admin-field-bg);
+}
+.admin-showcase-sort__btn--active { background: var(--admin-blue); color: #fff; font-weight: 500; }
+
+.admin-showcase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+@media (min-width: 1400px) {
+  .admin-showcase-grid { grid-template-columns: repeat(5, 1fr); }
+}
+.admin-showcase-card { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; overflow: hidden; }
+.admin-showcase-card__photo {
+  position: relative; aspect-ratio: 4 / 3; background: var(--admin-bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.admin-showcase-card__placeholder { font-size: 40px; color: var(--admin-text-3); }
+.admin-showcase-card__badge {
+  position: absolute; bottom: 8px; padding: 3px 9px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; color: #fff;
+}
+.admin-showcase-card__badge--price { left: 8px; background: var(--admin-blue); }
+.admin-showcase-card__badge--expiry { right: 8px; background: #B3261E; }
+.admin-showcase-card__body { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.admin-showcase-card__title { font-size: 14px; font-weight: 700; }
+.admin-showcase-card__meta { font-size: 12px; color: var(--admin-text-2); }
+.admin-showcase-card__number { font-size: 12px; color: var(--admin-text-3); margin-bottom: 4px; }
+.admin-showcase-card__disassemble-wrap { display: flex; flex-direction: column; gap: 2px; }
+.admin-showcase-card__disassemble {
+  border: none; background: none; padding: 0; text-align: left; cursor: pointer;
+  font-size: 13px; color: #B3261E; text-decoration: underline;
+}
+.admin-showcase-card__disassemble:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-showcase-card__error { font-size: 11px; color: #B3261E; }
+.admin-showcase-card__print { margin-top: 6px; height: 32px; padding: 0 12px; font-size: 12px; width: 100%; }
+
+/* Login (/admin/login) — centered card, no sidebar */
+.admin-login {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--admin-bg); padding: 24px;
+  font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif; color: var(--admin-text);
+}
+.admin-login__card {
+  width: 100%; max-width: 360px; background: var(--admin-surface);
+  border: 1px solid var(--admin-border); border-radius: 12px;
+  padding: 40px 32px; box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+}
+.admin-login__brand {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 28px;
+}
+.admin-login__logo {
+  width: 52px; height: 52px; border-radius: 50%; background: var(--admin-accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 24px;
+}
+.admin-login__wordmark { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.admin-login__form { display: flex; flex-direction: column; gap: 16px; }
+.admin-login__field { display: flex; flex-direction: column; gap: 6px; }
+.admin-login__field label { font-size: 12px; font-weight: 500; color: var(--admin-text-2); }
+.admin-login__field input {
+  height: 42px; padding: 0 12px; border: 1px solid var(--admin-border); border-radius: 8px;
+  background: var(--admin-surface); font-size: 14px; color: var(--admin-text);
+}
+.admin-login__field input:focus { outline: 2px solid var(--admin-accent); outline-offset: -1px; }
+.admin-login__submit {
+  height: 44px; border: none; border-radius: 8px; background: var(--admin-accent); color: #fff;
+  font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px;
+}
+.admin-login__submit:hover { background: #17a077; }
+.admin-login__submit:disabled { opacity: 0.6; cursor: default; }
+.admin-login__error {
+  background: #FDECEC; border: 1px solid #F5C2C2; color: #B3261E;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px;
+}
+
+/* Учёт и финансы: каталог, склад, документы, поставщики */
+.admin-doc-status {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.admin-doc-status--posted { background: var(--admin-accent); color: #fff; }
+.admin-doc-status--draft { background: var(--admin-field-bg); color: var(--admin-text-2); }
+
+.admin-table-thumb {
+  width: 32px; height: 32px; border-radius: 6px; background: var(--admin-bg);
+  display: flex; align-items: center; justify-content: center; color: var(--admin-text-3);
+  flex-shrink: 0;
+}
+
+.admin-table tfoot td { background: var(--admin-bg); font-weight: 700; }
+
+.admin-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.admin-btn:disabled:hover { background: #fff; }
+
+.admin-subtabs--wrap { width: 100%; flex-wrap: wrap; margin-bottom: 20px; }
+
+/* Status pills — remaining workflow states (create/detail; admin-map §2.2.1) */
+.admin-status-pill--cancelled { background: #B3261E; border-color: #B3261E; color: #fff; }
+.admin-status-pill--return { background: var(--admin-text-2); border-color: var(--admin-text-2); color: #fff; }
+.admin-status-pill--credit { background: var(--admin-blue-bg); border-color: var(--admin-blue); color: var(--admin-blue); }
+
+/* Создание заказа — форма (admin-map §2.2.2) */
+.admin-order-form { display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+.admin-order-form .admin-panel { padding-bottom: 6px; }
+.admin-field textarea.admin-textarea {
+  border: none; border-radius: 4px; padding: 10px 12px; min-height: 84px; resize: vertical;
+  font-size: 14px; font-family: inherit; color: var(--admin-text); background: var(--admin-field-bg);
+}
+.admin-field textarea.admin-textarea:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+.admin-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 8px; }
+
+.admin-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-chip {
+  display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 17px;
+  font-size: 13px; border: 1px solid var(--admin-border); background: #fff; color: var(--admin-text);
+  cursor: pointer; white-space: nowrap;
+}
+.admin-chip:hover { background: var(--admin-bg); }
+.admin-chip--active { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.admin-chip--active:hover { background: #17a077; }
+
+.admin-form-hint { font-size: 12px; color: var(--admin-blue); margin-top: 4px; }
+.admin-form-hint--disabled { color: var(--admin-text-3); cursor: not-allowed; }
+.admin-form-counter { font-size: 11px; color: var(--admin-text-3); align-self: flex-end; }
+.admin-form-error {
+  background: #FDECEC; border: 1px solid #F5C2C2; color: #B3261E;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px;
+}
+.admin-form-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* Кликабельный бейдж статуса заказа с выпадающим списком */
+.admin-status-control { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.admin-status-control__trigger {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: none;
+  padding: 0; cursor: pointer;
+}
+.admin-status-control__trigger:disabled { opacity: 0.6; cursor: default; }
+.admin-status-control__caret { font-size: 12px; color: var(--admin-text-2); }
+.admin-status-control__menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; margin: 0; padding: 6px;
+  list-style: none; background: var(--admin-surface); border: 1px solid var(--admin-border);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 4px;
+}
+.admin-status-control__item {
+  display: flex; width: 100%; padding: 6px 8px; border: none; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left;
+}
+.admin-status-control__item:hover { background: var(--admin-bg); }
+.admin-status-control__item.is-current { background: var(--admin-accent-2); }
+.admin-status-control__error { font-size: 12px; color: #B3261E; }
+
+/* ═══ Карточка клиента (/admin/customers/:id) ═══ */
+
+/* Кебаб-меню «⋮» (карточка клиента, строки списка) */
+.admin-kebab { position: relative; display: inline-flex; }
+.admin-kebab__trigger {
+  width: 32px; height: 32px; border: 1px solid var(--admin-border); border-radius: 6px;
+  background: var(--admin-surface); font-size: 18px; line-height: 1; cursor: pointer;
+  color: var(--admin-text-2);
+}
+.admin-kebab__trigger:hover { background: var(--admin-bg); }
+.admin-kebab__menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; margin: 0; padding: 6px;
+  min-width: 160px; list-style: none; background: var(--admin-surface);
+  border: 1px solid var(--admin-border); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 2px;
+}
+.admin-kebab__item {
+  display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left; font-size: 14px; color: var(--admin-text);
+}
+.admin-kebab__item:hover { background: var(--admin-bg); }
+.admin-kebab__item:disabled { color: var(--admin-text-3); cursor: not-allowed; }
+.admin-kebab__item:disabled:hover { background: none; }
+
+/* Общая информация: контакты слева + сетка статистики 2×3 справа */
+.admin-customer-info {
+  display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start;
+}
+.admin-contact-row { display: flex; align-items: center; gap: 8px; }
+.admin-contact-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; color: #fff;
+}
+.admin-contact-icon--wa { background: #25D366; }
+.admin-contact-icon--wa:hover { background: #1EBE5A; }
+.admin-contact-icon--tg { background: #229ED9; }
+.admin-contact-icon--tg:hover { background: #1C8FC7; }
+
+.admin-stat-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+}
+.admin-stat-tile {
+  background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px;
+  padding: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 120px;
+}
+.admin-stat-tile__title { font-size: 13px; color: var(--admin-text-2); }
+.admin-stat-tile__value { font-size: 34px; font-weight: 700; line-height: 1.1; }
+.admin-stat-tile__unit { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+.admin-stat-tile__value--green { color: var(--admin-accent); }
+.admin-stat-tile__value--red { color: #C0392B; }
+.admin-stat-tile__value--orange { color: var(--admin-orange); }
+.admin-stat-tile__value--blue { color: var(--admin-blue); }
+.admin-stat-tile__value--purple { color: #8E44AD; }
+.admin-stat-tile__footer { font-size: 12px; color: var(--admin-text-3); margin-top: auto; }
+
+/* Период-пикер (Траты, история бонусов) */
+.admin-period-picker { display: flex; align-items: flex-end; gap: 12px; }
+.admin-period-picker input[type="date"] {
+  border: 1px solid var(--admin-border); border-radius: 6px; padding: 8px 10px;
+  font-size: 14px; background: var(--admin-surface); color: var(--admin-text);
+}
+
+/* Бар-чарт «Траты клиента» — серверный рендер, без библиотек */
+.admin-bar-chart {
+  display: flex; align-items: flex-end; gap: 2px; height: 220px;
+  border-bottom: 1px solid var(--admin-border); padding-bottom: 2px;
+}
+.admin-bar-chart__col { flex: 1; height: 100%; display: flex; align-items: flex-end; min-width: 3px; }
+.admin-bar-chart__bar {
+  width: 100%; min-height: 1px; background: var(--admin-blue); border-radius: 2px 2px 0 0;
+}
+.admin-bar-chart__col:hover .admin-bar-chart__bar { background: #178BCB; }
+.admin-bar-chart__axis {
+  display: flex; justify-content: space-between; margin-top: 8px;
+  font-size: 12px; color: var(--admin-text-3);
+}
+
+/* Инлайн-редактор бонусного баланса (вкладка «Бонусы») */
+.admin-bonus-editor { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; }
+.admin-bonus-editor input {
+  width: 110px; border: 1px solid var(--admin-border); border-radius: 6px;
+  padding: 6px 8px; font-size: 14px;
+}
+.admin-bonus-editor input:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+.admin-bonus-editor__pencil {
+  border: none; background: none; cursor: pointer; color: var(--admin-blue); font-size: 14px;
+  padding: 2px 4px; border-radius: 4px;
+}
+.admin-bonus-editor__pencil:hover { background: var(--admin-blue-bg); }
+
+/* Форма создания/редактирования клиента */
+.admin-customer-form { display: flex; flex-direction: column; gap: 20px; max-width: 920px; }
+.admin-customer-form .admin-panel { padding-bottom: 10px; }
+.admin-customer-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+.admin-phone-row { display: flex; gap: 8px; }
+.admin-phone-row select { flex: 0 0 130px; }
+.admin-phone-row input { flex: 1; }
+.admin-clear-btn { flex: 0 0 36px; padding: 8px 0; font-size: 16px; line-height: 1; }
+
+
+/* Контроль сотрудников (admin-map §2.6) */
+.admin-worker-form { display: flex; flex-direction: column; gap: 20px; max-width: 1080px; }
+.admin-worker-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+@media (max-width: 900px) {
+  .admin-worker-form__grid { grid-template-columns: 1fr; }
+}
+.admin-worker-form .admin-panel { padding-bottom: 10px; }
+
+.admin-phone-row { display: flex; gap: 8px; }
+.admin-phone-row select { flex: 0 0 120px; }
+.admin-phone-row input { flex: 1; }
+
+.admin-form-subtitle { font-size: 14px; font-weight: 700; color: var(--admin-text); padding: 14px 16px 0; margin: 0; }
+.admin-form-note { font-size: 12px; color: var(--admin-text-3); padding: 2px 16px 0; margin: 0; }
+.admin-field-error { font-size: 12px; color: #B3261E; }
+.admin-chip__x { margin-left: 2px; font-weight: 700; }
+
+/* ⋮ row menu (workers table) */
+.admin-row-menu { position: relative; display: inline-flex; align-items: center; }
+.admin-row-menu__trigger { height: 28px; padding: 0 8px; }
+.admin-row-menu__list {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; margin: 0; padding: 6px;
+  list-style: none; background: var(--admin-surface); border: 1px solid var(--admin-border);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  display: flex; flex-direction: column; gap: 2px; min-width: 160px;
+}
+.admin-row-menu__item {
+  display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left; font-size: 13px; color: var(--admin-text);
+}
+.admin-row-menu__item:hover { background: var(--admin-bg); }
+.admin-row-menu__item:disabled { color: var(--admin-text-3); cursor: not-allowed; }
+.admin-row-menu__item:disabled:hover { background: none; }
+.admin-row-menu__error { font-size: 11px; color: #B3261E; margin-left: 6px; white-space: nowrap; }
+
+/* Staff status pill */
+.admin-staff-status {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.admin-staff-status--active { background: var(--admin-accent); color: #fff; }
+.admin-staff-status--inactive { background: var(--admin-field-bg); color: var(--admin-text-2); }
+
+.admin-rights-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+
+/* Рабочие смены */
+.admin-shift-party { display: flex; flex-direction: column; gap: 2px; }
+.admin-shift-party__time { font-size: 12px; color: var(--admin-text-3); }
+.admin-shift-lock { font-size: 18px; color: var(--admin-text-3); }
+
+/* Настройки доступов — аккордеон разрешений */
+.admin-accordion { max-width: 720px; }
+.admin-accordion__header {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 14px 16px; border: none; background: none; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: var(--admin-text); text-align: left;
+}
+.admin-accordion__caret { color: var(--admin-text-2); font-size: 12px; }
+.admin-accordion__body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 18px; }
+
+.admin-perm-group { display: flex; flex-direction: column; gap: 8px; }
+.admin-perm-group__title { font-size: 13px; font-weight: 600; color: var(--admin-text-2); margin: 0; }
+.admin-perm-hint { font-size: 12px; color: var(--admin-text-3); margin: 0; }
+
+.admin-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.admin-checkbox input { width: 16px; height: 16px; accent-color: var(--admin-accent); cursor: pointer; }
+
+/* Настройки — справочники (admin-map §2.7) */
+.admin-dict-panel { max-width: 720px; padding-bottom: 16px; }
+.admin-dict-add { display: flex; align-items: flex-start; gap: 12px; padding: 16px 16px 4px; }
+.admin-dict-add__field { flex: 1; padding: 0; }
+.admin-dict-add .admin-btn { height: 38px; flex-shrink: 0; }
+.admin-dict-error { margin: 8px 16px 0; }
+.admin-dict-chips { padding: 12px 16px 4px; }
+.admin-dict-chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px 0 14px;
+  border-radius: 17px; font-size: 13px; background: var(--admin-accent); color: #fff;
+  white-space: nowrap;
+}
+.admin-dict-chip__x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: none; border-radius: 50%; padding: 0;
+  background: transparent; color: #fff; font-size: 16px; line-height: 1; cursor: pointer;
+}
+.admin-dict-chip__x:hover { background: rgba(255, 255, 255, 0.25); }
+.admin-dict-chip__x:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.admin-dict-form { max-width: 560px; margin-bottom: 16px; padding: 8px 0 14px; }
+.admin-dict-form__actions { padding: 0 16px; }
+.admin-dict-saved { font-size: 13px; color: var(--admin-accent); padding: 0 16px; }
+.admin-dict-inline-input {
+  width: 100%; border: none; border-radius: 4px; padding: 8px 10px;
+  font-size: 14px; color: var(--admin-text); background: var(--admin-field-bg);
+}
+.admin-dict-inline-input:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+.admin-dict-inline-actions { display: flex; gap: 8px; }
+.admin-personal-data-form { max-width: 560px; }
+
+/* Карточка заказа — вкладка «Продукты» (admin-map §2.2.1) */
+.admin-order-comment {
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--admin-field-bg); border-left: 4px solid var(--admin-blue);
+  border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 14px;
+}
+.admin-order-comment__label {
+  font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--admin-text-3);
+}
+
+.admin-order-note { padding: 0 16px 14px; font-size: 12px; color: var(--admin-text-3); }
+
+/* Состав заказа — иерархия букет → компоненты */
+.admin-composition__bouquet td { background: var(--admin-bg); font-weight: 500; }
+.admin-composition__name { display: inline-flex; align-items: center; gap: 10px; }
+.admin-composition__name--nested { padding-left: 28px; }
+.admin-composition__thumb {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 6px; background: var(--admin-field-bg);
+  font-size: 16px;
+}
+.admin-composition__link { color: var(--admin-blue); cursor: default; }
+.admin-composition__multiplier { color: var(--admin-text-3); font-size: 12px; white-space: nowrap; }
+.admin-composition__old-sum { color: var(--admin-text-3); }
+.admin-composition__delete {
+  width: 26px; height: 26px; border: none; border-radius: 50%; background: none;
+  color: var(--admin-text-3); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.admin-composition__delete:hover { background: #FDECEA; color: #C0392B; }
+.admin-composition__delete:disabled { opacity: 0.5; cursor: default; }
+.admin-composition__row-actions { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+.admin-composition__action {
+  width: 26px; height: 26px; border: none; border-radius: 50%; background: none;
+  color: var(--admin-text-3); font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.admin-composition__action:hover { background: var(--admin-blue-bg); color: var(--admin-blue); }
+.admin-composition__action:disabled { opacity: 0.5; cursor: default; }
+
+/* История платежей + итоговая панель — двухколоночная сетка */
+.admin-order-summary-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start;
+}
+@media (max-width: 1100px) {
+  .admin-order-summary-grid { grid-template-columns: 1fr; }
+}
+.admin-order-payments-total td { border-top: 2px solid var(--admin-border); }
+
+.admin-order-totals { padding: 16px; }
+.admin-order-totals__list {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; margin: 0;
+  font-size: 13px;
+}
+.admin-order-totals__list dt {
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--admin-text-2);
+  font-size: 11px; align-self: center;
+}
+.admin-order-totals__list dd { margin: 0; text-align: right; font-weight: 600; }
+.admin-order-totals__list dt.admin-order-totals__sub {
+  text-transform: none; letter-spacing: 0; padding-left: 14px;
+  color: var(--admin-text-3); font-size: 12px;
+}
+.admin-order-totals__list dd.admin-order-totals__sub {
+  color: var(--admin-text-3); font-weight: 400; font-size: 12px;
+}
+.admin-order-totals__to-pay {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--admin-border);
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--admin-text-2);
+}
+.admin-order-totals__to-pay span:last-child {
+  font-size: 24px; font-weight: 700; color: var(--admin-text); letter-spacing: 0;
+}
+/* СКИДКА / НАДБАВКА / ОПЛАТА БОНУСАМИ rows open the edit modal on click. */
+.admin-order-totals__list dt.admin-order-totals__clickable,
+.admin-order-totals__list dd.admin-order-totals__clickable {
+  cursor: pointer; background: none; border: none; padding: 0; font: inherit;
+  text-align: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit;
+}
+.admin-order-totals__list dt.admin-order-totals__clickable:hover,
+.admin-order-totals__list dd.admin-order-totals__clickable:hover { color: var(--admin-blue); }
+
+/* Модалки вкладки «Продукты» (Добавить продукт / Добавить аванс) */
+.admin-modal-backdrop {
+  position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.4);
+  display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px;
+}
+.admin-modal {
+  background: var(--admin-surface); border-radius: 10px; width: 560px; max-width: 100%;
+  max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.admin-modal--small { width: 380px; }
+.admin-modal__head {
+  display: flex; align-items: center; justify-content: space-between; padding: 16px;
+}
+.admin-modal__title { font-size: 16px; font-weight: 700; margin: 0; }
+.admin-modal__close {
+  width: 30px; height: 30px; border: none; border-radius: 50%; background: none;
+  font-size: 20px; line-height: 1; color: var(--admin-text-2); cursor: pointer;
+}
+.admin-modal__close:hover { background: var(--admin-field-bg); }
+.admin-modal__body {
+  padding: 0 16px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+}
+
+.admin-picker-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.admin-picker-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 10px 12px; border: 1px solid var(--admin-border);
+  border-radius: 6px; background: var(--admin-surface); cursor: pointer;
+  font-size: 14px; text-align: left;
+}
+.admin-picker-row:hover { border-color: var(--admin-blue); background: var(--admin-blue-bg); }
+.admin-picker-row--selected { border-color: var(--admin-blue); background: var(--admin-blue-bg); }
+.admin-picker-row:disabled { opacity: 0.6; cursor: default; }
+.admin-picker-row__title { flex: 1; }
+
+/* ═══════════════════════════════════════════
+   Дашборд «Аналитика» (/admin/retail-stores) — 4 вкладки
+   ═══════════════════════════════════════════ */
+
+/* Общая шапка: Floree + касса + инструкция/настройки + «обновлено» */
+.admin-dash-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 12px;
+}
+.admin-dash-topbar__left { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.admin-dash-topbar__till { font-size: 14px; color: var(--admin-text-2); }
+.admin-dash-topbar__till strong { color: var(--admin-text); font-weight: 700; }
+.admin-dash-topbar__links { display: flex; gap: 16px; }
+.admin-dash-link { font-size: 13px; color: var(--admin-blue); text-decoration: none; }
+.admin-dash-link:hover { text-decoration: underline; }
+.admin-dash-link--disabled { color: var(--admin-text-3); cursor: not-allowed; pointer-events: none; }
+
+/* Радио-выбираемая KPI-карточка (Деньги: три метрики над графиком) */
+.admin-metric-card--radio { cursor: pointer; text-decoration: none; display: block; border: 1px solid var(--admin-border); transition: none; }
+.admin-metric-card--radio:hover { border-color: var(--admin-blue); }
+.admin-metric-card--selected {
+  background: var(--admin-blue); border-color: var(--admin-blue);
+}
+.admin-metric-card--selected .admin-metric-card__label,
+.admin-metric-card--selected .admin-metric-card__value { color: #fff; }
+.admin-metric-card--selected .admin-metric-card__delta--up { color: #D9FBEF; }
+.admin-metric-card--selected .admin-metric-card__delta--down { color: #FFD9D2; }
+.admin-metric-card__radio-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--admin-border); margin-right: 8px; vertical-align: middle;
+}
+.admin-metric-card--selected .admin-metric-card__radio-dot { border-color: #fff; background: #fff; }
+
+/* Цветные плитки дашборда (зелёная/оранжевая/белая) — money+customers+bouquets+warehouse */
+.admin-dash-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.admin-dash-tile {
+  border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--admin-surface); border: 1px solid var(--admin-border);
+}
+.admin-dash-tile--green { background: var(--admin-accent); border-color: var(--admin-accent); color: #fff; }
+.admin-dash-tile--orange { background: var(--admin-orange); border-color: var(--admin-orange); color: var(--admin-text); }
+.admin-dash-tile__title { font-size: 12px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-dash-tile__row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.admin-dash-tile__value { font-size: 20px; font-weight: 700; }
+.admin-dash-tile__delta { font-size: 11px; opacity: 0.9; }
+.admin-dash-tile__delta--down { color: #B3261E; }
+.admin-dash-tile--green .admin-dash-tile__delta--down,
+.admin-dash-tile--orange .admin-dash-tile__delta--down { color: #7A1E17; }
+
+/* Line-чарт по дням (SVG, серверный рендер) */
+.admin-line-chart-wrap { padding: 16px; }
+.admin-line-chart { width: 100%; height: 220px; display: block; overflow: visible; }
+.admin-line-chart__area { fill: var(--admin-blue-bg); opacity: 0.6; }
+.admin-line-chart__line { fill: none; stroke: var(--admin-blue); stroke-width: 2; }
+.admin-line-chart__dot { fill: var(--admin-blue); }
+.admin-line-chart__axis { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--admin-text-3); }
+.admin-line-chart__empty { padding: 48px 0; text-align: center; color: var(--admin-text-3); font-size: 14px; }
+
+/* Бар-чарт по дням недели (Пн–Вс), Сб/Вс — красные */
+.admin-weekday-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding: 20px 16px 0; }
+.admin-weekday-chart__col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; }
+.admin-weekday-chart__count { font-size: 12px; font-weight: 700; color: var(--admin-text-2); }
+.admin-weekday-chart__bar { width: 60%; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--admin-blue); }
+.admin-weekday-chart__bar--weekend { background: #C0392B; }
+.admin-weekday-chart__label { font-size: 12px; color: var(--admin-text-3); padding: 8px 16px 16px; display: flex; }
+.admin-weekday-chart__label span { flex: 1; text-align: center; }
+
+/* Сегментация клиентов — 4 карточки */
+.admin-segment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.admin-segment-card { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.admin-segment-card__title { font-size: 13px; font-weight: 600; color: var(--admin-text-2); display: flex; align-items: center; gap: 6px; }
+.admin-segment-card__hint { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: var(--admin-field-bg); color: var(--admin-text-3); font-size: 10px; cursor: help; }
+.admin-segment-card__value { font-size: 26px; font-weight: 700; color: var(--admin-blue); }
+.admin-segment-card__desc { font-size: 12px; color: var(--admin-text-3); flex: 1; }
+.admin-segment-card__btn {
+  border: none; border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600;
+  background: var(--admin-accent); color: #fff; cursor: not-allowed; opacity: 0.55;
+}
+.admin-segment-card__btn--zero { background: var(--admin-field-bg); color: var(--admin-text-3); }
+
+/* Radio-чипы для переключения сегмента/направления графика (Клиенты, Склад) */
+.admin-radio-tiles { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.admin-radio-tile {
+  flex: 1; min-width: 180px; text-decoration: none; display: block;
+  background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px;
+  padding: 12px 16px;
+}
+.admin-radio-tile:hover { border-color: var(--admin-blue); }
+.admin-radio-tile--selected { background: var(--admin-blue); border-color: var(--admin-blue); }
+.admin-radio-tile--selected .admin-radio-tile__value,
+.admin-radio-tile--selected .admin-radio-tile__label { color: #fff; }
+.admin-radio-tile__value { font-size: 20px; font-weight: 700; color: var(--admin-text); }
+.admin-radio-tile__label { font-size: 12px; color: var(--admin-text-3); }
+
+.admin-dash-columns { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .admin-dash-columns { grid-template-columns: 1fr; } }
+.admin-dash-side { display: flex; flex-direction: column; gap: 12px; }
+
+.admin-select-disabled {
+  border: 1px solid var(--admin-border); border-radius: 6px; padding: 8px 10px;
+  font-size: 13px; background: var(--admin-field-bg); color: var(--admin-text-3);
+}
+.admin-picker-row__price { font-weight: 600; white-space: nowrap; }
+
+/* ═══════════════════════════════════════════
+   Карточка рецепта (/admin/specifications/[id])
+   ═══════════════════════════════════════════ */
+
+.admin-btn--danger { background: transparent; border-color: #F5C2C2; color: #B3261E; }
+.admin-btn--danger:hover { background: #FDECEC; }
+
+.admin-recipe-card-columns { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .admin-recipe-card-columns { grid-template-columns: 1fr; } }
+
+/* Галерея фото */
+.admin-recipe-gallery__main {
+  position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden;
+  background: var(--admin-field-bg); display: flex; align-items: center; justify-content: center;
+}
+.admin-recipe-gallery__main img { width: 100%; height: 100%; object-fit: cover; }
+.admin-recipe-gallery__main-check {
+  position: absolute; left: 8px; bottom: 8px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 12px;
+}
+.admin-recipe-gallery__thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.admin-recipe-gallery__thumb {
+  position: relative; width: 64px; height: 64px; border-radius: 6px; overflow: hidden;
+  background: var(--admin-field-bg); border: 1px solid var(--admin-border);
+}
+.admin-recipe-gallery__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.admin-recipe-gallery__thumb-actions {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: rgba(0, 0, 0, 0.35); opacity: 0; transition: opacity var(--admin-transition, 150ms);
+}
+.admin-recipe-gallery__thumb:hover .admin-recipe-gallery__thumb-actions { opacity: 1; }
+.admin-recipe-gallery__thumb-actions button {
+  width: 22px; height: 22px; border: none; border-radius: 50%; background: #fff; cursor: pointer; font-size: 12px;
+}
+
+/* Блок варианта */
+.admin-recipe-variant__head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px;
+  border-bottom: 1px solid var(--admin-border);
+}
+.admin-recipe-variant__title-input {
+  flex: 1; min-width: 160px; font-size: 15px; font-weight: 600; border: 1px solid transparent;
+  border-radius: 6px; padding: 6px 8px; background: transparent;
+}
+.admin-recipe-variant__title-input:hover,
+.admin-recipe-variant__title-input:focus { border-color: var(--admin-border); background: var(--admin-surface); }
+.admin-recipe-variant__comp-row { font-size: 13px; padding: 4px 0; }
+
+/* «Активность на точках» */
+.admin-store-price-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.admin-store-price-card {
+  position: relative; min-width: 180px; border: 1px solid var(--admin-border); border-radius: 8px;
+  padding: 10px 32px 10px 12px; background: var(--admin-surface);
+}
+.admin-store-price-card__title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.admin-store-price-card__composition { font-size: 11px; color: #B3261E; margin-bottom: 6px; }
+.admin-store-price-card__sale { display: flex; flex-direction: column; gap: 2px; }
+.admin-store-price-card__price {
+  border: none; background: none; padding: 0; text-align: left; cursor: pointer;
+  font-size: 16px; font-weight: 700; color: var(--admin-blue);
+}
+.admin-store-price-card__sale input { max-width: 100px; }
+.admin-store-price-card__label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--admin-text-3); }
+
+/* Recipe card grid multi-select (admin-map §2.3.6 «Выбрать все рецепты»).
+ * The card is a plain <div> now (not the anchor itself) — the checkbox sits
+ * outside `.admin-recipe-card__link` so it never triggers navigation, and
+ * `.admin-recipe-card` carries `position: relative` so the checkbox can be
+ * pinned to its corner. */
+.admin-recipe-card { position: relative; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.admin-recipe-card:hover { border-color: var(--admin-text-3); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06); }
+.admin-recipe-card--selected { border-color: var(--admin-accent); box-shadow: 0 0 0 2px var(--admin-accent) inset; }
+.admin-recipe-card__link { display: block; text-decoration: none; color: inherit; }
+.admin-recipe-card__select {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px; background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); cursor: pointer;
+}
+.admin-recipe-card__select input { width: 16px; height: 16px; accent-color: var(--admin-accent); cursor: pointer; }
+
+.admin-recipe-card__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.admin-recipe-card__tag {
+  display: inline-flex; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  background: var(--admin-blue-bg); color: var(--admin-blue); white-space: nowrap;
+}
+
+.admin-select-all { display: flex; align-items: center; margin-bottom: 12px; }
+.admin-bulk-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 14px;
+  background: var(--admin-accent-2); border: 1px solid var(--admin-accent); border-radius: 8px;
+}
+.admin-bulk-bar__count { font-size: 13px; font-weight: 700; color: var(--admin-text); margin-right: 4px; }
+.admin-bulk-bar .admin-btn { height: 34px; padding: 0 14px; font-size: 13px; background: #fff; }
+.admin-bulk-bar__clear {
+  margin-left: auto; border: none; background: none; color: var(--admin-blue);
+  font-size: 13px; font-weight: 500; cursor: pointer; padding: 6px 8px; border-radius: 4px;
+}
+.admin-bulk-bar__clear:hover { background: var(--admin-blue-bg); }
+.admin-bulk-bar__clear:disabled { color: var(--admin-text-3); cursor: not-allowed; background: none; }
+
+/* Онлайн-витрина (admin-map §2.3.2) */
+.admin-shop-header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.admin-shop-header__link {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+  color: var(--admin-blue); text-decoration: none;
+}
+.admin-shop-header__link:hover { text-decoration: underline; }
+.admin-shop-header__link .material-symbols-outlined { font-size: 16px; }
+
+/* Toggle switch — «Витрина включена» and the per-row «На сайте» column. A
+ * checkbox visually styled as a pill/knob rather than the native control. */
+.admin-switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.admin-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.admin-switch__track {
+  width: 38px; height: 22px; border-radius: 11px; background: var(--admin-field-bg);
+  border: 1px solid var(--admin-border); transition: background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0; position: relative;
+}
+.admin-switch__track::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.admin-switch input:checked + .admin-switch__track { background: var(--admin-accent); border-color: var(--admin-accent); }
+.admin-switch input:checked + .admin-switch__track::after { transform: translateX(16px); }
+.admin-switch input:disabled + .admin-switch__track { opacity: 0.6; cursor: not-allowed; }
+.admin-switch__label { font-size: 14px; color: var(--admin-text); }
+
+.admin-shop-publication__search { max-width: 320px; margin-bottom: 12px; }
+.admin-shop-publication__price { white-space: nowrap; color: var(--admin-text-2); }
+.admin-shop-publication__note { font-size: 12px; color: var(--admin-text-3); margin-top: 10px; }
+
+/* ---------- import wizard (admin-map §2.5.3 «Импорт клиентов» / §2.3.7-по-мотивам) ---------- */
+
+.admin-import-actions { display: flex; gap: 10px; padding: 14px 16px 0; }
+
+.admin-import-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  margin: 16px; padding: 40px 20px; border: 2px dashed var(--admin-border); border-radius: 8px;
+  background: var(--admin-bg); text-align: center; color: var(--admin-text-2); transition: border-color 0.15s ease, background 0.15s ease;
+}
+.admin-import-dropzone--active { border-color: var(--admin-blue); background: var(--admin-blue-bg); }
+.admin-import-dropzone__icon { font-size: 32px; color: var(--admin-text-3); }
+
+.admin-import-skip-row {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px 0;
+  font-size: 13px; color: var(--admin-text-2); cursor: pointer;
+}
+
+.admin-import-table-wrap { margin: 16px; width: auto; }
+.admin-import-table th { vertical-align: top; padding: 8px 10px; }
+.admin-import-table th select {
+  width: 100%; border: 1px solid var(--admin-border); border-radius: 4px; height: 32px;
+  padding: 0 8px; font-size: 12px; font-weight: 600; color: var(--admin-text); background: #fff;
+}
+.admin-import-col-label {
+  margin-top: 6px; font-size: 11px; font-weight: 400; text-transform: none;
+  color: var(--admin-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+}
+.admin-import-row--skipped td { color: var(--admin-text-3); text-decoration: line-through; background: var(--admin-bg); }
+
+.admin-import-summary { display: flex; gap: 12px; flex-wrap: wrap; padding: 16px; }
+.admin-import-summary__item {
+  display: flex; flex-direction: column; gap: 4px; min-width: 160px; padding: 14px 18px;
+  border-radius: 8px; background: var(--admin-bg); font-size: 13px; color: var(--admin-text-2);
+}
+.admin-import-summary__value { font-size: 24px; font-weight: 700; color: var(--admin-text); }
+.admin-import-summary__item--ok .admin-import-summary__value { color: var(--admin-accent); }
+.admin-import-summary__item--error .admin-import-summary__value { color: #B3261E; }
+.admin-store-price-card .admin-composition__delete { position: absolute; top: 6px; right: 6px; }

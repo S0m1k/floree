@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import time
 import uuid
@@ -8,34 +9,78 @@ _token_cache: dict = {"access_token": None, "expires_at": 0}
 # Posiflora inventory-group id for "Рецепты" (specifications)
 RECIPES_GROUP_ID = "9"
 
+# Shared client so a long run (the ETL makes hundreds of paginated calls) reuses
+# one TLS connection instead of re-handshaking per request — the per-request
+# client this used to open exhausted the remote and surfaced as ConnectTimeout
+# a few dozen requests in.
+_client: httpx.AsyncClient | None = None
+_client_lock = asyncio.Lock()
+
+# Transient network faults are retried with backoff; everything else propagates.
+_RETRY_EXCEPTIONS = (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError, httpx.RemoteProtocolError)
+_MAX_ATTEMPTS = 4
+
+
+async def _get_client() -> httpx.AsyncClient:
+    global _client
+    async with _client_lock:
+        if _client is None or _client.is_closed:
+            _client = httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0, connect=30.0),
+                limits=httpx.Limits(max_keepalive_connections=4, max_connections=8),
+            )
+        return _client
+
+
+async def close_client() -> None:
+    """Release the shared client (call at the end of a standalone script)."""
+    global _client
+    if _client is not None and not _client.is_closed:
+        await _client.aclose()
+    _client = None
+
 
 async def _get_token() -> str:
     if _token_cache["access_token"] and time.time() < _token_cache["expires_at"]:
         return _token_cache["access_token"]
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{settings.posiflora_base_url}/v1/sessions",
-            headers={"Content-Type": "application/vnd.api+json"},
-            json={
-                "data": {
-                    "type": "sessions",
-                    "attributes": {
-                        "username": settings.posiflora_username,
-                        "password": settings.posiflora_password,
-                    },
-                }
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        attrs = data["data"]["attributes"]
-        _token_cache["access_token"] = attrs["accessToken"]
-        # Cache until 1 min before expiry
-        from datetime import datetime
-        expire_dt = datetime.fromisoformat(attrs["expireAt"])
-        _token_cache["expires_at"] = expire_dt.timestamp() - 60
-        return _token_cache["access_token"]
+    client = await _get_client()
+    resp = await _with_retry(
+        client.post,
+        f"{settings.posiflora_base_url}/v1/sessions",
+        headers={"Content-Type": "application/vnd.api+json"},
+        json={
+            "data": {
+                "type": "sessions",
+                "attributes": {
+                    "username": settings.posiflora_username,
+                    "password": settings.posiflora_password,
+                },
+            }
+        },
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    attrs = data["data"]["attributes"]
+    _token_cache["access_token"] = attrs["accessToken"]
+    # Cache until 1 min before expiry
+    from datetime import datetime
+    expire_dt = datetime.fromisoformat(attrs["expireAt"])
+    _token_cache["expires_at"] = expire_dt.timestamp() - 60
+    return _token_cache["access_token"]
+
+
+async def _with_retry(fn, *args, **kwargs):
+    """Call `fn`, retrying transient network faults with exponential backoff."""
+    delay = 1.0
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            return await fn(*args, **kwargs)
+        except _RETRY_EXCEPTIONS:
+            if attempt == _MAX_ATTEMPTS:
+                raise
+            await asyncio.sleep(delay)
+            delay *= 2
 
 
 async def posiflora_request(method: str, path: str, **kwargs):
@@ -45,16 +90,17 @@ async def posiflora_request(method: str, path: str, **kwargs):
         "Content-Type": "application/vnd.api+json",
         "Accept": "application/vnd.api+json",
     }
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.request(
-            method,
-            f"{settings.posiflora_base_url}{path}",
-            headers=headers,
-            **kwargs,
-        )
-        if not resp.is_success:
-            raise Exception(f"Posiflora error {resp.status_code}: {resp.text}")
-        return resp.json()
+    client = await _get_client()
+    resp = await _with_retry(
+        client.request,
+        method,
+        f"{settings.posiflora_base_url}{path}",
+        headers=headers,
+        **kwargs,
+    )
+    if not resp.is_success:
+        raise Exception(f"Posiflora error {resp.status_code}: {resp.text}")
+    return resp.json()
 
 
 # ---------- Recipes (Posiflora specifications) ----------
@@ -93,10 +139,11 @@ async def get_recipes(category_id: str | None = None) -> dict:
     image_map: dict = {}
     page = 1
 
-    # Build query — keep status=on filter, paginate at 200/page
+    # Build query — keep status=on filter, paginate at 200/page.
+    # NOTE: Posiflora ignores filter[category] on /v1/specifications (it returns
+    # every recipe regardless), so category filtering is done client-side below
+    # via each recipe's category relationship.
     base_qs = "include=logo&filter%5Bstatus%5D=on&page%5Bsize%5D=200"
-    if category_id:
-        base_qs += f"&filter%5Bcategory%5D={category_id}"
 
     while True:
         data = await posiflora_request(
@@ -122,6 +169,12 @@ async def get_recipes(category_id: str | None = None) -> dict:
             continue
         if attrs.get("status") != "on":
             continue
+        # Posiflora does not honor filter[category]; filter by the recipe's own
+        # category relationship so a category page shows only its own items.
+        if category_id:
+            cat = ((r.get("relationships") or {}).get("category") or {}).get("data")
+            if not cat or cat.get("id") != category_id:
+                continue
         result.append(_attach_image_url(r, image_map))
 
     # Sort by updatedAt descending (newest first)
@@ -210,13 +263,73 @@ async def get_recipe(recipe_id: str) -> dict:
     return item
 
 
+async def get_recipe_variant_prices(recipe_id: str) -> dict:
+    """Authoritative pricing for a recipe, straight from Posiflora.
+
+    Returns {"prices": {swvId: price_rubles}, "default_swv_id": swvId | None}.
+    Source of truth is `specification-variant-prices.priceValue` — never the
+    price a client sends. Used to recompute order totals server-side so the
+    public storefront cannot dictate what it pays.
+    """
+    data = await posiflora_request(
+        "GET",
+        f"/v1/specifications/{recipe_id}"
+        "?include=specVariants,specVariants.variant,specVariants.specVariantPrices"
+        "&filter%5BactiveVariants%5D=true",
+    )
+    variants = _parse_variants(data.get("included") or [])
+    prices = {
+        v["swvId"]: int(v["price"])
+        for v in variants
+        if v.get("swvId") and v.get("price") is not None
+    }
+    default_swv_id = next((v["swvId"] for v in variants if v.get("isDefault")), None)
+    if default_swv_id is None and variants:
+        default_swv_id = variants[0]["swvId"]
+    return {"prices": prices, "default_swv_id": default_swv_id}
+
+
+_TRANSLIT = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+    "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+}
+
+
+def slugify(title: str) -> str:
+    """Transliterate a Russian category title into a URL slug.
+
+    Posiflora categories have no slug, so the storefront derives clean,
+    stable `/catalog/<slug>` URLs from the title.
+    """
+    import re
+
+    out = []
+    for ch in (title or "").strip().lower():
+        if ch in _TRANSLIT:
+            out.append(_TRANSLIT[ch])
+        elif ch.isalnum():  # keep latin letters/digits
+            out.append(ch)
+        else:
+            out.append("-")
+    slug = re.sub(r"-+", "-", "".join(out)).strip("-")
+    return slug or "category"
+
+
 async def get_recipe_categories() -> dict:
-    """Return only user-defined recipe categories (skip the root "Рецепты" placeholder)."""
+    """User-defined recipe categories (children of the "Рецепты" root).
+
+    Each category is enriched with a unique `slug` (derived from the title)
+    so the storefront can serve SEO-friendly `/catalog/<slug>` pages.
+    """
     data = await posiflora_request(
         "GET", f"/v1/categories?filter%5Bgroup%5D={RECIPES_GROUP_ID}"
     )
     items = data.get("data") or []
     result = []
+    seen_slugs: dict[str, int] = {}
     for c in items:
         attrs = c.get("attributes", {})
         if attrs.get("deleted"):
@@ -227,6 +340,10 @@ async def get_recipe_categories() -> dict:
         parent = (c.get("relationships") or {}).get("parent", {}).get("data")
         if parent is None and (attrs.get("title") or "").strip().lower() == "рецепты":
             continue
+        base = slugify(attrs.get("title", ""))
+        n = seen_slugs.get(base, 0)
+        seen_slugs[base] = n + 1
+        attrs["slug"] = base if n == 0 else f"{base}-{n + 1}"
         result.append(c)
     return {"data": result, "meta": {"total": len(result)}}
 
