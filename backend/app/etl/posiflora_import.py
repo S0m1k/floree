@@ -199,8 +199,12 @@ async def import_orders(session) -> int:
 async def import_order_payments(session) -> int:
     data, _ = await _fetch_all("/v1/payments")
     known_orders = set((await session.execute(select(Order.id))).scalars().all())
+    known_workers = set((await session.execute(select(Worker.id))).scalars().all())
     rows = [T.map_order_payment(r) for r in data]
     rows = [r for r in rows if r["order_id"] in known_orders]  # FK safety
+    for r in rows:
+        if r.get("created_by_id") not in known_workers:
+            r["created_by_id"] = None
     n = await _merge_all(session, Payment, rows)
     # Derive payment_status from confirmed payments — Posiflora's orders
     # collection doesn't expose the payment-gateway lifecycle, only order-payments.

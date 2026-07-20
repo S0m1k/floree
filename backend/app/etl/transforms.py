@@ -426,6 +426,14 @@ def map_order_payment(raw: dict) -> dict:
         "amount": _money(a.get("amount")),
         "status": "CONFIRMED" if a.get("posted") else "INIT",
         "payment_url": a.get("paymentLink"),
+        # Real dates are required for period analytics (P&L, money dashboard):
+        # without them every imported payment lands on the import day and any
+        # date-filtered revenue query returns 0 for the actual sale months.
+        "created_at": _dt(a.get("createdAt")) or _dt(a.get("postedAt")) or datetime.utcnow(),
+        "updated_at": _dt(a.get("postedAt")) or _dt(a.get("createdAt")) or datetime.utcnow(),
+        # prepayment=true — аванс (Posiflora «Авансы» on the order card).
+        "kind": "advance" if a.get("prepayment") else "payment",
+        "created_by_id": _rel_id(raw, "createdBy"),
     }
 
 
