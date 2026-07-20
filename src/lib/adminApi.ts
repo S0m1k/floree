@@ -52,3 +52,23 @@ export async function adminMutate(
     body: JSON.stringify(body),
   });
 }
+
+/**
+ * Same as `adminMutate` but for a multipart/form-data body (file uploads —
+ * the import wizard's preview step). `adminMutate` always JSON.stringifies
+ * its body, which can't carry a File, so this is a separate helper rather
+ * than an overload. No explicit Content-Type header: fetch derives the
+ * multipart boundary from the FormData body itself.
+ */
+export async function adminMutateMultipart(
+  path: string,
+  formData: FormData,
+): Promise<Response> {
+  const token = cookies().get(ADMIN_ACCESS_COOKIE)?.value;
+  return fetch(`${ADMIN_API_URL}${path}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+}

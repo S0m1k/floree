@@ -5,6 +5,7 @@ import Link from 'next/link';
 // SettingsNav. Covers the list + the three «Система лояльности» screens.
 const ITEMS: { href: string; label: string }[] = [
   { href: '/admin/customers', label: 'Список клиентов' },
+  { href: '/admin/customers/import', label: 'Импорт клиентов' },
   { href: '/admin/bonuses', label: 'Бонусы' },
   { href: '/admin/discounts', label: 'Скидки' },
   { href: '/admin/bonus-cards', label: 'Бонусные карты' },
