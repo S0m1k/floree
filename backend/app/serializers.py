@@ -618,6 +618,10 @@ def dictionary_resource(obj, type_: str, extra: dict | None = None) -> dict:
     if hasattr(obj, "short_name") or hasattr(obj, "measure_code"):
         a["shortName"] = getattr(obj, "short_name", None)
         a["measureCode"] = getattr(obj, "measure_code", None)
+    # order-sources: machine channel code (site/terminal/phone/amocrm) so
+    # clients can find «their» source without matching user-editable titles.
+    if hasattr(obj, "code"):
+        a["code"] = getattr(obj, "code", None)
     if extra:
         a.update(extra)
     return resource(type_, obj.id, a, links={"self": f"/{type_}/{obj.id}"})

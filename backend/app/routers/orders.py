@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models import Order
 from app.schemas import OrderCreate, OrderResponse
 from app.services.posiflora import get_recipe_variant_prices
+from app.services.deal_sources import SOURCE_SITE, get_or_create_deal_source
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -101,9 +102,14 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         "doc_no": doc_no,
     }
 
+    # Заказ пришёл через витрину — источник сделки «Сайт» проставляется
+    # автоматически, как это делает Posiflora для своих каналов.
+    site_source = await get_or_create_deal_source(db, SOURCE_SITE)
+
     order = Order(
         posiflora_id=None,
         posiflora_doc_no=doc_no,
+        source_id=site_source.id,
         customer_name=payload.customer_name,
         phone=payload.phone,
         address=combined_address,

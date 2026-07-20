@@ -77,6 +77,10 @@ class CustomerDealSource(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     title: Mapped[str] = mapped_column(String)
+    # Machine-readable channel code (site/terminal/phone/amocrm) — lets order
+    # channels auto-assign their source without matching user-editable titles.
+    # NULL for ad-hoc sources created via the «+» chip in the order form.
+    code: Mapped[str | None] = mapped_column(String, nullable=True, unique=True, index=True)
 
 
 class CustomerCelebration(Base):
