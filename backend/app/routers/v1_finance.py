@@ -22,6 +22,7 @@ import csv
 import io
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -101,7 +102,8 @@ async def list_expenses(request: Request, db: AsyncSession = Depends(get_db)):
         like = f"%{q}%"
         stmt = stmt.where(or_(Expense.article.ilike(like), Expense.comment.ilike(like)))
 
-    count_stmt = select(func.count(), func.coalesce(func.sum(Expense.amount), 0)).select_from(stmt.subquery())
+    subq = stmt.subquery()
+    count_stmt = select(func.count(), func.coalesce(func.sum(subq.c.amount), 0)).select_from(subq)
     count, amount_sum = (await db.execute(count_stmt)).one()
 
     rows = (
@@ -536,17 +538,31 @@ async def refresh_report(
     return document(generated_file_resource(row))
 
 
+def _download_headers(row: GeneratedFile) -> dict:
+    """Content-Disposition needs an ASCII-only `filename` fallback (Cyrillic
+    titles aren't valid latin-1 header bytes) plus the RFC 5987 `filename*`
+    so browsers still show/save the real Russian title."""
+    day = row.created_at.date().isoformat() if row.created_at else "file"
+    ascii_name = f"{row.kind.replace(':', '-')}-{day}.csv"
+    pretty_name = f"{row.title}-{day}.csv"
+    return {
+        "Content-Disposition": (
+            f'attachment; filename="{ascii_name}"; '
+            f"filename*=UTF-8''{quote(pretty_name)}"
+        )
+    }
+
+
 @router.get("/reports/{report_id}/download")
 async def download_report(report_id: str, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(GeneratedFile).where(GeneratedFile.id == report_id))).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
-    filename = f"{row.title}-{row.created_at.date().isoformat() if row.created_at else ''}.csv"
     content = row.content if row.content.startswith("﻿") else "﻿" + row.content
     return Response(
         content=content.encode("utf-8"),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=_download_headers(row),
     )
 
 
