@@ -3,8 +3,9 @@ import Link from 'next/link';
 // Horizontal sub-navigation across the «Букеты и каталог» screens
 // (docs/posiflora/admin-map.md §2.3) — same tab-strip pattern as WarehouseNav/
 // StaffNav. Items with no `href` aren't implemented yet (paid storefront
-// feature / dashboard-only analytics / vendor catalog import) and render as
-// an inert, disabled tab instead of a link.
+// feature / dashboard-only analytics) and render as an inert, disabled tab
+// instead of a link. «Импорт» is our own file-based nomenclature import
+// (admin-map §2.3.7-по-мотивам) rather than Posiflora's vendor catalog pick.
 const ITEMS: { href?: string; label: string }[] = [
   { href: '/admin/showcase', label: 'Букеты в магазине' },
   { label: 'Онлайн-витрина' },
@@ -12,7 +13,7 @@ const ITEMS: { href?: string; label: string }[] = [
   { href: '/admin/catalog', label: 'Каталог товаров и услуг' },
   { href: '/admin/categories', label: 'Категории' },
   { href: '/admin/specifications', label: 'Рецепты' },
-  { label: 'Импорт' },
+  { href: '/admin/catalog/import', label: 'Импорт' },
 ];
 
 export default function BouquetsNav({ active }: { active: string }) {

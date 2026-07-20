@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/catalog', label: 'Каталог товаров и услуг' },
       { href: '/admin/categories', label: 'Категории' },
       { href: '/admin/specifications', label: 'Рецепты' },
-      { label: 'Импорт', disabled: true },
+      { href: '/admin/catalog/import', label: 'Импорт' },
     ],
   },
   {
@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { href: '/admin/customers', label: 'Список клиентов' },
       { href: '/admin/customers/analytic', label: 'Аналитика' },
-      { label: 'Импорт клиентов', disabled: true },
+      { href: '/admin/customers/import', label: 'Импорт клиентов' },
       { href: '/admin/bonuses', label: 'Система лояльности' },
     ],
   },

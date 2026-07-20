@@ -1668,4 +1668,42 @@ img { display: block; max-width: 100%; }
 }
 .admin-bulk-bar__clear:hover { background: var(--admin-blue-bg); }
 .admin-bulk-bar__clear:disabled { color: var(--admin-text-3); cursor: not-allowed; background: none; }
+
+/* ---------- import wizard (admin-map §2.5.3 «Импорт клиентов» / §2.3.7-по-мотивам) ---------- */
+
+.admin-import-actions { display: flex; gap: 10px; padding: 14px 16px 0; }
+
+.admin-import-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  margin: 16px; padding: 40px 20px; border: 2px dashed var(--admin-border); border-radius: 8px;
+  background: var(--admin-bg); text-align: center; color: var(--admin-text-2); transition: border-color 0.15s ease, background 0.15s ease;
+}
+.admin-import-dropzone--active { border-color: var(--admin-blue); background: var(--admin-blue-bg); }
+.admin-import-dropzone__icon { font-size: 32px; color: var(--admin-text-3); }
+
+.admin-import-skip-row {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px 0;
+  font-size: 13px; color: var(--admin-text-2); cursor: pointer;
+}
+
+.admin-import-table-wrap { margin: 16px; width: auto; }
+.admin-import-table th { vertical-align: top; padding: 8px 10px; }
+.admin-import-table th select {
+  width: 100%; border: 1px solid var(--admin-border); border-radius: 4px; height: 32px;
+  padding: 0 8px; font-size: 12px; font-weight: 600; color: var(--admin-text); background: #fff;
+}
+.admin-import-col-label {
+  margin-top: 6px; font-size: 11px; font-weight: 400; text-transform: none;
+  color: var(--admin-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+}
+.admin-import-row--skipped td { color: var(--admin-text-3); text-decoration: line-through; background: var(--admin-bg); }
+
+.admin-import-summary { display: flex; gap: 12px; flex-wrap: wrap; padding: 16px; }
+.admin-import-summary__item {
+  display: flex; flex-direction: column; gap: 4px; min-width: 160px; padding: 14px 18px;
+  border-radius: 8px; background: var(--admin-bg); font-size: 13px; color: var(--admin-text-2);
+}
+.admin-import-summary__value { font-size: 24px; font-weight: 700; color: var(--admin-text); }
+.admin-import-summary__item--ok .admin-import-summary__value { color: var(--admin-accent); }
+.admin-import-summary__item--error .admin-import-summary__value { color: #B3261E; }
 .admin-store-price-card .admin-composition__delete { position: absolute; top: 6px; right: 6px; }
