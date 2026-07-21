@@ -5,12 +5,18 @@ import type { CartLine } from './PosTerminal';
 
 const fmt = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n * 100) / 100) + ' ₽';
 
+export interface FiscalStatus {
+  id: string;
+  status: 'pending' | 'registered' | 'failed' | 'skipped';
+  error: string | null;
+}
+
 interface Props {
   storeId: string;
   cart: CartLine[];
   total: number;
   onClose: () => void;
-  onSold: (change: number | null) => void;
+  onSold: (change: number | null, fiscal: FiscalStatus | null) => void;
 }
 
 // Модал оплаты: нал (с подсказкой сдачи) или карта. Сервер сам считает сумму
@@ -47,7 +53,10 @@ export default function PosPaymentModal({ storeId, cart, total, onClose, onSold 
       if (!res.ok) {
         throw new Error(typeof json.detail === 'string' ? json.detail : 'Не удалось провести продажу');
       }
-      onSold(typeof json.meta?.change === 'number' ? json.meta.change : null);
+      onSold(
+        typeof json.meta?.change === 'number' ? json.meta.change : null,
+        json.meta?.fiscal ?? null,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка');
       setBusy(false);

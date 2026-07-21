@@ -1426,6 +1426,9 @@ img { display: block; max-width: 100%; }
 .pos__error { background: #FDE7E9; color: #B3261E; border-radius: 10px; padding: 10px 14px; cursor: pointer; margin-bottom: 10px; }
 .pos__notice { background: #E6F4EA; color: #1E6B3C; border-radius: 10px; padding: 10px 14px; cursor: pointer; margin-bottom: 10px; }
 .pos__shift-warning { background: #FFF3CD; color: #7A5A00; border-radius: 10px; padding: 10px 14px; cursor: pointer; margin-bottom: 10px; }
+/* Упавший фискальный чек — баннер с кнопкой повтора */
+.pos__fiscal-failed { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: default; }
+.pos__fiscal-failed .admin-btn { flex-shrink: 0; }
 .pos__empty { color: var(--admin-text-3); padding: 28px 12px; text-align: center; }
 .pos__search {
   width: 100%; padding: 12px 14px; border: 1px solid var(--admin-border);

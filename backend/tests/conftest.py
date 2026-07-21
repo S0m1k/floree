@@ -26,6 +26,7 @@ from sqlalchemy.pool import StaticPool
 import app.catalog_models  # noqa: F401
 import app.dictionary_models  # noqa: F401
 import app.finance_models  # noqa: F401
+import app.fiscal_models  # noqa: F401
 import app.inventory_models  # noqa: F401
 import app.loyalty_models  # noqa: F401
 import app.models  # noqa: F401

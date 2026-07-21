@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SimpleDictEntry } from '@/types';
-import PosPaymentModal from './PosPaymentModal';
+import PosPaymentModal, { FiscalStatus } from './PosPaymentModal';
 import PosOrdersTab from './PosOrdersTab';
 import PosProductsTab from './PosProductsTab';
 import PosCartTab from './PosCartTab';
@@ -60,6 +60,9 @@ export default function PosTerminal({ stores }: Props) {
   const [payOpen, setPayOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Упавший фискальный чек последней продажи — баннер с кнопкой повтора.
+  const [fiscalFailed, setFiscalFailed] = useState<FiscalStatus | null>(null);
+  const [fiscalBusy, setFiscalBusy] = useState(false);
 
   const loadContext = useCallback(async () => {
     if (!storeId) return;
@@ -136,13 +139,37 @@ export default function PosTerminal({ stores }: Props) {
 
   const removeLine = (line: CartLine) => setCart((prev) => prev.filter((l) => l !== line));
 
-  const onSold = (change: number | null) => {
+  const onSold = (change: number | null, fiscal: FiscalStatus | null) => {
     setPayOpen(false);
     setCart([]);
-    setNotice(change != null && change > 0 ? `Продажа проведена. Сдача: ${fmtMoney(change)}` : 'Продажа проведена');
+    const changeText = change != null && change > 0 ? ` Сдача: ${fmtMoney(change)}` : '';
+    const receiptText = fiscal?.status === 'pending' ? ' Чек отправлен на кассу.' : '';
+    setNotice(`Продажа проведена.${changeText}${receiptText}`);
+    setFiscalFailed(fiscal?.status === 'failed' ? fiscal : null);
     setTab('showcase');
     loadContext();
     loadProducts();
+  };
+
+  const retryFiscal = async () => {
+    if (!fiscalFailed) return;
+    setFiscalBusy(true);
+    try {
+      const res = await fetch(`/admin/api/pos/fiscal-receipts/${fiscalFailed.id}/retry`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof json.detail === 'string' ? json.detail : 'Не удалось повторить чек');
+      const status = json.data?.attributes?.status;
+      if (status === 'pending') {
+        setFiscalFailed(null);
+        setNotice('Чек отправлен на кассу.');
+      } else {
+        setFiscalFailed({ ...fiscalFailed, error: json.data?.attributes?.error ?? null });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка повтора чека');
+    } finally {
+      setFiscalBusy(false);
+    }
   };
 
   const cartCount = cart.reduce((n, l) => n + l.qty, 0);
@@ -163,6 +190,14 @@ export default function PosTerminal({ stores }: Props) {
         )}
         {notice && (
           <div className="pos__notice" onClick={() => setNotice(null)}>{notice}</div>
+        )}
+        {fiscalFailed && (
+          <div className="pos__error pos__fiscal-failed">
+            <span>Чек НЕ пробит: {fiscalFailed.error || 'касса недоступна'}</span>
+            <button type="button" className="admin-btn" onClick={retryFiscal} disabled={fiscalBusy}>
+              {fiscalBusy ? 'Повтор…' : 'Повторить чек'}
+            </button>
+          </div>
         )}
         {!shiftOpen && context !== null && tab !== 'more' && (
           <div className="pos__shift-warning" onClick={() => setTab('more')}>

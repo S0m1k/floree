@@ -11,6 +11,16 @@ class Settings(BaseSettings):
     tbank_terminal_key: str
     tbank_secret_key: str
     tbank_api_url: str = "https://securepay.tinkoff.ru/v2"
+
+    # --- Фискализация aQsi (54-ФЗ). Пусто = выключена (dev/тесты). ---
+    aqsi_api_key: str | None = None
+    # id кассы из GET /pub/v4/Devices (смарт-терминал aQsi 5Ф магазина).
+    aqsi_device_id: int | None = None
+    aqsi_api_url: str = "https://api.aqsi.ru/pub"
+    # Тег 1055 «система налогообложения»: 2 = УСН доход (наш режим по умолчанию).
+    aqsi_tax_system_code: int = 2
+    # Тег ставки НДС aQsi VATRateEnum: 6 = НДС не облагается (УСН).
+    aqsi_vat_rate_id: int = 6
     frontend_url: str = "http://localhost:3000"
 
     # --- Auth (/v1/sessions) ---

@@ -15,15 +15,18 @@ from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.catalog_models import Bouquet
 from app.database import get_db
+from app.fiscal_models import FiscalReceipt
 from app.inventory_models import Item
 from app.deps import get_current_worker
 from app.dictionary_models import CashReason
 from app.jsonapi import document
 from app.models import Order, OrderItem, OrderStatusHistory, Payment
 from app.serializers import order_resource, shift_resource
+from app.services import aqsi
 from app.services.deal_sources import SOURCE_TERMINAL, get_or_create_deal_source
 from app.staff_models import CashOperation, Shift, Worker
 from app.routers.v1_sales import (
@@ -535,18 +538,17 @@ async def create_sale(
             raise HTTPException(status_code=400, detail="Получено меньше суммы продажи")
         change = cash_received - total
 
-    db.add(
-        Payment(
-            order_id=order.id,
-            tbank_payment_id=None,
-            tbank_order_id=f"pos-{uuid.uuid4()}",
-            amount=total,
-            status="CONFIRMED",
-            method=method,
-            kind="payment",
-            created_by_id=worker.id,
-        )
+    payment = Payment(
+        order_id=order.id,
+        tbank_payment_id=None,
+        tbank_order_id=f"pos-{uuid.uuid4()}",
+        amount=total,
+        status="CONFIRMED",
+        method=method,
+        kind="payment",
+        created_by_id=worker.id,
     )
+    db.add(payment)
 
     for bouquet in sold_bouquets:
         bouquet.status = BOUQUET_SOLD_STATUS
@@ -554,6 +556,10 @@ async def create_sale(
     db.add(OrderStatusHistory(order_id=order.id, status="new", worker_id=worker.id))
     db.add(OrderStatusHistory(order_id=order.id, status="completed", worker_id=worker.id))
     await db.commit()
+
+    # Фискализация после commit: недоступная касса не должна отменить продажу —
+    # упавший чек остаётся failed и добивается повтором из UI.
+    fiscal = await _fiscalize_sale(db, order, payment, worker)
 
     # Перечитываем заказ: server-side updated_at протух после UPDATE, а
     # коллекция payments была загружена в _recalc_total ещё до добавления
@@ -565,4 +571,94 @@ async def create_sale(
     if change is not None:
         meta["change"] = float(change)
         meta["cashReceived"] = float(cash_received)
+    meta["fiscal"] = {"id": fiscal.id, "status": fiscal.status, "error": fiscal.error}
     return document(order_resource(fresh), meta=meta)
+
+
+# ---------- фискализация (aQsi) ----------
+
+
+def _receipt_items(order: Order) -> list[dict]:
+    """Верхнеуровневые позиции заказа → строки чека {title, unit_price, quantity}."""
+    return [
+        {"title": it.title, "unit_price": it.unit_price, "quantity": it.quantity}
+        for it in order.items
+        if it.parent_id is None
+    ]
+
+
+async def _fiscalize_sale(
+    db: AsyncSession, order: Order, payment: Payment, worker: Worker
+) -> FiscalReceipt:
+    """Пробить чек продажи через aQsi; ошибки уходят в статус failed."""
+    fiscal = FiscalReceipt(order_id=order.id, payment_id=payment.id)
+    if not aqsi.is_enabled():
+        fiscal.status = "skipped"
+    else:
+        await db.refresh(order, ["items"])
+        try:
+            body = aqsi.build_receipt_body(
+                items=_receipt_items(order),
+                method=payment.method or "cash",
+                total=_dec(payment.amount),
+                cashier_name=worker.name,
+            )
+            fiscal.operation_id = await aqsi.process_receipt(body)
+            fiscal.status = "pending"
+        except Exception as exc:  # сеть/касса/валидация — продажу не валим
+            fiscal.status = "failed"
+            fiscal.error = str(exc)[:500]
+    db.add(fiscal)
+    await db.commit()
+    await db.refresh(fiscal)
+    return fiscal
+
+
+@router.post("/fiscal-receipts/{receipt_id}/retry")
+async def retry_fiscal_receipt(
+    receipt_id: str,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """Повторить упавший чек (касса была недоступна в момент продажи)."""
+    fiscal = (
+        await db.execute(select(FiscalReceipt).where(FiscalReceipt.id == receipt_id))
+    ).scalar_one_or_none()
+    if fiscal is None:
+        raise HTTPException(status_code=404, detail="Чек не найден")
+    if fiscal.status == "registered":
+        raise HTTPException(status_code=409, detail="Чек уже пробит")
+    if not aqsi.is_enabled():
+        raise HTTPException(status_code=409, detail="Фискализация не настроена (AQSI_*)")
+
+    order = (
+        await db.execute(
+            select(Order).where(Order.id == fiscal.order_id).options(selectinload(Order.items))
+        )
+    ).scalar_one()
+    payment = (
+        await db.execute(select(Payment).where(Payment.id == fiscal.payment_id))
+    ).scalar_one_or_none()
+
+    try:
+        body = aqsi.build_receipt_body(
+            items=_receipt_items(order),
+            method=(payment.method if payment else None) or "cash",
+            total=_dec(payment.amount if payment else order.total_amount),
+            cashier_name=worker.name,
+        )
+        fiscal.operation_id = await aqsi.process_receipt(body)
+        fiscal.status = "pending"
+        fiscal.error = None
+    except Exception as exc:
+        fiscal.status = "failed"
+        fiscal.error = str(exc)[:500]
+    await db.commit()
+    await db.refresh(fiscal)
+    return {
+        "data": {
+            "id": fiscal.id,
+            "type": "fiscal-receipts",
+            "attributes": {"status": fiscal.status, "error": fiscal.error},
+        }
+    }
