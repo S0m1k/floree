@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import Order
 from app.schemas import OrderCreate, OrderResponse
-from app.services.posiflora import create_order as posiflora_create_order
+from app.services.posiflora import get_variant_price
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -26,42 +26,66 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
     if payload.delivery_date and payload.delivery_time:
         local_due_time = f"{payload.delivery_date}T{payload.delivery_time}:00+03:00"
 
-    # 1. Create in Posiflora (best-effort — don't fail if Posiflora is down)
-    items_payload = [i.model_dump() for i in payload.items]
-    posiflora_id = None
-    posiflora_doc_no = None
-    try:
-        pf_resp = await posiflora_create_order(
-            customer_name=payload.customer_name,
-            phone=payload.phone,
-            city=payload.city,
-            street=payload.street,
-            house=payload.house,
-            apartment=payload.apartment,
-            delivery_date=payload.delivery_date,
-            delivery_time=payload.delivery_time,
-            comment=payload.comment,
-            items=items_payload,
-            doc_no=doc_no,
+    # --- FIX #1: resolve authoritative prices server-side; never trust client ---
+    resolved_items: list[dict] = []
+    server_total = 0
+    for item in payload.items:
+        try:
+            unit_price, resolved_swv_id = await get_variant_price(
+                item.recipe_id, item.swv_id
+            )
+        except Exception as e:
+            print(f"[Orders] Price resolution failed for recipe={item.recipe_id}: {e}")
+            raise HTTPException(
+                status_code=422,
+                detail="Не удалось подтвердить цену товара",
+            )
+        try:
+            qty = int(item.qty)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="Некорректное количество товара")
+        if qty < 1 or qty > 100:
+            raise HTTPException(status_code=422, detail="Некорректное количество товара")
+        line_total = unit_price * qty
+        server_total += line_total
+        resolved_items.append(
+            {
+                "recipe_id": item.recipe_id,
+                "swv_id": resolved_swv_id,
+                "title": item.title,
+                "price": unit_price,  # authoritative unit price in rubles
+                "qty": qty,
+            }
         )
-        posiflora_id = pf_resp["data"]["id"]
-        posiflora_doc_no = pf_resp["data"]["attributes"].get("docNo")
-    except Exception as e:
-        # Log but continue — order is still saved locally
-        print(f"[Posiflora] Order creation failed: {e}")
 
-    # 2. Save to DB (`bouquet_ids` column repurposed to store recipe order items as JSON)
+    # --- FIX #2: store payload for deferred Posiflora order creation ---
+    order_payload_data = {
+        "customer_name": payload.customer_name,
+        "phone": payload.phone,
+        "city": payload.city,
+        "street": payload.street,
+        "house": payload.house,
+        "apartment": payload.apartment,
+        "delivery_date": payload.delivery_date,
+        "delivery_time": payload.delivery_time,
+        "comment": payload.comment,
+        "doc_no": doc_no,
+        "items": resolved_items,
+    }
+
+    # Save to DB — Posiflora order is NOT created here (deferred to payment webhook)
     order = Order(
-        posiflora_id=posiflora_id,
-        posiflora_doc_no=posiflora_doc_no or doc_no,
+        posiflora_id=None,
+        posiflora_doc_no=doc_no,
         customer_name=payload.customer_name,
         phone=payload.phone,
         address=combined_address,
         comment=payload.comment,
         due_time=local_due_time,
-        total_amount=payload.total_amount,
+        total_amount=server_total,  # authoritative server-computed total
         status="pending",
-        bouquet_ids=json.dumps(items_payload),
+        bouquet_ids=json.dumps(resolved_items),  # back-compat: items with server prices
+        order_payload=json.dumps(order_payload_data),
     )
     db.add(order)
     await db.commit()

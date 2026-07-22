@@ -4,30 +4,32 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { SOCIALS } from '@/lib/socials';
 
+// Square studio photos — the same source fills both the wide desktop frame and
+// the tall mobile frame (object-fit: cover crops to each).
 const SLIDES = [
   {
-    imgDesktop: '/hero/desktop-1.jpg',
-    imgMobile: '/hero/mobile-1.jpg',
+    imgDesktop: '/hero/slide-1.jpg',
+    imgMobile: '/hero/slide-1.jpg',
     alt: 'Авторский букет Floree — цветочная студия Санкт-Петербург',
   },
   {
-    imgDesktop: '/hero/desktop-2.jpg',
-    imgMobile: '/hero/mobile-2.jpg',
+    imgDesktop: '/hero/slide-2.jpg',
+    imgMobile: '/hero/slide-2.jpg',
     alt: 'Авторский букет Floree — свежие цветы с доставкой по СПб',
   },
   {
-    imgDesktop: '/hero/desktop-3.jpg',
-    imgMobile: '/hero/mobile-3.jpg',
+    imgDesktop: '/hero/slide-3.jpg',
+    imgMobile: '/hero/slide-3.jpg',
     alt: 'Флористическая студия Floree — Полтавский проезд, 2',
   },
   {
-    imgDesktop: '/hero/desktop-4.jpg',
-    imgMobile: '/hero/mobile-4.jpg',
+    imgDesktop: '/hero/slide-4.jpg',
+    imgMobile: '/hero/slide-4.jpg',
     alt: 'Букет из свежих цветов — Floree Санкт-Петербург',
   },
   {
-    imgDesktop: '/hero/desktop-5.jpg',
-    imgMobile: '/hero/mobile-5.jpg',
+    imgDesktop: '/hero/slide-5.jpg',
+    imgMobile: '/hero/slide-5.jpg',
     alt: 'Авторская флористика Floree — заказ онлайн',
   },
 ];

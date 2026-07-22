@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import RecipeCard from '@/components/RecipeCard';
 import { Recipe, RecipeCategory } from '@/types';
+import { orderCategories } from '@/lib/categoryOrder';
 
 const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -52,10 +53,11 @@ interface Props {
 
 export default async function CatalogPage({ searchParams }: Props) {
   const activeCategory = searchParams.category;
-  const [recipes, categories] = await Promise.all([
+  const [recipes, rawCategories] = await Promise.all([
     getRecipes(activeCategory),
     getCategories(),
   ]);
+  const categories = orderCategories(rawCategories);
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--paper)' }}>

@@ -1,4 +1,3 @@
-import json
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -6,7 +5,7 @@ from app.database import get_db
 from app.models import Order, Payment
 from app.schemas import PaymentInitRequest, PaymentInitResponse
 from app.services.tbank import init_payment, verify_notification
-from app.services.posiflora import create_order as posiflora_create_order, record_payment
+from app.services.posiflora import record_payment
 from app.config import settings
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -85,73 +84,24 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     if not payment:
         return Response(content="OK")  # unknown order, ignore
 
-    # --- FIX #3: idempotency — skip if already confirmed ---
-    if payment.status == "CONFIRMED":
-        return Response(content="OK")
-
     # Update payment status
     payment.status = status
     payment.tbank_payment_id = tbank_payment_id
 
     if status == "CONFIRMED":
+        # Update order status
         order_result = await db.execute(
             select(Order).where(Order.id == payment.order_id)
         )
         order = order_result.scalar_one_or_none()
         if order:
-            # --- FIX #3: idempotency — skip if order already paid ---
-            if order.status == "paid":
-                await db.commit()
-                return Response(content="OK")
-
-            # --- FIX #3: amount validation ---
-            if amount_rubles != order.total_amount:
-                print(
-                    f"[Webhook] AMOUNT MISMATCH order={order.id} "
-                    f"expected={order.total_amount} got={amount_rubles}"
-                )
-                order.status = "amount_mismatch"
-                await db.commit()
-                return Response(content="OK")
-
-            # Mark paid locally first — this must survive Posiflora outages
             order.status = "paid"
-
-            # --- FIX #2: create Posiflora order now that payment is confirmed ---
-            if order.posiflora_id is None and order.order_payload:
-                try:
-                    op = json.loads(order.order_payload)
-                    pf_resp = await posiflora_create_order(
-                        customer_name=op["customer_name"],
-                        phone=op["phone"],
-                        city=op["city"],
-                        street=op["street"],
-                        house=op["house"],
-                        apartment=op.get("apartment"),
-                        delivery_date=op.get("delivery_date"),
-                        delivery_time=op.get("delivery_time"),
-                        comment=op.get("comment"),
-                        items=op["items"],
-                        doc_no=op["doc_no"],
-                    )
-                    order.posiflora_id = pf_resp["data"]["id"]
-                    order.posiflora_doc_no = pf_resp["data"]["attributes"].get("docNo") or op["doc_no"]
-                    print(
-                        f"[Webhook] Posiflora order created: id={order.posiflora_id} "
-                        f"doc_no={order.posiflora_doc_no}"
-                    )
-                except Exception as e:
-                    # Log loudly but do NOT lose the paid state
-                    print(
-                        f"[Webhook] POSIFLORA ORDER CREATION FAILED for order={order.id}: {e}"
-                    )
-
-            # Record payment in Posiflora (only when we have a posiflora_id)
+            # Record payment in Posiflora
             if order.posiflora_id:
                 try:
                     await record_payment(order.posiflora_id, amount_rubles)
                 except Exception as e:
-                    print(f"[Posiflora] Record payment failed for order={order.id}: {e}")
+                    print(f"[Posiflora] Record payment failed: {e}")
 
     await db.commit()
     return Response(content="OK")

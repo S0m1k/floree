@@ -93,11 +93,10 @@ async def get_recipes(category_id: str | None = None) -> dict:
     image_map: dict = {}
     page = 1
 
-    # Build query — keep status=on filter, paginate at 200/page.
-    # NOTE: Posiflora ignores filter[category] on /v1/specifications (it returns
-    # every recipe regardless), so category filtering is done client-side below
-    # via each recipe's category relationship.
+    # Build query — keep status=on filter, paginate at 200/page
     base_qs = "include=logo&filter%5Bstatus%5D=on&page%5Bsize%5D=200"
+    if category_id:
+        base_qs += f"&filter%5Bcategory%5D={category_id}"
 
     while True:
         data = await posiflora_request(
@@ -123,12 +122,6 @@ async def get_recipes(category_id: str | None = None) -> dict:
             continue
         if attrs.get("status") != "on":
             continue
-        # Posiflora does not honor filter[category]; filter by the recipe's own
-        # category relationship so a category page shows only its own items.
-        if category_id:
-            cat = ((r.get("relationships") or {}).get("category") or {}).get("data")
-            if not cat or cat.get("id") != category_id:
-                continue
         result.append(_attach_image_url(r, image_map))
 
     # Sort by updatedAt descending (newest first)
@@ -236,45 +229,6 @@ async def get_recipe_categories() -> dict:
             continue
         result.append(c)
     return {"data": result, "meta": {"total": len(result)}}
-
-
-# ---------- Price resolution ----------
-
-async def get_variant_price(recipe_id: str, swv_id: str | None) -> tuple[int, str]:
-    """Return (authoritative_price_rubles, resolved_swv_id) for a recipe variant.
-
-    Resolution order:
-      1. If swv_id is provided, match the variant whose swvId == swv_id.
-      2. Else pick the variant flagged isDefault=True.
-      3. Else pick the first variant in the sorted list.
-
-    Raises Exception if the recipe cannot be fetched, no variants exist,
-    the requested swv_id is not found, or the resolved variant has no price.
-    """
-    item = await get_recipe(recipe_id)
-    variants: list[dict] = item.get("variants") or []
-
-    if not variants:
-        raise Exception(f"No active variants found for recipe {recipe_id}")
-
-    if swv_id:
-        match = next((v for v in variants if v.get("swvId") == swv_id), None)
-        if match is None:
-            raise Exception(
-                f"Variant swv_id={swv_id} not found for recipe {recipe_id}"
-            )
-        resolved = match
-    else:
-        default = next((v for v in variants if v.get("isDefault")), None)
-        resolved = default if default is not None else variants[0]
-
-    price = resolved.get("price")
-    if price is None:
-        raise Exception(
-            f"Variant swv_id={resolved.get('swvId')} of recipe {recipe_id} has no price"
-        )
-
-    return int(price), resolved["swvId"]
 
 
 # ---------- Orders ----------
