@@ -20,15 +20,35 @@ export const metadata: Metadata = {
 
 const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Shown only when the backend returns no categories (dev / API down).
-const FALLBACK_CATEGORIES = [
-  'Сезонные',
-  'Монобукеты',
-  'Сборные букеты',
-  'Гигант букеты',
+// Desired display order of recipe categories (by title). Titles found in the
+// list are shown in this order; any category not listed keeps its API order and
+// is appended after the known ones.
+const CATEGORY_ORDER = [
+  'Сейчас сезон',
+  'Моно',
+  'Сборные',
+  'Премиум',
+  'Свадебные',
+  'Цветочные композиции',
   'Охапки',
-  'Свадебная флористика',
+  'Дополнения',
 ];
+
+// Shown only when the backend returns no categories (dev / API down).
+const FALLBACK_CATEGORIES = CATEGORY_ORDER;
+
+const normalizeTitle = (title: string): string => title.trim().toLowerCase();
+
+// Sort a copy of the categories by CATEGORY_ORDER; unknown titles fall to the
+// end while keeping their original (stable) order.
+function orderCategories(cats: RecipeCategory[]): RecipeCategory[] {
+  const rank = new Map(CATEGORY_ORDER.map((title, i) => [normalizeTitle(title), i]));
+  return [...cats].sort((a, b) => {
+    const ra = rank.get(normalizeTitle(a.attributes.title)) ?? Number.MAX_SAFE_INTEGER;
+    const rb = rank.get(normalizeTitle(b.attributes.title)) ?? Number.MAX_SAFE_INTEGER;
+    return ra - rb;
+  });
+}
 
 async function getCategories(): Promise<RecipeCategory[]> {
   try {
@@ -54,6 +74,7 @@ async function getRecipes(): Promise<Recipe[]> {
 
 export default async function HomePage() {
   const [categories, recipes] = await Promise.all([getCategories(), getRecipes()]);
+  const orderedCategories = orderCategories(categories);
   const popular = recipes.slice(0, 10);
 
   return (
@@ -69,8 +90,8 @@ export default async function HomePage() {
       <section className="home-cats" aria-label="Категории букетов">
         <Reveal kind="up">
           <div className="home-cats__row">
-            {categories.length > 0
-              ? categories.map((c) => (
+            {orderedCategories.length > 0
+              ? orderedCategories.map((c) => (
                   <Link
                     key={c.id}
                     href={`/catalog?category=${encodeURIComponent(c.id)}`}
@@ -110,7 +131,7 @@ export default async function HomePage() {
       <section className="ed-story" id="about">
         <div className="ed-story__media">
           <MaskImage
-            src="https://images.unsplash.com/photo-1487700160041-babef9c3cb55?w=1400&q=80&auto=format&fit=crop"
+            src="/about-studio.jpg"
             alt="Цветочная студия Floree"
             aspect="4/5"
           />
