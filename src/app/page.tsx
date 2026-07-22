@@ -6,6 +6,7 @@ import MaskImage from '@/components/MaskImage';
 import Ticker from '@/components/Ticker';
 import RecipeCard from '@/components/RecipeCard';
 import { Recipe, RecipeCategory } from '@/types';
+import { orderCategories, FALLBACK_CATEGORY_TITLES } from '@/lib/categoryOrder';
 
 export const metadata: Metadata = {
   title: 'Floree — цветочная студия в Санкт-Петербурге | Купить букет с доставкой',
@@ -21,14 +22,7 @@ export const metadata: Metadata = {
 const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Shown only when the backend returns no categories (dev / API down).
-const FALLBACK_CATEGORIES = [
-  'Сезонные',
-  'Монобукеты',
-  'Сборные букеты',
-  'Гигант букеты',
-  'Охапки',
-  'Свадебная флористика',
-];
+const FALLBACK_CATEGORIES = FALLBACK_CATEGORY_TITLES;
 
 async function getCategories(): Promise<RecipeCategory[]> {
   try {
@@ -54,6 +48,7 @@ async function getRecipes(): Promise<Recipe[]> {
 
 export default async function HomePage() {
   const [categories, recipes] = await Promise.all([getCategories(), getRecipes()]);
+  const orderedCategories = orderCategories(categories);
   const popular = recipes.slice(0, 10);
 
   return (
@@ -69,8 +64,8 @@ export default async function HomePage() {
       <section className="home-cats" aria-label="Категории букетов">
         <Reveal kind="up">
           <div className="home-cats__row">
-            {categories.length > 0
-              ? categories.map((c) => (
+            {orderedCategories.length > 0
+              ? orderedCategories.map((c) => (
                   <Link
                     key={c.id}
                     href={`/catalog?category=${encodeURIComponent(c.id)}`}
@@ -110,7 +105,7 @@ export default async function HomePage() {
       <section className="ed-story" id="about">
         <div className="ed-story__media">
           <MaskImage
-            src="https://images.unsplash.com/photo-1487700160041-babef9c3cb55?w=1400&q=80&auto=format&fit=crop"
+            src="/about-studio.jpg"
             alt="Цветочная студия Floree"
             aspect="4/5"
           />

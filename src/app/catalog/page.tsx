@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import CatalogView from '@/components/CatalogView';
 import { getRecipes, getCategories } from '@/lib/catalog';
+import { orderCategories } from '@/lib/categoryOrder';
 
 export const metadata = {
   title: 'Купить букет в Санкт-Петербурге — каталог Floree | Доставка за 2 часа',
@@ -19,7 +20,9 @@ interface Props {
 }
 
 export default async function CatalogPage({ searchParams }: Props) {
-  const [recipes, categories] = await Promise.all([getRecipes(), getCategories()]);
+  const [recipes, rawCategories] = await Promise.all([getRecipes(), getCategories()]);
+  // Фирменный порядок категорий с прода (перестановка по ключевым словам).
+  const categories = orderCategories(rawCategories);
 
   // Legacy ?category=<id> links → redirect to the clean /catalog/<slug> URL.
   if (searchParams.category) {

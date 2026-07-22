@@ -348,6 +348,45 @@ async def get_recipe_categories() -> dict:
     return {"data": result, "meta": {"total": len(result)}}
 
 
+# ---------- Price resolution ----------
+
+async def get_variant_price(recipe_id: str, swv_id: str | None) -> tuple[int, str]:
+    """Return (authoritative_price_rubles, resolved_swv_id) for a recipe variant.
+
+    Resolution order:
+      1. If swv_id is provided, match the variant whose swvId == swv_id.
+      2. Else pick the variant flagged isDefault=True.
+      3. Else pick the first variant in the sorted list.
+
+    Raises Exception if the recipe cannot be fetched, no variants exist,
+    the requested swv_id is not found, or the resolved variant has no price.
+    """
+    item = await get_recipe(recipe_id)
+    variants: list[dict] = item.get("variants") or []
+
+    if not variants:
+        raise Exception(f"No active variants found for recipe {recipe_id}")
+
+    if swv_id:
+        match = next((v for v in variants if v.get("swvId") == swv_id), None)
+        if match is None:
+            raise Exception(
+                f"Variant swv_id={swv_id} not found for recipe {recipe_id}"
+            )
+        resolved = match
+    else:
+        default = next((v for v in variants if v.get("isDefault")), None)
+        resolved = default if default is not None else variants[0]
+
+    price = resolved.get("price")
+    if price is None:
+        raise Exception(
+            f"Variant swv_id={resolved.get('swvId')} of recipe {recipe_id} has no price"
+        )
+
+    return int(price), resolved["swvId"]
+
+
 # ---------- Orders ----------
 
 async def _get_swv_id_for_recipe(recipe_id: str) -> str:
