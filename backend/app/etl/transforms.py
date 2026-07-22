@@ -8,7 +8,7 @@ data and upserts the results.
 import json
 import logging
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from decimal import Decimal
 
 from app.models import DEFAULT_MEASURE
@@ -43,13 +43,22 @@ def _status_from_deleted(a: dict) -> str:
 
 
 def _dt(v: str | None) -> datetime | None:
-    """Parse a Posiflora ISO-8601 timestamp (e.g. '2026-05-27T15:37:13+00:00')."""
+    """Parse a Posiflora ISO-8601 timestamp (e.g. '2026-05-27T15:37:13+00:00').
+
+    Наши колонки — TIMESTAMP WITHOUT TIME ZONE (все датавремена храним в UTC):
+    aware-значение приводится к UTC и отдаётся naive, иначе asyncpg на
+    Postgres падает с «can't subtract offset-naive and offset-aware
+    datetimes» (SQLite такие значения молча глотал).
+    """
     if not v:
         return None
     try:
-        return datetime.fromisoformat(v)
+        parsed = datetime.fromisoformat(v)
     except ValueError:
         return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 # ---------- simple entities ----------
