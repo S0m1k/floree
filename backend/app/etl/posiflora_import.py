@@ -123,13 +123,11 @@ async def import_shifts(session) -> int:
     открытия/закрытия обнуляется (как в других импортёрах)."""
     data, _ = await _fetch_all("/v1/shifts")
     known_workers = set((await session.execute(select(Worker.id))).scalars().all())
-    known_stores = set((await session.execute(select(Store.id))).scalars().all())
+    await _ensure_stores(session, {T.map_shift(r)["store_id"] for r in data})
 
     rows = []
     for r in data:
         row = T.map_shift(r)
-        if row["store_id"] not in known_stores:
-            continue
         if row["opened_by_id"] not in known_workers:
             row["opened_by_id"] = None
         if row["closed_by_id"] not in known_workers:
@@ -176,6 +174,18 @@ async def import_specifications(session) -> int:
     return n
 
 
+async def _ensure_stores(session, store_ids: set) -> None:
+    """Создать заглушки для точек, на которые ссылаются данные, но которых нет
+    в /v1/stores (закрытые/архивные точки Posiflora). SQLite не проверял такие
+    FK, Postgres проверяет — без заглушек импорт падает IntegrityError."""
+    known = set((await session.execute(select(Store.id))).scalars().all())
+    for sid in store_ids:
+        if sid and sid not in known:
+            session.add(Store(id=sid, title="Точка (архив)"))
+            known.add(sid)
+    await session.flush()
+
+
 async def import_bouquets(session) -> int:
     data, _ = await _fetch_all("/v1/bouquets")
     known_swv = set((await session.execute(select(SpecificationWithVariants.id))).scalars().all())
@@ -185,12 +195,13 @@ async def import_bouquets(session) -> int:
         if b["spec_with_variants_id"] not in known_swv:
             b["spec_with_variants_id"] = None  # avoid dangling FK
         rows.append(b)
+    await _ensure_stores(session, {b.get("store_id") for b in rows})
     return await _merge_all(session, Bouquet, rows)
 
 
 async def import_orders(session) -> int:
     data, _ = await _fetch_all("/v1/orders")
-    known_stores = set((await session.execute(select(Store.id))).scalars().all())
+    await _ensure_stores(session, {T.map_order(r, {})["store_id"] for r in data})
     known_sources = set((await session.execute(select(CustomerDealSource.id))).scalars().all())
     known_workers = set((await session.execute(select(Worker.id))).scalars().all())
     customer_lookup = {
@@ -203,8 +214,6 @@ async def import_orders(session) -> int:
     rows = []
     for r in data:
         o = T.map_order(r, customer_lookup)
-        if o["store_id"] not in known_stores:
-            o["store_id"] = None
         if o["source_id"] not in known_sources:
             o["source_id"] = None
         if o["customer_id"] not in known_customers:
