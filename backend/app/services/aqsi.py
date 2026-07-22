@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 
 DOC_TYPE_INCOME = 1  # приход
 CALCULATION_TYPE_FULL = 4  # полный расчёт
+CALCULATION_TYPE_ADVANCE = 3  # аванс (предоплата заказа без известного состава)
 CALCULATION_SUBJECT_GOODS = 1  # товар
+CALCULATION_SUBJECT_PAYMENT = 10  # платёж (для аванса)
 UNIT_PIECE = 0  # штуки
 PAYMENT_TYPE_BY_METHOD = {"cash": 0, "card": 1}
 
@@ -56,16 +58,22 @@ def build_receipt_body(
     total: Decimal,
     customer_email: str | None = None,
     cashier_name: str | None = None,
+    calculation_type_id: int = CALCULATION_TYPE_FULL,
+    calculation_subject_id: int = CALCULATION_SUBJECT_GOODS,
 ) -> dict:
-    """Тело ReceiptReqV3 для продажи. `items`: [{title, unit_price, quantity}]."""
+    """Тело ReceiptReqV3. `items`: [{title, unit_price, quantity}].
+
+    Продажа — полный расчёт/товар (по умолчанию); предоплата заказа —
+    calculation_type_id=CALCULATION_TYPE_ADVANCE + subject PAYMENT.
+    """
     positions = [
         {
             "info": {
                 "name": str(item["title"])[:128],
                 "finalPrice": _kopecks(item["unit_price"]),
                 "baseQuantity": _qty_str(item["quantity"]),
-                "calculationTypeId": CALCULATION_TYPE_FULL,
-                "calculationSubjectId": CALCULATION_SUBJECT_GOODS,
+                "calculationTypeId": calculation_type_id,
+                "calculationSubjectId": calculation_subject_id,
                 "taxRateId": settings.aqsi_vat_rate_id,
                 "quantityUnitId": UNIT_PIECE,
             }

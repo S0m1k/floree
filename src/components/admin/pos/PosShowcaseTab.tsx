@@ -2,6 +2,7 @@
 
 import { CartLine, PosProduct, fmtMoney } from './PosTerminal';
 import { useState } from 'react';
+import PosRecipePicker from './PosRecipePicker';
 
 // Бейдж срока жизни букета, как в терминале Posiflora: «6 часов» / «2 дня».
 // Срок — 3 суток с момента сборки (см. showcaseFormat.SHELF_LIFE_DAYS).
@@ -25,12 +26,16 @@ interface Props {
   products: PosProduct[] | null;
   cart: CartLine[];
   onAdd: (p: PosProduct) => void;
+  storeId: string;
+  onAssembled: (title: string) => void;
 }
 
 // «Витрина» — собранные букеты точки: карточка с бейджем срока жизни, ценой
-// и кнопкой в корзину (букет штучный — добавляется один раз).
-export default function PosShowcaseTab({ products, cart, onAdd }: Props) {
+// и кнопкой в корзину (букет штучный — добавляется один раз). Кнопка
+// «Собрать букет» ставит на витрину новый букет по рецепту.
+export default function PosShowcaseTab({ products, cart, onAdd, storeId, onAssembled }: Props) {
   const [query, setQuery] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   if (products === null) return <div className="pos__empty">Загрузка витрины…</div>;
 
@@ -40,7 +45,16 @@ export default function PosShowcaseTab({ products, cart, onAdd }: Props) {
 
   return (
     <div className="pos__tab">
-      <h1 className="pos__title">Витрина</h1>
+      <div className="pos__title-row">
+        <h1 className="pos__title">Витрина</h1>
+        <button
+          type="button"
+          className="admin-btn admin-btn--primary"
+          onClick={() => setPickerOpen(true)}
+        >
+          + Собрать букет
+        </button>
+      </div>
       <input
         type="search"
         className="pos__search"
@@ -82,6 +96,17 @@ export default function PosShowcaseTab({ products, cart, onAdd }: Props) {
             );
           })}
         </div>
+      )}
+
+      {pickerOpen && (
+        <PosRecipePicker
+          storeId={storeId}
+          onClose={() => setPickerOpen(false)}
+          onAssembled={(title) => {
+            setPickerOpen(false);
+            onAssembled(title);
+          }}
+        />
       )}
     </div>
   );

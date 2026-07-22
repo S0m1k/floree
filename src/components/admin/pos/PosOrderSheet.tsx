@@ -32,6 +32,8 @@ export default function PosOrderSheet({ orderId, onClose, onChanged }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -80,6 +82,35 @@ export default function PosOrderSheet({ orderId, onClose, onChanged }: Props) {
         throw new Error(typeof json.detail === 'string' ? json.detail : 'Не удалось сменить статус');
       }
       setStatusOpen(false);
+      await load();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const acceptPayment = async (method: 'cash' | 'card') => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/admin/api/pos/orders/${orderId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof json.detail === 'string' ? json.detail : 'Не удалось принять оплату');
+      }
+      setPayOpen(false);
+      const fiscal = json.meta?.fiscal;
+      setNotice(
+        fiscal?.status === 'failed'
+          ? `Оплата принята, но чек НЕ пробит: ${fiscal.error || 'касса недоступна'}`
+          : 'Оплата принята',
+      );
       await load();
       onChanged();
     } catch (err) {
@@ -158,6 +189,29 @@ export default function PosOrderSheet({ orderId, onClose, onChanged }: Props) {
               <div className="pos-order-sheet__row pos-order-sheet__due">
                 <span>К оплате</span>
                 <strong>{fmtMoney(due)}</strong>
+              </div>
+            )}
+            {notice && (
+              <div className="pos__notice" onClick={() => setNotice(null)}>{notice}</div>
+            )}
+            {due > 0 && !payOpen && (
+              <button
+                type="button"
+                className="admin-btn admin-btn--primary"
+                onClick={() => setPayOpen(true)}
+                disabled={busy}
+              >
+                Принять оплату {fmtMoney(due)}
+              </button>
+            )}
+            {due > 0 && payOpen && (
+              <div className="pos-order-sheet__statuses">
+                <button type="button" className="admin-btn" disabled={busy} onClick={() => acceptPayment('cash')}>
+                  Наличные
+                </button>
+                <button type="button" className="admin-btn" disabled={busy} onClick={() => acceptPayment('card')}>
+                  Карта
+                </button>
               </div>
             )}
           </>

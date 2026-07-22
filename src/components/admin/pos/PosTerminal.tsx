@@ -220,7 +220,16 @@ export default function PosTerminal({ stores }: Props) {
           />
         )}
         {tab === 'showcase' && (
-          <PosShowcaseTab products={products?.bouquets ?? null} cart={cart} onAdd={addBouquet} />
+          <PosShowcaseTab
+            products={products?.bouquets ?? null}
+            cart={cart}
+            onAdd={addBouquet}
+            storeId={storeId}
+            onAssembled={(title) => {
+              setNotice(`Букет «${title}» на витрине`);
+              loadProducts();
+            }}
+          />
         )}
         {tab === 'more' && (
           <PosMoreTab

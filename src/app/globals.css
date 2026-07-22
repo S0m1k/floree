@@ -1556,6 +1556,18 @@ img { display: block; max-width: 100%; }
 .pos-order-sheet__items li { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
 .pos-order-sheet__total { border-top: 2px solid var(--admin-border); padding-top: 10px; font-size: 17px; }
 .pos-order-sheet__due strong { color: #C62828; }
+/* «Собрать букет» — список рецептов */
+.pos__title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.pos__title-row .pos__title { margin-bottom: 0; }
+.pos-recipe-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.pos-recipe-list__row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%;
+  background: var(--admin-bg); border: 1px solid var(--admin-border); border-radius: 10px;
+  padding: 12px 14px; cursor: pointer; font: inherit; text-align: left;
+}
+.pos-recipe-list__row:hover { border-color: var(--admin-accent); }
+.pos-recipe-list__variant { color: var(--admin-text-3); }
+.pos-recipe-list__price { font-weight: 700; white-space: nowrap; }
 .pos__order-card {
   display: flex; flex-direction: column; gap: 2px; background: #fff;
   border: 1px solid var(--admin-border); border-left: 4px solid #34A853;

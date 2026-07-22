@@ -17,7 +17,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.catalog_models import Bouquet
+from app.catalog_models import (
+    Bouquet,
+    Specification,
+    SpecificationWithVariants,
+)
 from app.database import get_db
 from app.fiscal_models import FiscalReceipt
 from app.inventory_models import Item
@@ -33,7 +37,9 @@ from app.staff_models import CashOperation, Shift, Worker
 from app.routers.v1_sales import (
     DEFAULT_MEASURE,
     _bouquet_component_rows,
+    _current_totals,
     _dec,
+    _load_order_full,
     _next_order_number,
     _recalc_total,
     _retail_price,
@@ -83,12 +89,12 @@ async def _open_shift(db: AsyncSession, store_id: str) -> Shift | None:
 
 
 async def _cash_sales_total(db: AsyncSession, shift_id: str) -> Decimal:
+    """Нал, попавший в ящик за смену: платежи с payment.shift_id — продажи
+    кассы и принятые ею предоплаты заказов."""
     total = (
         await db.execute(
-            select(func.coalesce(func.sum(Payment.amount), 0))
-            .join(Order, Order.id == Payment.order_id)
-            .where(
-                Order.shift_id == shift_id,
+            select(func.coalesce(func.sum(Payment.amount), 0)).where(
+                Payment.shift_id == shift_id,
                 Payment.method == "cash",
                 Payment.status == "CONFIRMED",
             )
@@ -558,6 +564,7 @@ async def create_sale(
         method=method,
         kind="payment",
         created_by_id=worker.id,
+        shift_id=shift.id,
     )
     db.add(payment)
 
@@ -672,4 +679,246 @@ async def retry_fiscal_receipt(
             "type": "fiscal-receipts",
             "attributes": {"status": fiscal.status, "error": fiscal.error},
         }
+    }
+
+
+# ---------- сборка букета по рецепту («Собрать букет») ----------
+
+
+def _swv_price_for_store(swv: SpecificationWithVariants, store_id: str) -> int | None:
+    """Цена варианта для точки: override точки -> общая цена. NULL price_value
+    у строки-override означает «по цене состава» — состав пока не считаем,
+    падаем на общую цену."""
+    store_row = next((p for p in swv.prices if p.store_id == store_id and p.status == "on"), None)
+    if store_row is not None and store_row.price_value:
+        return store_row.price_value
+    default_row = next((p for p in swv.prices if p.store_id is None and p.status == "on"), None)
+    if default_row is not None and default_row.price_value:
+        return default_row.price_value
+    return None
+
+
+def _swv_option(swv: SpecificationWithVariants, store_id: str) -> dict | None:
+    price = _swv_price_for_store(swv, store_id)
+    if price is None:
+        return None
+    spec_title = swv.specification.title if swv.specification else "Рецепт"
+    variant_title = swv.variant.title if swv.variant else None
+    return {
+        "id": swv.id,
+        "type": "pos-recipes",
+        "attributes": {"title": spec_title, "variant": variant_title, "price": price},
+    }
+
+
+@router.get("/recipes")
+async def list_recipes(request: Request, db: AsyncSession = Depends(get_db)):
+    """Рецепты с ценой для точки — выбор в модале «Собрать букет»."""
+    store_id = request.query_params.get("filter[store]")
+    if not store_id:
+        raise HTTPException(status_code=400, detail="filter[store] is required")
+
+    swvs = (
+        (
+            await db.execute(
+                select(SpecificationWithVariants)
+                .where(SpecificationWithVariants.status == "on")
+                .options(
+                    selectinload(SpecificationWithVariants.specification),
+                    selectinload(SpecificationWithVariants.variant),
+                    selectinload(SpecificationWithVariants.prices),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    data = [row for row in (_swv_option(s, store_id) for s in swvs) if row]
+    data.sort(key=lambda r: (r["attributes"]["title"], r["attributes"]["price"]))
+    return document(data, meta={"total": len(data)})
+
+
+@router.post("/bouquets", status_code=201)
+async def assemble_bouquet(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """Собрать букет по рецепту: {storeId, swvId} — букет на витрине.
+
+    Цена — серверная (цена варианта для точки). Если у варианта заполнен
+    состав (specification_compositions) — компоненты списываются со склада
+    writeoff-движениями; пустой состав просто ничего не списывает.
+    """
+    body = await request.json() or {}
+    store_id = body.get("storeId")
+    swv_id = body.get("swvId")
+    if not store_id or not swv_id:
+        raise HTTPException(status_code=400, detail="storeId и swvId обязательны")
+
+    swv = (
+        await db.execute(
+            select(SpecificationWithVariants)
+            .where(SpecificationWithVariants.id == swv_id)
+            .options(
+                selectinload(SpecificationWithVariants.specification),
+                selectinload(SpecificationWithVariants.variant),
+                selectinload(SpecificationWithVariants.prices),
+                selectinload(SpecificationWithVariants.compositions),
+            )
+        )
+    ).scalar_one_or_none()
+    if swv is None:
+        raise HTTPException(status_code=404, detail="Рецепт не найден")
+    price = _swv_price_for_store(swv, store_id)
+    if price is None:
+        raise HTTPException(status_code=400, detail="У рецепта нет цены для этой точки")
+
+    spec_title = swv.specification.title if swv.specification else "Рецепт"
+    variant_suffix = f" ({swv.variant.title})" if swv.variant else ""
+    bouquet = Bouquet(
+        title=f"{spec_title}{variant_suffix}",
+        status="window",
+        amount=price,
+        sale_amount=price,
+        store_id=store_id,
+        spec_with_variants_id=swv.id,
+    )
+    db.add(bouquet)
+    await db.flush()
+
+    # Списание компонентов рецепта (если состав заполнен).
+    for comp in swv.compositions:
+        qty = _dec(comp.quantity)
+        if qty > 0:
+            await apply_movement(
+                db,
+                item_id=comp.item_id,
+                store_id=store_id,
+                quantity=-qty,
+                reason="writeoff",
+                worker_id=worker.id,
+                source_kind="bouquet",
+                source_id=bouquet.id,
+            )
+
+    await db.commit()
+    await db.refresh(bouquet)
+    return document(
+        {
+            "id": bouquet.id,
+            "type": "bouquets",
+            "attributes": {
+                "title": bouquet.title,
+                "saleAmount": float(_dec(bouquet.sale_amount)),
+                "status": bouquet.status,
+            },
+        }
+    )
+
+
+# ---------- предоплата заказа из кассы ----------
+
+
+@router.post("/orders/{order_id}/payments", status_code=201)
+async def pos_order_payment(
+    order_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    worker: Worker = Depends(get_current_worker),
+):
+    """Принять оплату по заказу в кассе: {method: cash|card, amount?}.
+
+    Требует открытой смены точки заказа — нал попадает в ожидаемую кассу
+    (payments.shift_id). Без amount закрывает всю сумму «К оплате». Полная
+    оплата переводит payment_status в paid. Чек — аванс (54-ФЗ, признак
+    расчёта «аванс»); недоступная касса оплату не блокирует.
+    """
+    order = await _load_order_full(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    store_id = order.store_id
+    if not store_id:
+        raise HTTPException(status_code=409, detail="У заказа нет торговой точки")
+    shift = await _open_shift(db, store_id)
+    if shift is None:
+        raise HTTPException(status_code=409, detail="Нет открытой смены — откройте смену")
+
+    body = await request.json() or {}
+    method = body.get("method")
+    if method not in POS_PAYMENT_METHODS:
+        raise HTTPException(
+            status_code=400, detail=f"method must be one of {POS_PAYMENT_METHODS}"
+        )
+
+    totals = _current_totals(order)
+    to_pay = _dec(totals["toPay"])
+    if to_pay <= 0:
+        raise HTTPException(status_code=409, detail="Заказ уже оплачен")
+
+    amount = to_pay if body.get("amount") is None else _money(body.get("amount"), "amount")
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Сумма должна быть больше нуля")
+    if amount > to_pay:
+        raise HTTPException(status_code=400, detail="Сумма превышает сумму к оплате")
+
+    payment = Payment(
+        order_id=order.id,
+        tbank_payment_id=None,
+        tbank_order_id=f"pos-adv-{uuid.uuid4()}",
+        amount=amount,
+        status="CONFIRMED",
+        method=method,
+        kind="advance",
+        created_by_id=worker.id,
+        shift_id=shift.id,
+    )
+    db.add(payment)
+    if amount == to_pay:
+        order.payment_status = "paid"
+    await db.commit()
+    await db.refresh(payment)
+
+    # Фискальный чек аванса — оплата принята даже при недоступной кассе.
+    doc_no = order.posiflora_doc_no or (
+        str(order.order_number) if order.order_number is not None else order.id[:8]
+    )
+    fiscal = FiscalReceipt(order_id=order.id, payment_id=payment.id)
+    if not aqsi.is_enabled():
+        fiscal.status = "skipped"
+    else:
+        try:
+            fiscal_body = aqsi.build_receipt_body(
+                items=[{
+                    "title": f"Аванс по заказу N {doc_no}",
+                    "unit_price": amount,
+                    "quantity": 1,
+                }],
+                method=method,
+                total=amount,
+                cashier_name=worker.name,
+                calculation_type_id=aqsi.CALCULATION_TYPE_ADVANCE,
+                calculation_subject_id=aqsi.CALCULATION_SUBJECT_PAYMENT,
+            )
+            fiscal.operation_id = await aqsi.process_receipt(fiscal_body)
+            fiscal.status = "pending"
+        except Exception as exc:
+            fiscal.status = "failed"
+            fiscal.error = str(exc)[:500]
+    db.add(fiscal)
+    await db.commit()
+    await db.refresh(fiscal)
+
+    remaining = to_pay - amount
+    return {
+        "data": {
+            "id": payment.id,
+            "type": "order-payments",
+            "attributes": {"amount": float(amount), "method": method},
+        },
+        "meta": {
+            "remaining": float(remaining),
+            "paid": remaining == 0,
+            "fiscal": {"id": fiscal.id, "status": fiscal.status, "error": fiscal.error},
+        },
     }

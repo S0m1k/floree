@@ -220,6 +220,9 @@ class Payment(Base):
     created_by_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("workers.id"), nullable=True
     )
+    # POS: смена, в кассу которой попал платёж (нал участвует в ожидаемой
+    # кассе смены). NULL для онлайн-платежей и админских авансов.
+    shift_id: Mapped[str | None] = mapped_column(String, ForeignKey("shifts.id"), nullable=True)
     payment_url: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
