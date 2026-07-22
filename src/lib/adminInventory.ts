@@ -89,3 +89,40 @@ export function buildInventoryHref(
   const query = qs.toString();
   return query ? `${basePath}?${query}` : basePath;
 }
+
+// ---------- Остатки («Обзор склада», /v1/stock) ----------
+
+export interface StockRow {
+  id: string;
+  attributes: {
+    title: string;
+    quantity: number;
+    costPrice: number;
+    costSum: number;
+    retailPrice: number;
+    retailSum: number;
+  };
+}
+
+export interface StockOverview {
+  rows: StockRow[];
+  totals: { qty: number; costSum: number; retailSum: number };
+}
+
+export async function getStockOverview(
+  storeId: string,
+  params: InventorySearchParams
+): Promise<StockOverview> {
+  const qs = new URLSearchParams();
+  qs.set('filter[store]', storeId);
+  if (params.category) qs.set('filter[category]', params.category);
+  if (params.q) qs.set('q', params.q);
+
+  const res = await adminFetch(`/api/v1/stock?${qs.toString()}`);
+  if (!res.ok) return { rows: [], totals: { qty: 0, costSum: 0, retailSum: 0 } };
+  const json = await res.json();
+  return {
+    rows: json.data || [],
+    totals: json.meta?.totals || { qty: 0, costSum: 0, retailSum: 0 },
+  };
+}

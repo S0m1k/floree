@@ -28,6 +28,7 @@ from app.models import Order, OrderItem, OrderStatusHistory, Payment
 from app.serializers import order_resource, shift_resource
 from app.services import aqsi
 from app.services.deal_sources import SOURCE_TERMINAL, get_or_create_deal_source
+from app.services.stock import apply_movement
 from app.staff_models import CashOperation, Shift, Worker
 from app.routers.v1_sales import (
     DEFAULT_MEASURE,
@@ -518,6 +519,16 @@ async def create_sale(
                     quantity=qty,
                     measure=DEFAULT_MEASURE,
                 )
+            )
+            # Списание со склада точки в той же транзакции, что и продажа.
+            await apply_movement(
+                db,
+                item_id=item.id,
+                store_id=store_id,
+                quantity=-qty,
+                reason="sale",
+                worker_id=worker.id,
+                order_id=order.id,
             )
         else:
             raise HTTPException(

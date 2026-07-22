@@ -81,6 +81,37 @@ class StockBalance(Base):
     cost_price: Mapped[Decimal] = mapped_column(Money, default=0)  # себестоимость, rubles
 
 
+# Причины движения остатка. Знак количества: приходные причины пишут +qty,
+# расходные — −qty; inventory-коррекция может быть любой.
+STOCK_MOVEMENT_REASONS = ("acceptance", "sale", "writeoff", "inventory", "movement", "correction")
+
+
+class StockMovement(Base):
+    """Движение остатка (наш журнал; Posiflora остатков через API не отдаёт).
+
+    Источник истины по остаткам: SUM(quantity) по (item, warehouse) ==
+    StockBalance.quantity, который apply_movement поддерживает материализованно
+    — экран «Обзор склада» и аналитика себестоимости читают быстрый снэпшот.
+    """
+
+    __tablename__ = "stock_movements"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    item_id: Mapped[str] = mapped_column(String, ForeignKey("items.id"), index=True)
+    warehouse_id: Mapped[str] = mapped_column(String, ForeignKey("warehouses.id"), index=True)
+    # Подписанное количество: + приход, − расход.
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    reason: Mapped[str] = mapped_column(String)  # STOCK_MOVEMENT_REASONS
+    # Продажа POS — ссылка на заказ; складской документ — kind+id строкой.
+    order_id: Mapped[str | None] = mapped_column(String, ForeignKey("orders.id"), nullable=True)
+    source_kind: Mapped[str | None] = mapped_column(String, nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Закупочная цена приходной строки — обновляет себестоимость остатка.
+    cost_price: Mapped[Decimal | None] = mapped_column(Money, nullable=True)
+    worker_id: Mapped[str | None] = mapped_column(String, ForeignKey("workers.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class Vendor(Base):
     """Поставщик (Posiflora `vendors`)."""
 
