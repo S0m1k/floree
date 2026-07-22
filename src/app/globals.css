@@ -969,6 +969,11 @@ img { display: block; max-width: 100%; }
   font-size: 14px; color: var(--admin-text); background: var(--admin-field-bg);
 }
 .admin-field input:focus, .admin-field select:focus { outline: 2px solid var(--admin-blue); outline-offset: -1px; }
+/* Панель 240px: инпуты не должны распирать колонку (у date велик intrinsic width) */
+.admin-field input, .admin-field select { width: 100%; min-width: 0; box-sizing: border-box; }
+.admin-field input[type="date"] { padding: 0 8px; font-size: 13px; }
+.admin-field__range { display: flex; gap: 6px; }
+.admin-field__range > input { flex: 1 1 0; min-width: 0; }
 
 .admin-filter-actions { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
 .admin-btn {
@@ -1525,6 +1530,32 @@ img { display: block; max-width: 100%; }
 .pos__order-group-head--cancelled { background: #C62828; }
 .pos__order-group-head--return { background: #8E24AA; }
 .pos__order-group-head--credit { background: #6D4C41; }
+/* Карточка заказа в терминале (PosOrderSheet) */
+/* Карточка теперь <button>: наследуем шрифт и держим стили карточки выше */
+.pos__order-card { width: 100%; text-align: left; cursor: pointer; font: inherit; }
+.pos-order-sheet { max-width: 420px; width: calc(100vw - 32px); max-height: 84vh; overflow-y: auto; }
+.pos-order-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pos-order-sheet__head h2 { margin: 0; font-size: 18px; }
+.pos__order-status {
+  border: none; border-radius: 14px; color: #fff; padding: 6px 12px; font-size: 13px;
+  font-weight: 600; cursor: pointer; background: #607D8B;
+}
+.pos__order-status:disabled { cursor: default; opacity: 0.85; }
+.pos__order-status--new { background: #1976D2; }
+.pos__order-status--assembled { background: #34A853; }
+.pos__order-status--courier { background: #F9A825; }
+.pos__order-status--completed { background: #37474F; }
+.pos__order-status--cancelled { background: #C62828; }
+.pos__order-status--return { background: #8E24AA; }
+.pos__order-status--credit { background: #6D4C41; }
+.pos-order-sheet__statuses { display: flex; flex-wrap: wrap; gap: 8px; }
+.pos-order-sheet__statuses .admin-btn { flex: 1 1 45%; padding: 10px; }
+.pos-order-sheet__row { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.pos-order-sheet__muted { color: var(--admin-text-3); font-size: 14px; }
+.pos-order-sheet__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--admin-border); padding-top: 10px; }
+.pos-order-sheet__items li { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.pos-order-sheet__total { border-top: 2px solid var(--admin-border); padding-top: 10px; font-size: 17px; }
+.pos-order-sheet__due strong { color: #C62828; }
 .pos__order-card {
   display: flex; flex-direction: column; gap: 2px; background: #fff;
   border: 1px solid var(--admin-border); border-left: 4px solid #34A853;
@@ -1806,6 +1837,17 @@ img { display: block; max-width: 100%; }
 .admin-line-chart__dot { fill: var(--admin-blue); }
 .admin-line-chart__axis { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--admin-text-3); }
 .admin-line-chart__empty { padding: 48px 0; text-align: center; color: var(--admin-text-3); font-size: 14px; }
+/* Интерактив: клик по точке показывает значение */
+.admin-line-chart__wrap { position: relative; }
+.admin-line-chart__hit { fill: transparent; cursor: pointer; }
+.admin-line-chart__dot--active { fill: var(--admin-accent, #1BB382); }
+.admin-line-chart__guide { stroke: var(--admin-border); stroke-width: 1; stroke-dasharray: 4 3; }
+.admin-line-chart__bubble {
+  position: absolute; transform: translate(-50%, calc(-100% - 10px)); z-index: 5;
+  background: var(--admin-text); color: #fff; font-size: 12px; white-space: nowrap;
+  padding: 5px 10px; border-radius: 7px; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
 
 /* Бар-чарт по дням недели (Пн–Вс), Сб/Вс — красные */
 .admin-weekday-chart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding: 20px 16px 0; }

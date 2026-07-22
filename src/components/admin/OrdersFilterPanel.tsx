@@ -40,7 +40,7 @@ export default function OrdersFilterPanel({ current, stores, sources, tags, work
 
       <div className="admin-field">
         <label htmlFor="dueFrom">Дата исполнения</label>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="admin-field__range">
           <input type="date" id="dueFrom" name="dueFrom" defaultValue={current.dueFrom || ''} />
           <input type="date" name="dueTo" defaultValue={current.dueTo || ''} />
         </div>
@@ -48,7 +48,7 @@ export default function OrdersFilterPanel({ current, stores, sources, tags, work
 
       <div className="admin-field">
         <label htmlFor="createdFrom">Дата создания</label>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="admin-field__range">
           <input type="date" id="createdFrom" name="createdFrom" defaultValue={current.createdFrom || ''} />
           <input type="date" name="createdTo" defaultValue={current.createdTo || ''} />
         </div>
@@ -56,7 +56,7 @@ export default function OrdersFilterPanel({ current, stores, sources, tags, work
 
       <div className="admin-field">
         <label htmlFor="closedFrom">Дата закрытия</label>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="admin-field__range">
           <input type="date" id="closedFrom" name="closedFrom" defaultValue={current.closedFrom || ''} />
           <input type="date" name="closedTo" defaultValue={current.closedTo || ''} />
         </div>

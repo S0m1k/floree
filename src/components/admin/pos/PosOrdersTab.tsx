@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { STATUS_TABS } from '@/lib/orderStatus';
 import { fmtMoney } from './PosTerminal';
+import PosOrderSheet from './PosOrderSheet';
 
 interface PosOrder {
   id: string;
@@ -42,6 +42,7 @@ export default function PosOrdersTab({ storeId }: Props) {
   const [orders, setOrders] = useState<PosOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [openedOrderId, setOpenedOrderId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setOrders(null);
@@ -104,15 +105,28 @@ export default function PosOrdersTab({ storeId }: Props) {
           </button>
           {!collapsed[g.status] &&
             g.rows.map((o) => (
-              <Link key={o.id} href={`/admin/orders/${o.id}`} className="pos__order-card">
+              <button
+                key={o.id}
+                type="button"
+                className="pos__order-card"
+                onClick={() => setOpenedOrderId(o.id)}
+              >
                 <div className="pos__order-time">{fmtTime(o.createdAt)}</div>
                 {o.customer && <div className="pos__order-customer">{o.customer}</div>}
                 <div className="pos__order-amount">{fmtMoney(o.amount)}</div>
                 <div className="pos__order-no">№ {o.docNo}</div>
-              </Link>
+              </button>
             ))}
         </section>
       ))}
+
+      {openedOrderId && (
+        <PosOrderSheet
+          orderId={openedOrderId}
+          onClose={() => setOpenedOrderId(null)}
+          onChanged={load}
+        />
+      )}
     </div>
   );
 }

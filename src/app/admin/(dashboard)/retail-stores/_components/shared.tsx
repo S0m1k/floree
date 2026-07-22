@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { DaySeriesPoint } from '@/types';
+import InteractiveLineChart from '@/components/admin/InteractiveLineChart';
 
 export const fmtMoney = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
 export const fmtNum = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
@@ -128,45 +129,22 @@ export function DashTile({
   );
 }
 
-// -------- Line-чарт (SVG, серверный рендер, без библиотек) --------
+// -------- Line-чарт (интерактивный клиентский компонент) --------
 
 interface SeriesPoint { label: string; amount: number; tooltip: string }
 
+// Значение точки показывается по клику/тапу (InteractiveLineChart) — сервер
+// передаёт готовые сериализуемые точки с текстом плашки.
 function SeriesLineChart({
   points, axisStart, axisEnd, totalLabel,
 }: { points: SeriesPoint[]; axisStart: string; axisEnd: string; totalLabel: string }) {
-  if (points.length === 0 || points.every((p) => p.amount === 0)) {
-    return <div className="admin-line-chart__empty">Нет данных для построения графика.</div>;
-  }
-  const width = 700;
-  const height = 200;
-  const max = Math.max(1, ...points.map((p) => p.amount));
-  const stepX = points.length > 1 ? width / (points.length - 1) : 0;
-  const coords = points.map((p, i) => {
-    const x = points.length > 1 ? i * stepX : width / 2;
-    const y = height - (p.amount / max) * (height - 8) - 4;
-    return { x, y, p };
-  });
-  const linePath = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
-  const areaPath = `0,${height} ${linePath} ${width},${height}`;
-
   return (
-    <div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="admin-line-chart" role="img" aria-label="График">
-        <polygon className="admin-line-chart__area" points={areaPath} />
-        <polyline className="admin-line-chart__line" points={linePath} />
-        {coords.map((c) => (
-          <circle key={c.p.label} className="admin-line-chart__dot" cx={c.x} cy={c.y} r={2.5}>
-            <title>{c.p.tooltip}</title>
-          </circle>
-        ))}
-      </svg>
-      <div className="admin-line-chart__axis">
-        <span>{axisStart}</span>
-        <span>{totalLabel}</span>
-        <span>{axisEnd}</span>
-      </div>
-    </div>
+    <InteractiveLineChart
+      points={points}
+      axisStart={axisStart}
+      axisEnd={axisEnd}
+      totalLabel={totalLabel}
+    />
   );
 }
 
