@@ -6,6 +6,7 @@ import MaskImage from '@/components/MaskImage';
 import Ticker from '@/components/Ticker';
 import RecipeCard from '@/components/RecipeCard';
 import { Recipe, RecipeCategory } from '@/types';
+import { orderCategories, FALLBACK_CATEGORY_TITLES } from '@/lib/categoryOrder';
 
 export const metadata: Metadata = {
   title: 'Floree — цветочная студия в Санкт-Петербурге | Купить букет с доставкой',
@@ -20,35 +21,8 @@ export const metadata: Metadata = {
 
 const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Desired display order of recipe categories (by title). Titles found in the
-// list are shown in this order; any category not listed keeps its API order and
-// is appended after the known ones.
-const CATEGORY_ORDER = [
-  'Сейчас сезон',
-  'Моно',
-  'Сборные',
-  'Премиум',
-  'Свадебные',
-  'Цветочные композиции',
-  'Охапки',
-  'Дополнения',
-];
-
 // Shown only when the backend returns no categories (dev / API down).
-const FALLBACK_CATEGORIES = CATEGORY_ORDER;
-
-const normalizeTitle = (title: string): string => title.trim().toLowerCase();
-
-// Sort a copy of the categories by CATEGORY_ORDER; unknown titles fall to the
-// end while keeping their original (stable) order.
-function orderCategories(cats: RecipeCategory[]): RecipeCategory[] {
-  const rank = new Map(CATEGORY_ORDER.map((title, i) => [normalizeTitle(title), i]));
-  return [...cats].sort((a, b) => {
-    const ra = rank.get(normalizeTitle(a.attributes.title)) ?? Number.MAX_SAFE_INTEGER;
-    const rb = rank.get(normalizeTitle(b.attributes.title)) ?? Number.MAX_SAFE_INTEGER;
-    return ra - rb;
-  });
-}
+const FALLBACK_CATEGORIES = FALLBACK_CATEGORY_TITLES;
 
 async function getCategories(): Promise<RecipeCategory[]> {
   try {
