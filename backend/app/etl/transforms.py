@@ -376,7 +376,15 @@ def _order_number_from_doc_no(doc_no: str | None) -> int | None:
     if not doc_no:
         return None
     m = re.search(r"(\d+)$", doc_no)
-    return int(m.group(1)) if m else None
+    if not m:
+        return None
+    number = int(m.group(1))
+    # Чекаут-заказы носят 12-значный timestamp в docNo — это не человеческий
+    # номер (наш счётчик их игнорирует, см. v1_sales.ORDER_NUMBER_CEILING),
+    # а в Postgres он ещё и не влезает в INTEGER (int32). Не пишем мусор.
+    if number >= 100_000_000:
+        return None
+    return number
 
 
 def _order_phone(a: dict) -> str:
