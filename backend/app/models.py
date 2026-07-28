@@ -39,3 +39,18 @@ class Payment(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     order: Mapped["Order"] = relationship("Order", back_populates="payments")
+
+
+class CallbackRequest(Base):
+    """Client asked to assemble a similar bouquet ("Собрать подобный" form)."""
+
+    __tablename__ = "callback_requests"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String)
+    phone: Mapped[str] = mapped_column(String)
+    contact_method: Mapped[str] = mapped_column(String)  # Позвонить, Max, Telegram, WhatsApp
+    recipe_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    recipe_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="new")  # new, processed
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

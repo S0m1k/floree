@@ -136,9 +136,6 @@ export default async function RecipePage({ params }: Props) {
               </div>
             )}
 
-            <p style={{ color: 'var(--ink-3)', fontSize: '0.875rem' }}>
-              Соберём по рецепту и доставим в течение 2 часов после оформления заказа
-            </p>
           </div>
         </div>
       </div>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart';
+import { useUi } from '@/lib/ui';
 import { CartItem } from '@/types';
-import Icon from './Icon';
 
 interface Props {
   item: CartItem;
@@ -14,62 +14,62 @@ export default function AddToCartButton({ item }: Props) {
   const items = useCart((s) => s.items);
   const updateQuantity = useCart((s) => s.updateQuantity);
   const removeItem = useCart((s) => s.removeItem);
-  const [added, setAdded] = useState(false);
+  const openCartDrawer = useUi((s) => s.openCartDrawer);
+  const [toastShown, setToastShown] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const cartItem = items.find((i) => i.id === item.id);
 
   const handleAdd = () => {
     addItem(item);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
+    setToastShown(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastShown(false), 4000);
   };
+
+  const toast = (
+    <div className={`fl-toast ${toastShown ? 'is-shown' : ''}`} role="status" aria-live="polite">
+      <div className="fl-toast__head">
+        <span>Добавлено в корзину</span>
+        <button className="fl-toast__close" onClick={() => setToastShown(false)} aria-label="Закрыть">×</button>
+      </div>
+      <div className="fl-toast__title">{item.title}</div>
+      <button
+        className="fl-toast__go"
+        onClick={() => { setToastShown(false); openCartDrawer(); }}
+        data-hover
+      >
+        Перейти в корзину →
+      </button>
+    </div>
+  );
 
   if (cartItem) {
     return (
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl overflow-hidden">
-          <button
-            onClick={() => updateQuantity(cartItem.id, cartItem.quantity - 1)}
-            className="px-4 py-3 text-rose-600 hover:bg-rose-100 transition-colors font-bold text-lg"
-            aria-label="Уменьшить"
-          >
-            −
-          </button>
-          <span className="w-8 text-center font-semibold text-gray-800">{cartItem.quantity}</span>
-          <button
-            onClick={() => updateQuantity(cartItem.id, cartItem.quantity + 1)}
-            className="px-4 py-3 text-rose-600 hover:bg-rose-100 transition-colors font-bold text-lg"
-            aria-label="Увеличить"
-          >
-            +
+      <>
+        <div className="fl-qty">
+          <div className="fl-qty__stepper">
+            <button onClick={() => updateQuantity(cartItem.id, cartItem.quantity - 1)} aria-label="Уменьшить">−</button>
+            <span>{cartItem.quantity}</span>
+            <button onClick={() => updateQuantity(cartItem.id, cartItem.quantity + 1)} aria-label="Увеличить">+</button>
+          </div>
+          <button className="fl-qty__remove" onClick={() => removeItem(cartItem.id)}>
+            Удалить
           </button>
         </div>
-        <button
-          onClick={() => removeItem(cartItem.id)}
-          className="text-sm text-gray-400 hover:text-red-500 transition-colors"
-        >
-          Удалить
-        </button>
-      </div>
+        {toast}
+      </>
     );
   }
 
   return (
-    <button
-      onClick={handleAdd}
-      className={`w-full sm:w-auto px-10 py-4 rounded-2xl font-semibold text-base transition-all duration-300 shadow-lg ${
-        added
-          ? 'bg-green-600 text-white shadow-green-200 scale-95'
-          : 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-200 hover:shadow-rose-300 hover:-translate-y-0.5'
-      }`}
-    >
-      {added ? (
-        <span className="inline-flex items-center gap-2 justify-center">
-          <Icon name="check" size={20} /> Добавлено в корзину
-        </span>
-      ) : (
-        'Добавить в корзину'
-      )}
-    </button>
+    <>
+      <button className="fl-add-btn" onClick={handleAdd} data-hover>
+        Добавить в корзину
+      </button>
+      {toast}
+    </>
   );
 }

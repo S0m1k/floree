@@ -9,7 +9,7 @@ export default function Footer() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/floree-logo.svg" alt="Floree" className="fl-footer__logo-img" />
           <p className="fl-footer__tag">
-            Букеты, собранные руками — для тех, кто ценит цветы как способ говорить.
+            Авторские букеты, собранные с трепетом и любовью к делу.
           </p>
         </div>
         <div>
