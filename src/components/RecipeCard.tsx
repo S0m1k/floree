@@ -1,29 +1,14 @@
-'use client';
-
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCart } from '@/lib/cart';
 import { Recipe } from '@/types';
 import Icon from './Icon';
 
-const fmtPrice = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' \u20BD';
+const fmtPrice = (n: number) => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
 
-export default function RecipeCard({ recipe, index = 0 }: { recipe: Recipe; index?: number }) {
-  const addItem = useCart((s) => s.addItem);
+// The whole card links to the recipe page: the client picks the size (variant)
+// there before anything is added to the cart.
+export default function RecipeCard({ recipe }: { recipe: Recipe; index?: number }) {
   const price = recipe.attributes.minPrice;
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addItem({
-      id: recipe.id,
-      recipeId: recipe.id,
-      title: recipe.attributes.title,
-      price,
-      quantity: 1,
-      imageUrl: recipe.imageUrl ?? undefined,
-    });
-  };
 
   return (
     <article className="ed-card">
@@ -42,11 +27,10 @@ export default function RecipeCard({ recipe, index = 0 }: { recipe: Recipe; inde
           </div>
         )}
         <div className="ed-card__overlay">
-          <button className="btn btn--filled" onClick={handleAddToCart} data-hover>
-            В корзину &middot; {fmtPrice(price)}
-          </button>
+          <span className="btn btn--filled">
+            Выбрать размер
+          </span>
         </div>
-        <span className="ed-card__num">N&deg;{String(index + 1).padStart(2, '0')}</span>
       </Link>
       <div className="ed-card__meta">
         <div className="ed-card__row">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AddToCartButton from './AddToCartButton';
+import SimilarBouquetForm from './SimilarBouquetForm';
 import { CartItem, RecipeVariant } from '@/types';
 
 interface Props {
@@ -22,6 +23,12 @@ export default function RecipePurchase({ recipeId, title, imageUrl, fallbackPric
   const [selected, setSelected] = useState(priced[defaultIndex] ?? null);
 
   const price = selected?.price ?? fallbackPrice;
+
+  // Bouquet cannot be ordered directly (no priced variants and no base price):
+  // offer to assemble a similar one via a callback request instead.
+  if (priced.length === 0 && fallbackPrice <= 0) {
+    return <SimilarBouquetForm recipeId={recipeId} recipeTitle={title} />;
+  }
 
   const cartItem: CartItem = {
     id: selected ? `${recipeId}:${selected.swvId}` : recipeId,

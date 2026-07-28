@@ -3,7 +3,6 @@ import Link from 'next/link';
 import HeroCarousel from '@/components/HeroCarousel';
 import Reveal from '@/components/Reveal';
 import MaskImage from '@/components/MaskImage';
-import Ticker from '@/components/Ticker';
 import RecipeCard from '@/components/RecipeCard';
 import { Recipe, RecipeCategory } from '@/types';
 import { orderCategories, FALLBACK_CATEGORY_TITLES } from '@/lib/categoryOrder';
@@ -148,9 +147,6 @@ export default async function HomePage() {
           </Reveal>
         </div>
       </section>
-
-      {/* TICKER — живой разделитель */}
-      <Ticker items={['Цветы дня', 'Свадебная флористика', 'Подписка', 'Корпоративные заказы', 'Доставка по СПб']} speed={22} />
 
       {/* ПОПУЛЯРНЫЕ БУКЕТЫ — боковая лента */}
       {popular.length > 0 && (

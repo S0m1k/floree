@@ -34,15 +34,12 @@ export default async function CatalogPage({ searchParams }: Props) {
     <div className="min-h-screen" style={{ background: 'var(--paper)' }}>
       <div style={{ background: 'var(--paper-2)', borderBottom: '1px solid var(--line)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <p className="eyebrow mb-4">Каталог</p>
-          <h1
-            className="serif"
-            style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', color: 'var(--ink)', lineHeight: 1.1 }}
-          >
+          <h1 className="serif" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', color: 'var(--ink)', lineHeight: 1.1 }}>
             Букеты Floree
           </h1>
-          <p className="mt-3" style={{ color: 'var(--ink-3)', fontSize: '1rem' }}>
-            Выберите букет — соберём по рецепту и доставим в течение 2 часов
+          <p className="mt-3" style={{ color: 'var(--ink-3)', fontSize: '1rem', maxWidth: '52ch' }}>
+            Каждый букет доставляется в&nbsp;эстетичной транспортировочной коробке и&nbsp;на&nbsp;воде,
+            чтобы сохранить красоту и&nbsp;свежесть композиции.
           </p>
         </div>
       </div>
