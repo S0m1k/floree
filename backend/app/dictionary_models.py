@@ -5,6 +5,7 @@ id+title; units carry a short name + measure code; celebrations carry a period.
 """
 
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import String, Integer, Numeric, Date, Boolean, Text, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
