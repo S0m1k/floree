@@ -52,3 +52,6 @@ backend/*.db
 # scratch / reference dumps
 .scratch_old_site/
 CLAUDE.md
+
+# Public CA certificates (Russian Trusted CA) are not secrets — keep them in git
+!backend/certs/*.pem
