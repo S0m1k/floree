@@ -4,7 +4,7 @@ from app.services.tls import outbound_ssl_context
 from app.config import settings
 
 
-def _generate_token(params: dict) -> str:
+def _generate_token(params: dict, secret_key: str | None = None) -> str:
     """
     T-Bank token: sort all params (excl. Token, Receipt, DATA) by key,
     concatenate values + SecretKey (as Password), SHA-256.
@@ -12,7 +12,7 @@ def _generate_token(params: dict) -> str:
     """
     excluded = {"Token", "Receipt", "DATA"}
     combined = {k: str(v) for k, v in params.items() if k not in excluded}
-    combined["Password"] = settings.tbank_secret_key
+    combined["Password"] = secret_key or settings.tbank_secret_key
     sorted_vals = "".join(v for _, v in sorted(combined.items()))
     return hashlib.sha256(sorted_vals.encode()).hexdigest()
 
@@ -57,6 +57,8 @@ async def init_payment(
     customer_phone: str,
     success_url: str,
     fail_url: str,
+    terminal_key: str | None = None,
+    secret_key: str | None = None,
 ) -> dict:
     """
     Initialize T-Bank payment. Returns PaymentId and PaymentURL.
@@ -64,14 +66,14 @@ async def init_payment(
     """
     amount_kopecks = int(round(float(amount_rubles) * 100))
     params = {
-        "TerminalKey": settings.tbank_terminal_key,
+        "TerminalKey": terminal_key or settings.tbank_terminal_key,
         "Amount": amount_kopecks,
         "OrderId": order_id,
         "Description": description[:140],  # max 140 chars
         "SuccessURL": success_url,
         "FailURL": fail_url,
     }
-    params["Token"] = _generate_token(params)
+    params["Token"] = _generate_token(params, secret_key)
     # Receipt is excluded from token signing — add after.
     params["Receipt"] = _build_receipt(customer_phone, amount_kopecks)
 
@@ -90,8 +92,8 @@ async def init_payment(
     }
 
 
-def verify_notification(params: dict) -> bool:
+def verify_notification(params: dict, secret_key: str | None = None) -> bool:
     """Verify webhook notification token from T-Bank."""
     received_token = params.get("Token", "")
-    expected = _generate_token(params)
+    expected = _generate_token(params, secret_key)
     return received_token == expected

@@ -9,6 +9,7 @@ import Link from 'next/link';
 const ITEMS: { href?: string; label: string }[] = [
   { href: '/admin/showcase', label: 'Букеты в магазине' },
   { href: '/admin/shop-settings', label: 'Онлайн-витрина' },
+  { href: '/admin/payment-settings', label: 'Оплата и промокоды' },
   { label: 'Аналитика' },
   { href: '/admin/catalog', label: 'Каталог товаров и услуг' },
   { href: '/admin/categories', label: 'Категории' },

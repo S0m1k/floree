@@ -6,6 +6,7 @@ from app.models import Order, Payment
 from app.schemas import PaymentInitRequest, PaymentInitResponse
 import json
 from app.services.tbank import init_payment, verify_notification
+from app.services.payment_creds import get_tbank_credentials
 from app.services.posiflora import record_payment, create_order as posiflora_create_order
 from app.config import settings
 
@@ -25,6 +26,7 @@ async def init_payment_route(
     success_url = f"{settings.frontend_url}/checkout/success?order={order.id}"
     fail_url = f"{settings.frontend_url}/checkout/fail?order={order.id}"
 
+    terminal_key, secret_key = await get_tbank_credentials(db)
     try:
         tbank_resp = await init_payment(
             order_id=order.id,
@@ -34,6 +36,8 @@ async def init_payment_route(
             customer_phone=order.phone,
             success_url=success_url,
             fail_url=fail_url,
+            terminal_key=terminal_key,
+            secret_key=secret_key,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"T-Bank error: {e}")
@@ -67,8 +71,9 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         form = await request.form()
         body = dict(form)
 
-    # Verify token
-    if not verify_notification(body):
+    # Verify token (secret may be admin-managed in DB)
+    _, secret_key = await get_tbank_credentials(db)
+    if not verify_notification(body, secret_key):
         return Response(content="FAIL", status_code=400)
 
     order_id = body.get("OrderId")

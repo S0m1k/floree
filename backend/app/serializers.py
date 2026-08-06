@@ -830,3 +830,21 @@ def generated_file_resource(f) -> dict:
     }
     rels = {"createdBy": rel_one("workers", f.created_by_id)}
     return resource("generated-files", f.id, a, rels)
+
+
+def promo_code_resource(obj) -> dict:
+    return resource("promo-codes", obj.id, {
+        "code": obj.id,
+        "percent": float(obj.percent),
+        "isActive": obj.is_active,
+        "updatedAt": _iso(obj.updated_at),
+    })
+
+
+def payment_settings_resource(obj) -> dict:
+    """Ключи эквайринга: секрет наружу не отдаём никогда — только факт наличия."""
+    return resource("payment-settings", obj.id, {
+        "terminalKey": obj.tbank_terminal_key,
+        "hasSecret": bool(obj.tbank_secret_key),
+        "updatedAt": _iso(obj.updated_at),
+    })

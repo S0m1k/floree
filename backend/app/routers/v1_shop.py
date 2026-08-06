@@ -26,7 +26,7 @@ from app.catalog_models import Specification
 from app.inventory_models import Item
 from app.models import Order
 from app.jsonapi import document
-from app.serializers import shop_settings_resource
+from app.serializers import shop_settings_resource, promo_code_resource, payment_settings_resource
 
 from app.deps import get_current_worker
 
@@ -162,3 +162,81 @@ async def shop_summary(db: AsyncSession = Depends(get_db)):
         "lastOrdersSourceFound": has_website_source,
     }
     return {"data": {"type": "shop-summary", "id": "singleton", "attributes": attrs}}
+
+
+# ---------- Оплата и промокоды (/admin/payment-settings) ----------
+
+@router.get("/payment-settings")
+async def get_payment_settings(db: AsyncSession = Depends(get_db)):
+    from app.services.payment_creds import get_or_create_payment_settings
+    row = await get_or_create_payment_settings(db)
+    return document(payment_settings_resource(row))
+
+
+@router.put("/payment-settings")
+async def update_payment_settings(request: Request, db: AsyncSession = Depends(get_db)):
+    from app.services.payment_creds import get_or_create_payment_settings
+    row = await get_or_create_payment_settings(db)
+    body = await request.json()
+    attrs = ((body or {}).get("data") or {}).get("attributes") or {}
+    if "terminalKey" in attrs:
+        row.tbank_terminal_key = (attrs.get("terminalKey") or "").strip() or None
+    # Пустой секрет в форме означает «не менять» — чтобы сохранение других
+    # полей не требовало перепечатывать пароль каждый раз.
+    if attrs.get("secretKey"):
+        row.tbank_secret_key = str(attrs["secretKey"]).strip()
+    if attrs.get("clearSecret"):
+        row.tbank_secret_key = None
+    await db.commit()
+    await db.refresh(row)
+    return document(payment_settings_resource(row))
+
+
+@router.get("/promo-codes")
+async def list_promo_codes(db: AsyncSession = Depends(get_db)):
+    from app.dictionary_models import PromoCode
+    rows = (await db.execute(select(PromoCode).order_by(PromoCode.id))).scalars().all()
+    return {"data": [promo_code_resource(r) for r in rows], "meta": {"total": len(rows)}}
+
+
+@router.post("/promo-codes")
+async def upsert_promo_code(request: Request, db: AsyncSession = Depends(get_db)):
+    from decimal import Decimal, InvalidOperation
+    from app.dictionary_models import PromoCode
+    from app.services.promo import normalize_code
+
+    body = await request.json()
+    attrs = ((body or {}).get("data") or {}).get("attributes") or {}
+    code = normalize_code(attrs.get("code"))
+    if not code or len(code) > 40:
+        raise HTTPException(status_code=400, detail="Код: 1-40 символов")
+    try:
+        percent = Decimal(str(attrs.get("percent")))
+    except (InvalidOperation, TypeError):
+        raise HTTPException(status_code=400, detail="Скидка должна быть числом")
+    if not (Decimal("0") < percent <= Decimal("100")):
+        raise HTTPException(status_code=400, detail="Скидка: от 0.01 до 100 процентов")
+
+    row = (await db.execute(select(PromoCode).where(PromoCode.id == code))).scalar_one_or_none()
+    if row is None:
+        row = PromoCode(id=code)
+        db.add(row)
+    row.percent = percent
+    row.is_active = bool(attrs.get("isActive", True))
+    await db.commit()
+    await db.refresh(row)
+    return document(promo_code_resource(row))
+
+
+@router.delete("/promo-codes/{code}")
+async def delete_promo_code(code: str, db: AsyncSession = Depends(get_db)):
+    from app.dictionary_models import PromoCode
+    from app.services.promo import normalize_code
+    row = (
+        await db.execute(select(PromoCode).where(PromoCode.id == normalize_code(code)))
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Промокод не найден")
+    await db.delete(row)
+    await db.commit()
+    return {"meta": {"deleted": True}}

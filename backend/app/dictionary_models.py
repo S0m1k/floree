@@ -150,3 +150,39 @@ class ShopSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class PromoCode(Base):
+    """Промокоды витрины — управляются из админки (/admin/payment-settings).
+
+    id = сам код в верхнем регистре. Скидка применяется строго на сервере в
+    create_order; выключенный код ведёт себя как несуществующий.
+    """
+
+    __tablename__ = "promo_codes"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)  # код, UPPERCASE
+    percent: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PaymentSettings(Base):
+    """Ключи эквайринга Т-Банк — редактируются из админки.
+
+    Singleton по образцу ShopSettings. Пустые поля означают «брать из .env»,
+    так что заполненная строка в БД всегда приоритетнее окружения.
+    """
+
+    __tablename__ = "payment_settings"
+
+    SINGLETON_ID = "singleton"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: PaymentSettings.SINGLETON_ID)
+    tbank_terminal_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    tbank_secret_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )

@@ -35,6 +35,11 @@ async def lifespan(app: FastAPI):
     # carries no alembic migrations, so this is the schema source of truth.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Seed launch promo codes (insert-if-missing; admin edits are never touched).
+    from app.database import AsyncSessionLocal
+    from app.services.promo import seed_default_codes
+    async with AsyncSessionLocal() as db:
+        await seed_default_codes(db)
     yield
 
 

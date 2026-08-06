@@ -91,7 +91,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
     discount_percent = None
     discount_total = 0
     if payload.promo_code and payload.promo_code.strip():
-        discount_percent = get_discount_percent(payload.promo_code)
+        discount_percent = await get_discount_percent(db, payload.promo_code)
         if discount_percent is None:
             raise HTTPException(status_code=422, detail="Неизвестный промокод")
         discount_total = int(server_total * discount_percent / 100)  # whole rubles
