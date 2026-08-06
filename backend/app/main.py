@@ -8,6 +8,7 @@ from app.routers import (
     orders,
     payments,
     callbacks,
+    promo,
     v1_catalog,
     v1_sales,
     v1_customers,
@@ -51,6 +52,7 @@ app.include_router(recipes.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 app.include_router(callbacks.router, prefix="/api")
+app.include_router(promo.router, prefix="/api")
 # Phase 2 — Posiflora-compatible /api/v1/* endpoints served from our own DB.
 app.include_router(v1_catalog.router, prefix="/api")
 app.include_router(v1_sales.router, prefix="/api")

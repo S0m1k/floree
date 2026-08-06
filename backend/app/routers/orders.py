@@ -8,6 +8,7 @@ from app.models import Order
 from app.schemas import OrderCreate, OrderResponse
 from app.services.posiflora import get_recipe_variant_prices
 from app.services.deal_sources import SOURCE_SITE, get_or_create_deal_source
+from app.services.promo import get_discount_percent, normalize_code
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -84,6 +85,18 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
     #    Fails closed (502/422) if any line price can't be verified.
     items_payload, server_total = await _price_items_server_side(payload.items)
 
+    # 1b. Promo code — validated and applied server-side only. An unknown code
+    #     is rejected explicitly so the buyer isn't silently charged full price
+    #     after the checkout UI promised a discount.
+    discount_percent = None
+    discount_total = 0
+    if payload.promo_code and payload.promo_code.strip():
+        discount_percent = get_discount_percent(payload.promo_code)
+        if discount_percent is None:
+            raise HTTPException(status_code=422, detail="Неизвестный промокод")
+        discount_total = int(server_total * discount_percent / 100)  # whole rubles
+        server_total -= discount_total
+
     # 2. Persist a PENDING order only. The Posiflora order is NOT created here —
     #    it is built lazily in the payment webhook once payment is CONFIRMED, so
     #    unpaid orders never reach the florist. The full create args are stashed
@@ -100,6 +113,9 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         "comment": payload.comment,
         "items": items_payload,
         "doc_no": doc_no,
+        # Florist-visible note: which promo produced the reduced total.
+        "promo_code": normalize_code(payload.promo_code) if discount_percent else None,
+        "discount_total": discount_total,
     }
 
     # Заказ пришёл через витрину — источник сделки «Сайт» проставляется
@@ -116,6 +132,8 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         comment=payload.comment,
         due_time=local_due_time,
         total_amount=server_total,
+        discount_total=discount_total,
+        discount_percent=discount_percent,
         payment_status="pending",
         bouquet_ids=json.dumps(items_payload),
         order_payload=json.dumps(order_payload),

@@ -47,6 +47,40 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Promo code: validated against the backend for display; the authoritative
+  // discount is re-applied server-side when the order is created.
+  const [promoInput, setPromoInput] = useState('');
+  const [promo, setPromo] = useState<{ code: string; percent: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoChecking, setPromoChecking] = useState(false);
+
+  const subtotal = Math.round(totalPrice());
+  // int() on the server truncates, so mirror with Math.floor to match to the ruble.
+  const discount = promo ? Math.floor((subtotal * promo.percent) / 100) : 0;
+  const payable = subtotal - discount;
+
+  const applyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+    setPromoChecking(true);
+    setPromoError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/promo-codes/${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setPromo({ code: data.code, percent: data.percent });
+      } else {
+        setPromo(null);
+        setPromoError('Такого промокода нет');
+      }
+    } catch {
+      setPromo(null);
+      setPromoError('Не удалось проверить промокод');
+    } finally {
+      setPromoChecking(false);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError(null);
@@ -89,6 +123,7 @@ export default function CheckoutPage() {
             qty: i.quantity,
           })),
           total_amount: Math.round(totalPrice()),
+          promo_code: promo?.code || null,
         }),
       });
 
@@ -218,7 +253,7 @@ export default function CheckoutPage() {
             <div className="pg-co__actions">
               <Link href="/catalog" className="btn" data-hover>&larr; Продолжить покупки</Link>
               <button type="submit" disabled={submitting} className="btn btn--filled" data-hover style={submitting ? { opacity: 0.6 } : {}}>
-                {submitting ? 'Переходим к оплате...' : `Перейти к оплате \u00b7 ${fmtPrice(totalPrice())}`}
+                {submitting ? 'Переходим к оплате...' : `Перейти к оплате \u00b7 ${fmtPrice(payable)}`}
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7H13M13 7L8 2M13 7L8 12" stroke="currentColor"/></svg>
               </button>
             </div>
@@ -253,13 +288,51 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
+            <div className="pg-co__promo">
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  value={promoInput}
+                  onChange={(e) => { setPromoInput(e.target.value); setPromoError(null); }}
+                  placeholder="Промокод"
+                  aria-label="Промокод"
+                  style={{ flex: 1, minWidth: 0, padding: '10px 12px', border: '1px solid var(--line)', background: 'var(--paper)', fontSize: 14 }}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={applyPromo}
+                  disabled={promoChecking || !promoInput.trim()}
+                  data-hover
+                  style={{ padding: '10px 16px' }}
+                >
+                  {promoChecking ? '...' : 'Применить'}
+                </button>
+              </div>
+              {promoError && <div style={{ color: '#a03030', fontSize: 13, marginTop: 8 }}>{promoError}</div>}
+              {promo && (
+                <div style={{ fontSize: 13, marginTop: 8, color: 'var(--plum)' }}>
+                  Промокод {promo.code} применён — скидка {promo.percent}%{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setPromo(null); setPromoInput(''); }}
+                    style={{ background: 'none', border: 0, cursor: 'pointer', textDecoration: 'underline', color: 'inherit', padding: 0 }}
+                  >
+                    убрать
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="pg-co__rows">
-              <div><span>Товары ({items.reduce((s, i) => s + i.quantity, 0)} шт.)</span><span className="mono">{fmtPrice(totalPrice())}</span></div>
+              <div><span>Товары ({items.reduce((s, i) => s + i.quantity, 0)} шт.)</span><span className="mono">{fmtPrice(subtotal)}</span></div>
+              {promo && (
+                <div><span>Скидка ({promo.code})</span><span className="mono" style={{ color: 'var(--plum)' }}>&minus;{fmtPrice(discount)}</span></div>
+              )}
               <div><span>Оплата</span><span className="mono">Т-Банк</span></div>
             </div>
             <div className="pg-co__total">
               <span className="eyebrow">Итого</span>
-              <span className="serif" style={{ fontSize: 28, fontStyle: 'italic' }}>{fmtPrice(totalPrice())}</span>
+              <span className="serif" style={{ fontSize: 28, fontStyle: 'italic' }}>{fmtPrice(payable)}</span>
             </div>
           </div>
         </aside>

@@ -4,31 +4,37 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { SOCIALS } from '@/lib/socials';
 
-// Square studio photos — the same source fills both the wide desktop frame and
-// the tall mobile frame (object-fit: cover crops to each).
+// Slide 1 opens the school season (1 сентября) with dedicated desktop and
+// mobile shots; the rest pair the new desktop photos with the studio set that
+// crops well into the tall mobile frame.
 const SLIDES = [
   {
-    imgDesktop: '/hero/slide-1.jpg',
+    imgDesktop: '/hero/sep-desktop.jpg',
+    imgMobile: '/hero/sep-mobile.jpg',
+    alt: 'Букеты к 1 сентября — Floree, цветочная студия Санкт-Петербург',
+  },
+  {
+    imgDesktop: '/hero/pk-1.jpg',
     imgMobile: '/hero/slide-1.jpg',
     alt: 'Авторский букет Floree — цветочная студия Санкт-Петербург',
   },
   {
-    imgDesktop: '/hero/slide-2.jpg',
+    imgDesktop: '/hero/pk-2.jpg',
     imgMobile: '/hero/slide-2.jpg',
     alt: 'Авторский букет Floree — свежие цветы с доставкой по СПб',
   },
   {
-    imgDesktop: '/hero/slide-3.jpg',
+    imgDesktop: '/hero/pk-3.jpg',
     imgMobile: '/hero/slide-3.jpg',
     alt: 'Флористическая студия Floree — Полтавский проезд, 2',
   },
   {
-    imgDesktop: '/hero/slide-4.jpg',
+    imgDesktop: '/hero/pk-4.jpg',
     imgMobile: '/hero/slide-4.jpg',
     alt: 'Букет из свежих цветов — Floree Санкт-Петербург',
   },
   {
-    imgDesktop: '/hero/slide-5.jpg',
+    imgDesktop: '/hero/pk-5.jpg',
     imgMobile: '/hero/slide-5.jpg',
     alt: 'Авторская флористика Floree — заказ онлайн',
   },

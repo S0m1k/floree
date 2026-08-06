@@ -220,33 +220,17 @@ export default async function HomePage() {
           <div className="eyebrow" style={{ textAlign: 'center' }}>&mdash; Отзывы</div>
           <h2 className="ed-reviews__title display">Отзывы о&nbsp;нашей студии</h2>
         </Reveal>
-        <div className="ed-reviews__grid">
-          {[
-            {
-              name: 'Даниил',
-              src: 'Яндекс Карты',
-              text: 'Я был просто в восторге от букета, который заказал в этом сервисе! Цветы были настолько свежие и красивые, словно только что с грядки. Аромат стоял на всю комнату! Композиция была собрана со вкусом и выглядела даже лучше, чем на фотографии на сайте. Однозначно рекомендую, если хотите порадовать близких по-настоящему!',
-            },
-            {
-              name: 'София',
-              src: 'Instagram',
-              text: 'Заказывала букет для мамы на День рождения, находясь в другом городе. Очень переживала, что доставка задержится или букет будет выглядеть неважно. Но всё прошло идеально! Заказ оформила онлайн быстро и легко, оплатила тоже без проблем. Курьер приехал точно в указанное время, позвонил заранее. Мама была в восторге от цветов! Спасибо за отличный сервис и спокойствие!',
-            },
-            {
-              name: 'Анастасия',
-              src: 'Яндекс Карты',
-              text: 'В процессе оформления заказа возникла небольшая проблема с выбором времени доставки, но сотрудники сервиса очень быстро отреагировали и предложили оптимальное решение. Было приятно видеть такую клиентоориентированность и готовность помочь. Букет доставили вовремя, он был очень красивым и соответствовал моим ожиданиям. Чувствуется, что компания заботится о своей репутации.',
-            },
-          ].map((r, i) => (
-            <Reveal key={i} kind="up" delay={i * 120}>
-              <figure className="ed-review">
-                <blockquote className="ed-review__text">«{r.text}»</blockquote>
-                <figcaption className="ed-review__meta">
-                  <span className="ed-review__name serif">{r.name}</span>
-                  <span className="ed-review__src mono">Источник: {r.src}</span>
-                </figcaption>
-              </figure>
-            </Reveal>
+        {/* Скриншоты реальных отзывов — листаются горизонтально */}
+        <div className="ed-reviews__strip" role="list">
+          {Array.from({ length: 10 }, (_, i) => (
+            <div className="ed-reviews__shot" role="listitem" key={i}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/reviews/review-${i + 1}.jpg`}
+                alt={`Отзыв клиента Floree ${i + 1}`}
+                loading="lazy"
+              />
+            </div>
           ))}
         </div>
       </section>

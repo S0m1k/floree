@@ -22,6 +22,7 @@ class OrderCreate(BaseModel):
     comment: Optional[str] = None
     items: list[OrderItem]
     total_amount: int = 0  # advisory only — server recomputes the authoritative total
+    promo_code: Optional[str] = None  # validated server-side (services/promo.py)
 
 
 class OrderResponse(BaseModel):

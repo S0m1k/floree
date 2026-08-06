@@ -2187,3 +2187,58 @@ img { display: block; max-width: 100%; }
 .fl-modal__radio input { accent-color: var(--plum); }
 .fl-modal__error { color: #a03030; font-size: 14px; margin: 0 0 16px; }
 .fl-modal__error a { color: inherit; }
+
+/* ═══════════════════════════════════════════
+   Recipe gallery — слайдер фото букета
+   ═══════════════════════════════════════════ */
+.fl-gallery { touch-action: pan-y; }
+.fl-gallery__slide {
+  position: absolute; inset: 0;
+  opacity: 0; transition: opacity .45s var(--ease);
+  pointer-events: none;
+}
+.fl-gallery__slide.is-active { opacity: 1; pointer-events: auto; }
+.fl-gallery__arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  z-index: 2; width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: rgba(251, 250, 247, 0.85); border: 1px solid var(--line);
+  color: var(--ink); cursor: pointer;
+  transition: background .25s var(--ease);
+}
+.fl-gallery__arrow:hover { background: var(--paper); }
+.fl-gallery__arrow--prev { left: 12px; }
+.fl-gallery__arrow--next { right: 12px; }
+.fl-gallery__dots {
+  position: absolute; left: 0; right: 0; bottom: 12px; z-index: 2;
+  display: flex; justify-content: center; gap: 8px;
+}
+.fl-gallery__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  border: 1px solid var(--paper); background: transparent; cursor: pointer;
+  box-shadow: 0 0 3px rgba(0,0,0,0.35);
+}
+.fl-gallery__dot.is-active { background: var(--paper); }
+.fl-gallery__thumb { opacity: 0.65; transition: opacity .25s var(--ease); }
+.fl-gallery__thumb:hover { opacity: 1; }
+.fl-gallery__thumb.is-active { opacity: 1; outline: 2px solid var(--plum); outline-offset: -2px; }
+
+/* ═══════════════════════════════════════════
+   Reviews — лента скриншотов
+   ═══════════════════════════════════════════ */
+.ed-reviews__strip {
+  display: flex; gap: 16px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  padding: 8px 40px 24px;
+  max-width: 1500px; margin: 0 auto;
+}
+.ed-reviews__shot {
+  flex: 0 0 auto; width: min(320px, 78vw);
+  scroll-snap-align: start;
+  background: var(--paper-2); border: 1px solid var(--line);
+}
+.ed-reviews__shot img { display: block; width: 100%; height: auto; }
+@media (max-width: 800px) {
+  .ed-reviews__strip { padding: 8px 20px 20px; }
+}

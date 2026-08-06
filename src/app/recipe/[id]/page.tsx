@@ -1,7 +1,7 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import RecipePurchase from '@/components/RecipePurchase';
+import RecipeGallery from '@/components/RecipeGallery';
 import { RecipeDetail } from '@/types';
 
 const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -61,40 +61,8 @@ export default async function RecipePage({ params }: Props) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 pt-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
 
-          {/* Gallery */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div className="relative aspect-square overflow-hidden" style={{ background: 'var(--bone)' }}>
-              {primaryImage ? (
-                <Image
-                  src={primaryImage}
-                  alt={recipe.attributes.title}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  priority
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'var(--bone)' }} />
-              )}
-            </div>
-            {images.length > 1 && (
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(images.length, 5)}, 1fr)`, gap: 8 }}>
-                {images.slice(0, 5).map((src, i) => (
-                  <div key={i} className="relative aspect-square overflow-hidden" style={{ background: 'var(--bone)' }}>
-                    <Image
-                      src={src}
-                      alt={`${recipe.attributes.title} — фото ${i + 1}`}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="20vw"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Gallery — листается стрелками, свайпом и по миниатюрам */}
+          <RecipeGallery images={images} title={recipe.attributes.title} />
 
           {/* Details */}
           <div className="flex flex-col">
