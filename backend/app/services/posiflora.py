@@ -1,5 +1,6 @@
 import asyncio
 import httpx
+from app.services.tls import outbound_ssl_context
 import time
 import uuid
 from app.config import settings
@@ -28,6 +29,7 @@ async def _get_client() -> httpx.AsyncClient:
             _client = httpx.AsyncClient(
                 timeout=httpx.Timeout(60.0, connect=30.0),
                 limits=httpx.Limits(max_keepalive_connections=4, max_connections=8),
+                verify=outbound_ssl_context(),
             )
         return _client
 

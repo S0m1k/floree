@@ -17,6 +17,7 @@ import logging
 from decimal import Decimal
 
 import httpx
+from app.services.tls import outbound_ssl_context
 
 from app.config import settings
 
@@ -102,7 +103,7 @@ def build_receipt_body(
 async def process_receipt(body: dict) -> str:
     """Создать операцию чека, вернуть operationId. Исключения — наверх:
     вызывающий код переводит чек в failed, продажа не блокируется."""
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS, verify=outbound_ssl_context()) as client:
         resp = await client.post(
             f"{settings.aqsi_api_url}/v4/Receipts/process",
             json=body,
@@ -118,7 +119,7 @@ async def process_receipt(body: dict) -> str:
 
 async def get_operation(operation_id: str) -> dict:
     """Статус асинхронной операции устройства (GET /v4/Operations/{id})."""
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS, verify=outbound_ssl_context()) as client:
         resp = await client.get(
             f"{settings.aqsi_api_url}/v4/Operations/{operation_id}",
             headers=_headers(),

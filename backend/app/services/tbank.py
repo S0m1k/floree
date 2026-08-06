@@ -1,5 +1,6 @@
 import hashlib
 import httpx
+from app.services.tls import outbound_ssl_context
 from app.config import settings
 
 
@@ -74,7 +75,7 @@ async def init_payment(
     # Receipt is excluded from token signing — add after.
     params["Receipt"] = _build_receipt(customer_phone, amount_kopecks)
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30, verify=outbound_ssl_context()) as client:
         resp = await client.post(f"{settings.tbank_api_url}/Init", json=params)
         resp.raise_for_status()
         data = resp.json()
