@@ -6,8 +6,8 @@ from app.models import Order, Payment
 from app.schemas import PaymentInitRequest, PaymentInitResponse
 import json
 from app.services.tbank import init_payment, verify_notification
-from app.services.payment_creds import get_tbank_credentials
-from app.services.posiflora import record_payment, create_order as posiflora_create_order
+from app.services.payment_creds import get_tbank_credentials, get_or_create_payment_settings
+from app.services import yandex_pay
 from app.config import settings
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -26,6 +26,42 @@ async def init_payment_route(
     success_url = f"{settings.frontend_url}/checkout/success?order={order.id}"
     fail_url = f"{settings.frontend_url}/checkout/fail?order={order.id}"
 
+    ps = await get_or_create_payment_settings(db)
+
+    # ─── Yandex Pay ───
+    if ps.active_provider == "yandex":
+        if not ps.yapay_api_key:
+            raise HTTPException(status_code=502, detail="Yandex Pay: не задан API-ключ")
+        try:
+            ya = await yandex_pay.create_order(
+                api_key=ps.yapay_api_key,
+                sandbox=bool(ps.yapay_sandbox),
+                order_id=order.id,
+                amount_rubles=float(order.total_amount),
+                title=f"Заказ Floree #{order.posiflora_doc_no or order.id[:8]}",
+                success_url=success_url,
+                fail_url=fail_url,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Yandex Pay error: {e}")
+        payment = Payment(
+            order_id=order.id,
+            provider="yandex",
+            tbank_order_id=order.id,  # generic external order ref
+            amount=order.total_amount,
+            status="NEW",
+            payment_url=ya["payment_url"],
+        )
+        db.add(payment)
+        await db.commit()
+        await db.refresh(payment)
+        return PaymentInitResponse(
+            payment_url=ya["payment_url"],
+            payment_id=payment.id,
+            tbank_payment_id="",
+        )
+
+    # ─── T-Bank (default) ───
     terminal_key, secret_key = await get_tbank_credentials(db)
     try:
         tbank_resp = await init_payment(
@@ -119,26 +155,10 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             await db.commit()
             return Response(content="OK")
 
-        # Now that payment is confirmed, create the order in Posiflora (only
-        # once) from the stashed payload, then record the payment against it.
+        # Payment confirmed — the order lives (and is fulfilled) in OUR CRM
+        # only. The Posiflora push that used to happen here is gone: florists
+        # work the «Заказы» screen in the admin.
         order.payment_status = "paid"
-        if order.posiflora_id is None and order.order_payload:
-            try:
-                args = json.loads(order.order_payload)
-                pf_resp = await posiflora_create_order(**args)
-                order.posiflora_id = pf_resp["data"]["id"]
-                order.posiflora_doc_no = (
-                    pf_resp["data"]["attributes"].get("docNo") or order.posiflora_doc_no
-                )
-            except Exception as e:
-                # Keep the order paid; leave posiflora_id empty for later retry.
-                print(f"[Posiflora] Deferred order creation failed: {e}")
-
-        if order.posiflora_id:
-            try:
-                await record_payment(order.posiflora_id, amount_rubles)
-            except Exception as e:
-                print(f"[Posiflora] Record payment failed: {e}")
 
     await db.commit()
     return Response(content="OK")
@@ -151,3 +171,78 @@ async def payment_status(payment_id: str, db: AsyncSession = Depends(get_db)):
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     return {"status": payment.status, "payment_url": payment.payment_url}
+
+
+@router.post("/yandex-webhook")
+async def yandex_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """Yandex Pay event webhook.
+
+    The signed JWT body is used only as a hint: we extract the orderId and then
+    re-verify the authoritative status via the Merchant API before marking the
+    order paid — so a forged webhook can never confirm anything.
+    """
+    import base64
+
+    raw = (await request.body()).decode("utf-8", "ignore").strip()
+    order_id = None
+    try:
+        if raw.startswith("{"):
+            body = json.loads(raw)
+            order_id = body.get("order", {}).get("orderId") or body.get("orderId")
+        else:
+            # JWT: header.payload.signature — берём payload без проверки подписи
+            payload_b64 = raw.split(".")[1]
+            payload_b64 += "=" * (-len(payload_b64) % 4)
+            body = json.loads(base64.urlsafe_b64decode(payload_b64))
+            order_id = (body.get("order") or {}).get("orderId") or body.get("orderId")
+    except Exception:
+        return Response(content="OK")  # мусор игнорируем молча
+    if not order_id:
+        return Response(content="OK")
+
+    result = await db.execute(select(Payment).where(Payment.tbank_order_id == order_id))
+    payment = result.scalar_one_or_none()
+    if payment is None or payment.provider != "yandex":
+        return Response(content="OK")
+
+    order_row = (
+        await db.execute(select(Order).where(Order.id == payment.order_id))
+    ).scalar_one_or_none()
+    if order_row is None:
+        return Response(content="OK")
+    if order_row.payment_status == "paid":
+        return Response(content="OK")  # idempotent
+
+    ps = await get_or_create_payment_settings(db)
+    if not ps.yapay_api_key:
+        return Response(content="OK")
+    try:
+        status_info = await yandex_pay.get_order_status(
+            api_key=ps.yapay_api_key,
+            sandbox=bool(ps.yapay_sandbox),
+            order_id=order_id,
+        )
+    except Exception as e:
+        print(f"[YandexPay] status check failed: {e}")
+        return Response(content="OK")
+
+    if not status_info["paid"]:
+        payment.status = status_info.get("payment_status") or "PENDING"
+        await db.commit()
+        return Response(content="OK")
+
+    # Сверка суммы (как в тбанк-вебхуке): оплачено должно равняться серверному итогу
+    amount = status_info.get("amount_rubles")
+    if amount is not None:
+        order_kopecks = int(round(float(order_row.total_amount) * 100))
+        if int(round(amount * 100)) != order_kopecks:
+            print(f"[YandexPay] Amount mismatch for order {order_row.id}")
+            payment.status = "amount_mismatch"
+            order_row.payment_status = "amount_mismatch"
+            await db.commit()
+            return Response(content="OK")
+
+    payment.status = "CONFIRMED"
+    order_row.payment_status = "paid"
+    await db.commit()
+    return Response(content="OK")

@@ -206,6 +206,9 @@ class Payment(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     order_id: Mapped[str] = mapped_column(String, ForeignKey("orders.id"))
+    # Платёжный провайдер этой записи: tbank | yandex. Для yandex поля tbank_*
+    # хранят соответствующие внешние идентификаторы Yandex Pay.
+    provider: Mapped[str] = mapped_column(String, default="tbank")
     tbank_payment_id: Mapped[str | None] = mapped_column(String, nullable=True)
     # OrderId sent to T-Bank for gateway payments. Manual in-store advances have
     # no gateway leg, so they store a synthetic "manual-<uuid>" here to satisfy

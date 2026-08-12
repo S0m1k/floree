@@ -7,6 +7,35 @@ from app.config import settings
 
 _token_cache: dict = {"access_token": None, "expires_at": 0}
 
+# Runtime credential override (set from the admin-managed posiflora_settings
+# row before an import run). None -> fall back to the .env settings, keeping
+# the historical single-tenant flow intact.
+_creds: dict | None = None
+
+
+def set_credentials(base_url: str, username: str, password: str) -> None:
+    """Point the client at a specific Posiflora account (admin import flow)."""
+    global _creds
+    _creds = {
+        "base_url": base_url.rstrip("/"),
+        "username": username,
+        "password": password,
+    }
+    _token_cache["access_token"] = None
+    _token_cache["expires_at"] = 0
+
+
+def _base_url() -> str:
+    return _creds["base_url"] if _creds else settings.posiflora_base_url
+
+
+def _username() -> str:
+    return _creds["username"] if _creds else settings.posiflora_username
+
+
+def _password() -> str:
+    return _creds["password"] if _creds else settings.posiflora_password
+
 # Posiflora inventory-group id for "Рецепты" (specifications)
 RECIPES_GROUP_ID = "9"
 
@@ -49,14 +78,14 @@ async def _get_token() -> str:
     client = await _get_client()
     resp = await _with_retry(
         client.post,
-        f"{settings.posiflora_base_url}/v1/sessions",
+        f"{_base_url()}/v1/sessions",
         headers={"Content-Type": "application/vnd.api+json"},
         json={
             "data": {
                 "type": "sessions",
                 "attributes": {
-                    "username": settings.posiflora_username,
-                    "password": settings.posiflora_password,
+                    "username": _username(),
+                    "password": _password(),
                 },
             }
         },
@@ -96,7 +125,7 @@ async def posiflora_request(method: str, path: str, **kwargs):
     resp = await _with_retry(
         client.request,
         method,
-        f"{settings.posiflora_base_url}{path}",
+        f"{_base_url()}{path}",
         headers=headers,
         **kwargs,
     )

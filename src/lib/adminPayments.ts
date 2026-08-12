@@ -4,8 +4,12 @@ import { adminFetch } from './adminApi';
 // acquiring credentials and the storefront promo-code dictionary.
 
 export interface PaymentSettingsAttributes {
+  activeProvider: 'tbank' | 'yandex';
   terminalKey: string | null;
   hasSecret: boolean;
+  yapayMerchantId: string | null;
+  hasYapayApiKey: boolean;
+  yapaySandbox: boolean;
   updatedAt: string | null;
 }
 

@@ -182,8 +182,46 @@ class PaymentSettings(Base):
     SINGLETON_ID = "singleton"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: PaymentSettings.SINGLETON_ID)
+    # Какой провайдер обслуживает оплату на витрине: tbank | yandex.
+    active_provider: Mapped[str] = mapped_column(String, default="tbank")
     tbank_terminal_key: Mapped[str | None] = mapped_column(String, nullable=True)
     tbank_secret_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    yapay_merchant_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    yapay_api_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    yapay_sandbox: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class PosifloraSettings(Base):
+    """Учётные данные Posiflora для импорта — редактируются из админки.
+
+    Singleton. Пустые поля означают «брать из .env» (для floree префилл
+    происходит на первом чтении: см. services/import_runner).
+    """
+
+    __tablename__ = "posiflora_settings"
+
+    SINGLETON_ID = "singleton"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: PosifloraSettings.SINGLETON_ID)
+    base_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    username: Mapped[str | None] = mapped_column(String, nullable=True)
+    password: Mapped[str | None] = mapped_column(String, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ImportRun(Base):
+    """Журнал запусков импорта из Posiflora (кнопка в админке)."""
+
+    __tablename__ = "import_runs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    status: Mapped[str] = mapped_column(String, default="running")  # running | done | error
+    log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

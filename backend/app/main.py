@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
@@ -74,6 +75,12 @@ app.include_router(v1_shop.router, prefix="/api")
 app.include_router(v1_imports.router, prefix="/api")
 app.include_router(v1_pos.router, prefix="/api")
 app.include_router(v1_stock.router, prefix="/api")
+
+
+# Локальное хранилище фото каталога (заполняется импортом из Posiflora).
+from app.services.import_runner import MEDIA_DIR  # noqa: E402
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
 
 @app.get("/health")

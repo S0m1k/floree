@@ -27,6 +27,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/showcase', label: 'Букеты в магазине' },
       { href: '/admin/shop-settings', label: 'Онлайн-витрина' },
       { href: '/admin/payment-settings', label: 'Оплата и промокоды' },
+      { href: '/admin/posiflora-import', label: 'Импорт из Posiflora' },
       { href: '/admin/showcase/analytics', label: 'Аналитика' },
       { href: '/admin/catalog', label: 'Каталог товаров и услуг' },
       { href: '/admin/categories', label: 'Категории' },

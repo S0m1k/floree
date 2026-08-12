@@ -16,9 +16,13 @@ export default function PaymentPromoForm({
 }) {
   const router = useRouter();
 
-  // --- T-Bank keys ---
+  // --- провайдер и ключи ---
+  const [provider, setProvider] = useState<'tbank' | 'yandex'>(settings?.activeProvider || 'tbank');
   const [terminalKey, setTerminalKey] = useState(settings?.terminalKey || '');
   const [secretKey, setSecretKey] = useState('');
+  const [yapayMerchantId, setYapayMerchantId] = useState(settings?.yapayMerchantId || '');
+  const [yapayApiKey, setYapayApiKey] = useState('');
+  const [yapaySandbox, setYapaySandbox] = useState(settings?.yapaySandbox ?? false);
   const [keysBusy, setKeysBusy] = useState(false);
   const [keysError, setKeysError] = useState<string | null>(null);
   const [keysSaved, setKeysSaved] = useState(false);
@@ -35,8 +39,12 @@ export default function PaymentPromoForm({
         body: JSON.stringify({
           data: {
             attributes: {
+              activeProvider: provider,
               terminalKey: terminalKey.trim(),
               secretKey: secretKey.trim() || undefined,
+              yapayMerchantId: yapayMerchantId.trim(),
+              yapayApiKey: yapayApiKey.trim() || undefined,
+              yapaySandbox,
             },
           },
         }),
@@ -46,6 +54,7 @@ export default function PaymentPromoForm({
         throw new Error(d.detail || 'Не удалось сохранить');
       }
       setSecretKey('');
+      setYapayApiKey('');
       setKeysSaved(true);
       router.refresh();
     } catch (err) {
@@ -122,7 +131,18 @@ export default function PaymentPromoForm({
         </p>
         <div className="admin-form-grid" style={{ maxWidth: 560 }}>
           <label className="admin-field">
-            <span className="admin-field__label">TerminalKey</span>
+            <span className="admin-field__label">Активный провайдер оплаты</span>
+            <select
+              className="admin-input"
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as 'tbank' | 'yandex')}
+            >
+              <option value="tbank">Т-Банк (эквайринг)</option>
+              <option value="yandex">Yandex Pay</option>
+            </select>
+          </label>
+          <label className="admin-field">
+            <span className="admin-field__label">TerminalKey (Т-Банк)</span>
             <input
               className="admin-input"
               value={terminalKey}
@@ -133,7 +153,7 @@ export default function PaymentPromoForm({
           </label>
           <label className="admin-field">
             <span className="admin-field__label">
-              SecretKey {settings?.hasSecret ? '(задан — оставьте пустым, чтобы не менять)' : '(не задан)'}
+              SecretKey (Т-Банк) {settings?.hasSecret ? '(задан — пусто = не менять)' : '(не задан)'}
             </span>
             <input
               className="admin-input"
@@ -144,7 +164,41 @@ export default function PaymentPromoForm({
               autoComplete="new-password"
             />
           </label>
+          <label className="admin-field">
+            <span className="admin-field__label">Merchant ID (Yandex Pay)</span>
+            <input
+              className="admin-input"
+              value={yapayMerchantId}
+              onChange={(e) => setYapayMerchantId(e.target.value)}
+              placeholder="из console.pay.yandex.ru"
+              autoComplete="off"
+            />
+          </label>
+          <label className="admin-field">
+            <span className="admin-field__label">
+              API-ключ (Yandex Pay) {settings?.hasYapayApiKey ? '(задан — пусто = не менять)' : '(не задан)'}
+            </span>
+            <input
+              className="admin-input"
+              type="password"
+              value={yapayApiKey}
+              onChange={(e) => setYapayApiKey(e.target.value)}
+              placeholder={settings?.hasYapayApiKey ? '••••••••' : 'ключ Merchant API'}
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="admin-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={yapaySandbox}
+              onChange={(e) => setYapaySandbox(e.target.checked)}
+            />
+            <span className="admin-field__label" style={{ margin: 0 }}>Песочница Yandex Pay (тестовый режим)</span>
+          </label>
         </div>
+        <p className="admin-form-note">
+          Вебхук для консоли Yandex Pay: <code>https://floree.ru/api/payments/yandex-webhook</code>
+        </p>
         {keysError && <div className="admin-form-error admin-dict-error">{keysError}</div>}
         {keysSaved && <p className="admin-form-note" style={{ color: 'var(--admin-accent)' }}>Сохранено</p>}
         <div className="admin-form-actions admin-dict-form__actions">

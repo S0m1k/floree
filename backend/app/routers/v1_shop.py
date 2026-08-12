@@ -187,6 +187,19 @@ async def update_payment_settings(request: Request, db: AsyncSession = Depends(g
         row.tbank_secret_key = str(attrs["secretKey"]).strip()
     if attrs.get("clearSecret"):
         row.tbank_secret_key = None
+    if "activeProvider" in attrs:
+        provider = str(attrs.get("activeProvider") or "tbank")
+        if provider not in ("tbank", "yandex"):
+            raise HTTPException(status_code=400, detail="Провайдер: tbank или yandex")
+        row.active_provider = provider
+    if "yapayMerchantId" in attrs:
+        row.yapay_merchant_id = (attrs.get("yapayMerchantId") or "").strip() or None
+    if attrs.get("yapayApiKey"):
+        row.yapay_api_key = str(attrs["yapayApiKey"]).strip()
+    if attrs.get("clearYapayApiKey"):
+        row.yapay_api_key = None
+    if "yapaySandbox" in attrs:
+        row.yapay_sandbox = bool(attrs.get("yapaySandbox"))
     await db.commit()
     await db.refresh(row)
     return document(payment_settings_resource(row))
@@ -240,3 +253,64 @@ async def delete_promo_code(code: str, db: AsyncSession = Depends(get_db)):
     await db.delete(row)
     await db.commit()
     return {"meta": {"deleted": True}}
+
+
+# ---------- Импорт из Posiflora (/admin/posiflora-import) ----------
+
+@router.get("/posiflora-settings")
+async def get_posiflora_settings(db: AsyncSession = Depends(get_db)):
+    from app.services.import_runner import get_or_create_posiflora_settings
+    row = await get_or_create_posiflora_settings(db)
+    return {"data": {"id": row.id, "type": "posiflora-settings", "attributes": {
+        "baseUrl": row.base_url,
+        "username": row.username,
+        "hasPassword": bool(row.password),
+    }}}
+
+
+@router.put("/posiflora-settings")
+async def update_posiflora_settings(request: Request, db: AsyncSession = Depends(get_db)):
+    from app.services.import_runner import get_or_create_posiflora_settings
+    row = await get_or_create_posiflora_settings(db)
+    attrs = (((await request.json()) or {}).get("data") or {}).get("attributes") or {}
+    if "baseUrl" in attrs:
+        row.base_url = (attrs.get("baseUrl") or "").strip().rstrip("/") or None
+    if "username" in attrs:
+        row.username = (attrs.get("username") or "").strip() or None
+    if attrs.get("password"):
+        row.password = str(attrs["password"]).strip()
+    await db.commit()
+    return {"data": {"id": row.id, "type": "posiflora-settings", "attributes": {
+        "baseUrl": row.base_url,
+        "username": row.username,
+        "hasPassword": bool(row.password),
+    }}}
+
+
+def _import_run_resource(run) -> dict:
+    return {"id": run.id, "type": "import-runs", "attributes": {
+        "status": run.status,
+        "log": run.log,
+        "error": run.error,
+        "startedAt": run.started_at.isoformat() if run.started_at else None,
+        "finishedAt": run.finished_at.isoformat() if run.finished_at else None,
+    }}
+
+
+@router.post("/posiflora-import/run")
+async def start_posiflora_import():
+    from app.services.import_runner import start_import
+    try:
+        run_id = await start_import()
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return {"data": {"id": run_id, "type": "import-runs", "attributes": {"status": "running"}}}
+
+
+@router.get("/posiflora-import/status")
+async def posiflora_import_status(db: AsyncSession = Depends(get_db)):
+    from app.dictionary_models import ImportRun
+    run = (
+        await db.execute(select(ImportRun).order_by(ImportRun.started_at.desc()).limit(1))
+    ).scalar_one_or_none()
+    return {"data": _import_run_resource(run) if run else None}

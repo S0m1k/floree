@@ -844,7 +844,11 @@ def promo_code_resource(obj) -> dict:
 def payment_settings_resource(obj) -> dict:
     """Ключи эквайринга: секрет наружу не отдаём никогда — только факт наличия."""
     return resource("payment-settings", obj.id, {
+        "activeProvider": obj.active_provider,
         "terminalKey": obj.tbank_terminal_key,
         "hasSecret": bool(obj.tbank_secret_key),
+        "yapayMerchantId": obj.yapay_merchant_id,
+        "hasYapayApiKey": bool(obj.yapay_api_key),
+        "yapaySandbox": bool(obj.yapay_sandbox),
         "updatedAt": _iso(obj.updated_at),
     })

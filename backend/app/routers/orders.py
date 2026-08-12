@@ -6,14 +6,14 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import Order
 from app.schemas import OrderCreate, OrderResponse
-from app.services.posiflora import get_recipe_variant_prices
+from app.services.catalog_read import get_recipe_variant_prices
 from app.services.deal_sources import SOURCE_SITE, get_or_create_deal_source
 from app.services.promo import get_discount_percent, normalize_code
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
-async def _price_items_server_side(items: list) -> tuple[list[dict], int]:
+async def _price_items_server_side(db: AsyncSession, items: list) -> tuple[list[dict], int]:
     """Recompute every line price + the order total from Posiflora.
 
     The client-supplied `price`/`total_amount` are advisory only and are
@@ -29,7 +29,7 @@ async def _price_items_server_side(items: list) -> tuple[list[dict], int]:
         if item.recipe_id not in price_cache:
             try:
                 price_cache[item.recipe_id] = await get_recipe_variant_prices(
-                    item.recipe_id
+                    db, item.recipe_id
                 )
             except Exception as e:
                 raise HTTPException(
@@ -83,7 +83,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
 
     # 1. Recompute prices server-side from Posiflora (never trust the client).
     #    Fails closed (502/422) if any line price can't be verified.
-    items_payload, server_total = await _price_items_server_side(payload.items)
+    items_payload, server_total = await _price_items_server_side(db, payload.items)
 
     # 1b. Promo code — validated and applied server-side only. An unknown code
     #     is rejected explicitly so the buyer isn't silently charged full price
