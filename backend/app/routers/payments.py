@@ -30,11 +30,14 @@ async def init_payment_route(
 
     # ─── Yandex Pay ───
     if ps.active_provider == "yandex":
-        if not ps.yapay_api_key:
+        # В песочнице Yandex Pay ключом служит сам Merchant ID (по их докам),
+        # так что тестовый контур работает и без выпущенного боевого ключа.
+        ya_key = ps.yapay_merchant_id if ps.yapay_sandbox else ps.yapay_api_key
+        if not ya_key:
             raise HTTPException(status_code=502, detail="Yandex Pay: не задан API-ключ")
         try:
             ya = await yandex_pay.create_order(
-                api_key=ps.yapay_api_key,
+                api_key=ya_key,
                 sandbox=bool(ps.yapay_sandbox),
                 order_id=order.id,
                 amount_rubles=float(order.total_amount),
@@ -214,11 +217,12 @@ async def yandex_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         return Response(content="OK")  # idempotent
 
     ps = await get_or_create_payment_settings(db)
-    if not ps.yapay_api_key:
+    ya_key = ps.yapay_merchant_id if ps.yapay_sandbox else ps.yapay_api_key
+    if not ya_key:
         return Response(content="OK")
     try:
         status_info = await yandex_pay.get_order_status(
-            api_key=ps.yapay_api_key,
+            api_key=ya_key,
             sandbox=bool(ps.yapay_sandbox),
             order_id=order_id,
         )
