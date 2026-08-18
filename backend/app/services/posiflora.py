@@ -531,6 +531,8 @@ async def create_order(
     comment: str | None,
     items: list[dict],
     doc_no: str,
+    promo_code: str | None = None,
+    discount_total: int = 0,
 ) -> dict:
     """Create order in Posiflora.
 
@@ -538,6 +540,14 @@ async def create_order(
     create `qty` bouquets attached to the recipe's specification-with-variants,
     then attach all bouquet ids to a new order. On any failure mid-way we roll
     back the bouquets that were already created.
+
+    `promo_code`/`discount_total` mirror the storefront discount. Bouquets keep
+    their full catalog price — Posiflora has no order-level discount we can set
+    on create — so the promo is written into the florist-visible delivery note
+    and the smaller sum actually charged arrives via `record_payment`. These
+    two are keyword arguments because the checkout stashes the whole call in
+    `order_payload`; dropping them silently would make every promo order fail
+    to reach the florist.
     """
     from datetime import date
     today = date.today().isoformat()
@@ -582,8 +592,15 @@ async def create_order(
     }
     if apartment:
         attributes["deliveryApartment"] = apartment
-    if comment:
-        attributes["deliveryComments"] = comment
+    # Florist-visible note: the buyer's comment plus, when a promo was used,
+    # why the recorded payment is below the bouquets' catalog total.
+    comment_lines = [c for c in (comment,) if c]
+    if promo_code:
+        comment_lines.append(
+            f"Промокод {promo_code}: скидка {int(discount_total)} ₽"
+        )
+    if comment_lines:
+        attributes["deliveryComments"] = "\n".join(comment_lines)
     if delivery_date and delivery_time:
         time_from, time_to = _build_delivery_window(delivery_date, delivery_time)
         attributes["deliveryTimeFrom"] = time_from

@@ -6,7 +6,8 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import Order
 from app.schemas import OrderCreate, OrderResponse
-from app.services.catalog_read import get_recipe_variant_prices
+from app.config import use_posiflora
+from app.services import catalog_read, posiflora
 from app.services.deal_sources import SOURCE_SITE, get_or_create_deal_source
 from app.services.promo import get_discount_percent, normalize_code
 
@@ -14,12 +15,14 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 
 
 async def _price_items_server_side(db: AsyncSession, items: list) -> tuple[list[dict], int]:
-    """Recompute every line price + the order total from Posiflora.
+    """Recompute every line price + the order total from the catalog source.
 
     The client-supplied `price`/`total_amount` are advisory only and are
     discarded here — the storefront must not be able to set what it pays.
-    Fails closed: if a recipe/variant price can't be verified the order is
-    rejected rather than trusted at the client's number.
+    Prices come from wherever the catalog lives (CATALOG_SOURCE), so the amount
+    charged always matches the price the shop published. Fails closed: if a
+    recipe/variant price can't be verified the order is rejected rather than
+    trusted at the client's number.
     """
     price_cache: dict[str, dict] = {}
     priced: list[dict] = []
@@ -28,9 +31,16 @@ async def _price_items_server_side(db: AsyncSession, items: list) -> tuple[list[
     for item in items:
         if item.recipe_id not in price_cache:
             try:
-                price_cache[item.recipe_id] = await get_recipe_variant_prices(
-                    db, item.recipe_id
-                )
+                if use_posiflora():
+                    price_cache[item.recipe_id] = (
+                        await posiflora.get_recipe_variant_prices(item.recipe_id)
+                    )
+                else:
+                    price_cache[item.recipe_id] = (
+                        await catalog_read.get_recipe_variant_prices(
+                            db, item.recipe_id
+                        )
+                    )
             except Exception as e:
                 raise HTTPException(
                     status_code=502,
@@ -81,7 +91,7 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
     if payload.delivery_date and payload.delivery_time:
         local_due_time = f"{payload.delivery_date}T{payload.delivery_time}:00+03:00"
 
-    # 1. Recompute prices server-side from Posiflora (never trust the client).
+    # 1. Recompute prices server-side from the catalog (never trust the client).
     #    Fails closed (502/422) if any line price can't be verified.
     items_payload, server_total = await _price_items_server_side(db, payload.items)
 
@@ -97,10 +107,11 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         discount_total = int(server_total * discount_percent / 100)  # whole rubles
         server_total -= discount_total
 
-    # 2. Persist a PENDING order only. The Posiflora order is NOT created here —
-    #    it is built lazily in the payment webhook once payment is CONFIRMED, so
-    #    unpaid orders never reach the florist. The full create args are stashed
-    #    in `order_payload` for that deferred step.
+    # 2. Persist a PENDING order only. In `posiflora` mode the vendor order is
+    #    NOT created here — it is built lazily in the payment webhook once
+    #    payment is CONFIRMED, so unpaid orders never reach the florist. The
+    #    full create args are stashed in `order_payload` for that deferred step
+    #    (unused in `local` mode, where our own «Заказы» screen is the queue).
     order_payload = {
         "customer_name": payload.customer_name,
         "phone": payload.phone,

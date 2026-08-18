@@ -3,6 +3,14 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str
+    # Откуда витрина берёт каталог и куда уходит оплаченный заказ:
+    #   posiflora — вендорская Посифлора в реальном времени (режим floree.ru,
+    #               пока Фаза 6 не завершена: каталог, цены и заказы там)
+    #   local     — собственная БД, наполняемая импортом (/admin/posiflora-import)
+    # Админка/CRM/касса читают свою БД в обоих режимах — переключатель
+    # управляет только публичной витриной (/api/recipes, /api/orders,
+    # /api/payments) и требует перезапуска процесса.
+    catalog_source: str = "posiflora"
     posiflora_base_url: str
     posiflora_username: str
     posiflora_password: str
@@ -37,3 +45,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def use_posiflora() -> bool:
+    """True when the public storefront must talk to the vendor Posiflora.
+
+    Single source of truth for the `CATALOG_SOURCE` switch so the storefront
+    routers cannot drift apart — catalog reads, order pricing and the paid-order
+    push all have to agree on where the shop's data lives.
+    """
+    return settings.catalog_source == "posiflora"
