@@ -23,6 +23,11 @@
 
   --ease: cubic-bezier(.2,.7,.2,1);
 
+  /* Высота фиксированной шапки: паддинги + лого + бордер.
+     Держать в согласии с .fl-header и .fl-logo__img — от неё считаются
+     верхние отступы страниц, которые не должны уезжать под шапку. */
+  --header-h: 141px;
+
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -122,11 +127,12 @@ img { display: block; max-width: 100%; }
 .fl-logo {
   display: flex; align-items: center; justify-content: center; line-height: 1; text-decoration: none; color: inherit;
 }
-.fl-logo__img { display: block; height: 72px; width: auto; transition: height .4s var(--ease); }
-.fl-header.is-scrolled .fl-logo__img { height: 52px; }
+.fl-logo__img { display: block; height: 92px; width: auto; transition: height .4s var(--ease); }
+.fl-header.is-scrolled .fl-logo__img { height: 66px; }
 @media (max-width: 800px) {
-  .fl-logo__img { height: 46px; }
-  .fl-header.is-scrolled .fl-logo__img { height: 40px; }
+  .fl-logo__img { height: 58px; }
+  .fl-header.is-scrolled .fl-logo__img { height: 48px; }
+  :root { --header-h: 91px; }
 }
 
 /* Header phone (desktop, right) */
@@ -665,7 +671,10 @@ img { display: block; max-width: 100%; }
 /* ═══════════════════════════════════════════
    Pages — shared
    ═══════════════════════════════════════════ */
-.pg-root { background: var(--paper); color: var(--ink); padding-top: 128px; }
+.pg-root { background: var(--paper); color: var(--ink); padding-top: calc(var(--header-h) + 8px); }
+/* Страницы на старой tailwind-вёрстке (каталог, карточки, оферта) своей
+   компенсации шапки не имеют — задаём её здесь, только внутри витрины. */
+.fl-main > .min-h-screen { padding-top: var(--header-h); }
 
 .pg-crumbs {
   max-width: 1500px; margin: 0 auto; padding: 24px 56px;
