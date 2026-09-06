@@ -47,6 +47,8 @@ async def init_payment_route(
                 fail_url=fail_url,
             )
         except Exception as e:
+            # В лог — полностью: 502 уходит клиенту, а причину ищут в логах.
+            print(f"[Payment] Yandex Pay init failed for order {order.id}: {e}")
             raise HTTPException(status_code=502, detail=f"Yandex Pay error: {e}")
         payment = Payment(
             order_id=order.id,
@@ -80,6 +82,8 @@ async def init_payment_route(
             secret_key=secret_key,
         )
     except Exception as e:
+        # В лог — полностью: 502 уходит клиенту, а причину ищут в логах.
+        print(f"[Payment] T-Bank init failed for order {order.id}: {e}")
         raise HTTPException(status_code=502, detail=f"T-Bank error: {e}")
 
     # Save payment record
