@@ -8,45 +8,10 @@ import json
 from app.services.tbank import init_payment, verify_notification
 from app.services.payment_creds import get_tbank_credentials, get_or_create_payment_settings
 from app.services import yandex_pay
-from app.services.posiflora import record_payment, create_order as posiflora_create_order
-from app.config import settings, use_posiflora
+from app.services.posiflora_push import fulfill_order_in_posiflora
+from app.config import settings
 
 router = APIRouter(prefix="/payments", tags=["payments"])
-
-
-async def _fulfill_in_posiflora(order: Order, amount_rubles: float) -> None:
-    """Hand a just-paid order to the vendor Posiflora (CATALOG_SOURCE=posiflora).
-
-    Creates the Posiflora order from the payload stashed at checkout — once,
-    guarded by `posiflora_id` — and records the payment against it, so the
-    florist sees a paid order in their own system.
-
-    In `local` mode this is a no-op: the order is already fulfilled in our CRM.
-
-    Never raises. The money has been taken by the time we get here, so a
-    Posiflora outage must not turn into a failed webhook (which the provider
-    would retry, and which would leave the buyer looking at an error). A
-    failure leaves `posiflora_id` empty for a later retry and is logged.
-    """
-    if not use_posiflora():
-        return
-
-    if order.posiflora_id is None and order.order_payload:
-        try:
-            args = json.loads(order.order_payload)
-            pf_resp = await posiflora_create_order(**args)
-            order.posiflora_id = pf_resp["data"]["id"]
-            order.posiflora_doc_no = (
-                pf_resp["data"]["attributes"].get("docNo") or order.posiflora_doc_no
-            )
-        except Exception as e:
-            print(f"[Posiflora] Deferred order creation failed: {e}")
-
-    if order.posiflora_id:
-        try:
-            await record_payment(order.posiflora_id, amount_rubles)
-        except Exception as e:
-            print(f"[Posiflora] Record payment failed: {e}")
 
 
 @router.post("/init", response_model=PaymentInitResponse)
@@ -198,7 +163,7 @@ async def tbank_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         # `posiflora` mode it is additionally pushed to the vendor, which is
         # where the florists work while Фаза 6 is unfinished.
         order.payment_status = "paid"
-        await _fulfill_in_posiflora(order, amount_rubles)
+        await fulfill_order_in_posiflora(order, amount_rubles)
 
     await db.commit()
     return Response(content="OK")
@@ -285,7 +250,7 @@ async def yandex_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     payment.status = "CONFIRMED"
     order_row.payment_status = "paid"
-    await _fulfill_in_posiflora(
+    await fulfill_order_in_posiflora(
         order_row, amount if amount is not None else float(order_row.total_amount)
     )
     await db.commit()

@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import CallbackRequest
+from app.config import use_posiflora
+from app.services.posiflora import create_callback_order
 
 router = APIRouter(prefix="/callback-requests", tags=["callbacks"])
 
@@ -39,4 +41,20 @@ async def create_callback_request(
     db.add(req)
     await db.commit()
     await db.refresh(req)
+
+    # В режиме posiflora флористы живут в вендорской Посифлоре — заявка,
+    # оставшаяся только в нашей таблице, для них невидима. Дублируем её туда
+    # заказом-заявкой. Best-effort: сбой у вендора не должен ронять форму —
+    # копия в CRM уже сохранена, ошибка уходит в лог.
+    if use_posiflora():
+        try:
+            await create_callback_order(
+                name=req.name,
+                phone=req.phone,
+                contact_method=req.contact_method,
+                recipe_title=req.recipe_title,
+            )
+        except Exception as e:
+            print(f"[Posiflora] Callback push failed: {e}")
+
     return CallbackRequestResponse(id=req.id, status=req.status)

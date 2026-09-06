@@ -626,6 +626,59 @@ async def create_order(
         raise Exception(f"Failed to create order, bouquets rolled back: {e}")
 
 
+async def create_callback_order(
+    name: str,
+    phone: str,
+    contact_method: str,
+    recipe_title: str | None = None,
+) -> dict:
+    """Push a «Собрать подобный» request into Posiflora as a new order.
+
+    The florists work in Posiflora while CATALOG_SOURCE=posiflora, so a
+    request that lives only in our CRM's callback_requests table is one they
+    never see. There are no bouquets and no payment — just a fresh order with
+    the contact details and a note explaining what the client asked for; the
+    florist calls back and fills in the rest inside Posiflora.
+    """
+    from datetime import date
+
+    phone_code, phone_number = _split_phone(phone)
+    comment_lines = ["Заявка с сайта: собрать похожий букет."]
+    if recipe_title:
+        comment_lines.append(f"Референс: {recipe_title}")
+    comment_lines.append(f"Способ связи: {contact_method}")
+
+    return await posiflora_request(
+        "POST",
+        "/v1/orders",
+        json={
+            "data": {
+                "type": "orders",
+                "attributes": {
+                    "status": "new",
+                    "date": date.today().isoformat(),
+                    "delivery": False,
+                    "deliveryContact": name,
+                    "deliveryPhoneCode": phone_code,
+                    "deliveryPhoneNumber": phone_number,
+                    "deliveryComments": "\n".join(comment_lines),
+                },
+                "relationships": {
+                    "store": {
+                        "data": {"type": "stores", "id": settings.posiflora_store_id}
+                    },
+                    "source": {
+                        "data": {
+                            "type": "order-sources",
+                            "id": settings.posiflora_source_id,
+                        }
+                    },
+                },
+            }
+        },
+    )
+
+
 async def record_payment(posiflora_order_id: str, amount: int) -> dict:
     """Record a confirmed payment in Posiflora."""
     from datetime import date

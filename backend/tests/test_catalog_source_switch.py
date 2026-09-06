@@ -15,6 +15,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.models import Order, Payment
 from app.routers import payments as payments_router
+from app.services import posiflora_push
 from app.services import posiflora
 from tests.conftest import TestingSessionLocal
 
@@ -228,8 +229,8 @@ async def test_paid_order_reaches_the_vendor_in_posiflora_mode(
         recorded.update({"id": pf_order_id, "amount": amount})
         return {}
 
-    monkeypatch.setattr(payments_router, "posiflora_create_order", fake_create_order)
-    monkeypatch.setattr(payments_router, "record_payment", fake_record_payment)
+    monkeypatch.setattr(posiflora_push, "posiflora_create_order", fake_create_order)
+    monkeypatch.setattr(posiflora_push, "record_payment", fake_record_payment)
 
     order_id = await _seed_pending_order(_ORDER_PAYLOAD)
     resp = await _confirm_payment(client, order_id)
@@ -253,7 +254,7 @@ async def test_paid_order_stays_in_our_crm_in_local_mode(
     async def must_not_be_called(**kwargs):
         raise AssertionError("local mode must not push orders to the vendor")
 
-    monkeypatch.setattr(payments_router, "posiflora_create_order", must_not_be_called)
+    monkeypatch.setattr(posiflora_push, "posiflora_create_order", must_not_be_called)
 
     order_id = await _seed_pending_order(_ORDER_PAYLOAD)
     resp = await _confirm_payment(client, order_id)
@@ -278,7 +279,7 @@ async def test_vendor_failure_keeps_the_payment_and_stays_retryable(
     async def boom(**kwargs):
         raise Exception("Posiflora 500")
 
-    monkeypatch.setattr(payments_router, "posiflora_create_order", boom)
+    monkeypatch.setattr(posiflora_push, "posiflora_create_order", boom)
 
     order_id = await _seed_pending_order(_ORDER_PAYLOAD)
     resp = await _confirm_payment(client, order_id)
@@ -316,7 +317,7 @@ async def test_promo_order_still_reaches_the_vendor(
         captured["json"] = kwargs.get("json")
         return {"data": {"id": "pf-1", "attributes": {"docNo": "1"}}}
 
-    monkeypatch.setattr(payments_router, "record_payment", fake_record_payment)
+    monkeypatch.setattr(posiflora_push, "record_payment", fake_record_payment)
     monkeypatch.setattr(posiflora, "_create_bouquet_from_recipe", fake_bouquet)
     monkeypatch.setattr(posiflora, "posiflora_request", fake_request)
 

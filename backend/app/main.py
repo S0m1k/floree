@@ -41,7 +41,21 @@ async def lifespan(app: FastAPI):
     from app.services.promo import seed_default_codes
     async with AsyncSessionLocal() as db:
         await seed_default_codes(db)
+    # In posiflora mode, paid orders whose push to the vendor failed (outage,
+    # expired session) are re-delivered in the background — see posiflora_push.
+    import asyncio
+    from app.config import use_posiflora
+    from app.services.posiflora_push import run_push_retry_loop
+    stop_event = asyncio.Event()
+    retry_task = (
+        asyncio.create_task(run_push_retry_loop(stop_event))
+        if use_posiflora()
+        else None
+    )
     yield
+    if retry_task is not None:
+        stop_event.set()
+        await retry_task
 
 
 app = FastAPI(title="Floree API", lifespan=lifespan)
